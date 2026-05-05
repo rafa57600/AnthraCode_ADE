@@ -88,13 +88,15 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
     (tabId: string, paneKey: string) => {
       acknowledgeAgents([paneKey])
       const colon = paneKey.indexOf(':')
-      const parsed = colon === -1 ? NaN : Number(paneKey.slice(colon + 1))
+      const tail = colon > 0 ? paneKey.slice(colon + 1) : ''
+      const parsed = /^\d+$/.test(tail) ? Number.parseInt(tail, 10) : NaN
       let paneId: number | null = null
-      if (Number.isFinite(parsed)) {
+      if (Number.isFinite(parsed) && parsed > 0) {
         paneId = parsed
       } else {
-        // Why: paneKey for sidebar agent rows is always ${tabId}:${paneId};
-        // a non-numeric tail means upstream row construction drifted.
+        // Why: paneKey for sidebar agent rows is always ${tabId}:${paneId}
+        // with a positive integer paneId; anything else (empty, zero,
+        // non-numeric) means upstream row construction drifted.
         console.warn('[WorktreeCardAgents] malformed paneKey, skipping pane focus', paneKey)
       }
       // Why: route through activateAndRevealWorktree so cross-repo clicks also

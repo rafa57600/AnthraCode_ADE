@@ -184,7 +184,7 @@ export function ManageSessionsSection(): React.JSX.Element {
       if (worktreeId) {
         // Why: match SessionsStatusSegment — route through the shared
         // activation path before switching tab so the worktree container
-        // is mounted by the time setActiveTab runs.
+        // is mounted by the time activateTabAndFocusPane runs.
         activateAndRevealWorktree(worktreeId)
       }
       setActiveView('terminal')

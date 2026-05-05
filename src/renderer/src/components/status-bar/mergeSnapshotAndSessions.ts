@@ -221,22 +221,32 @@ function resolveDaemonSessionLabel(
   return 'unknown'
 }
 
-function resolveTabIdForSession(sessionId: string, ctx: MergeContext): string | null {
-  for (const [tabId, ptyIds] of Object.entries(ctx.ptyIdsByTabId)) {
-    if (ptyIds.includes(sessionId)) {
-      return tabId
-    }
-  }
-  return null
+// Why: the previous implementation did O(N) linear scans over
+// ptyIdsByTabId / tabsByWorktree for *every* session it processed. With a
+// large workspace that's S * (T + W) work per merge — and the merge runs on
+// every snapshot poll plus every store mutation. Pre-build O(1) lookup
+// indices once per merge instead.
+type MergeIndex = {
+  ptyIdToTabId: Map<string, string>
+  tabIdToWorktreeId: Map<string, string>
 }
 
-function resolveWorktreeIdFromTabId(tabId: string, ctx: MergeContext): string | null {
-  for (const [worktreeId, tabs] of Object.entries(ctx.tabsByWorktree)) {
-    if (tabs.some((t) => t.id === tabId)) {
-      return worktreeId
+function buildMergeIndex(ctx: MergeContext): MergeIndex {
+  const ptyIdToTabId = new Map<string, string>()
+  for (const [tabId, ptyIds] of Object.entries(ctx.ptyIdsByTabId)) {
+    for (const ptyId of ptyIds) {
+      if (ptyId) {
+        ptyIdToTabId.set(ptyId, tabId)
+      }
     }
   }
-  return null
+  const tabIdToWorktreeId = new Map<string, string>()
+  for (const [worktreeId, tabs] of Object.entries(ctx.tabsByWorktree)) {
+    for (const tab of tabs) {
+      tabIdToWorktreeId.set(tab.id, worktreeId)
+    }
+  }
+  return { ptyIdToTabId, tabIdToWorktreeId }
 }
 
 // ─── Public merge function ─────────────────────────────────────────
@@ -251,8 +261,12 @@ export function mergeSnapshotAndSessions(
 ): UnifiedRepoGroup[] {
   const repos = new Map<string, UnifiedRepoGroup>()
   const seenSessionIds = new Set<string>()
+  const index = buildMergeIndex(ctx)
+  // Why: bound = the daemon session id appears as a pty id under some tab.
+  // ptyIdToTabId already encodes that membership in O(1), so the bound set
+  // is just its keys.
   const boundPtyIds = ctx.workspaceSessionReady
-    ? new Set(Object.values(ctx.ptyIdsByTabId).flat().filter(Boolean))
+    ? new Set(index.ptyIdToTabId.keys())
     : new Set<string>()
 
   function ensureRepo(
@@ -289,7 +303,7 @@ export function mergeSnapshotAndSessions(
       const repo = ensureRepo(wt.repoId, wt.repoName)
       const sessions: UnifiedSessionRow[] = wt.sessions.map((s) => {
         seenSessionIds.add(s.sessionId)
-        const tabId = resolveTabIdForSession(s.sessionId, ctx)
+        const tabId = index.ptyIdToTabId.get(s.sessionId) ?? null
         return {
           sessionId: s.sessionId,
           paneKey: s.paneKey,
@@ -324,17 +338,12 @@ export function mergeSnapshotAndSessions(
     seenSessionIds.add(session.id)
 
     // 2a: tab-store walk — does this session belong to a tab in this renderer?
-    let tabId = resolveTabIdForSession(session.id, ctx)
-    let worktreeId = tabId ? resolveWorktreeIdFromTabId(tabId, ctx) : null
+    const tabId = index.ptyIdToTabId.get(session.id) ?? null
+    let worktreeId = tabId ? (index.tabIdToWorktreeId.get(tabId) ?? null) : null
 
     // 2b: @@-parse — recover worktreeId from the minted session id format.
     if (!worktreeId) {
       worktreeId = parseWorktreeIdFromSessionId(session.id)
-      // The tab walk failed; if we now have a worktreeId, keep tabId as null
-      // (we don't try to navigate from this row).
-      if (worktreeId && !tabId) {
-        // No tab association — leave tabId null.
-      }
     }
 
     // 2c: unattributed bucket.

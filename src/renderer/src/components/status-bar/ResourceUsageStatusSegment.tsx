@@ -709,16 +709,24 @@ export function ResourceUsageStatusSegment({
     return map
   }, [repos])
 
+  // Why: skip the merge entirely when the popover is closed. The merged
+  // tree is only ever displayed inside <PopoverContent>; computing it on
+  // every store mutation (e.g. runtimePaneTitlesByTabId, which changes on
+  // every keystroke in any open terminal pane) was making the whole app
+  // feel laggy because the segment is always mounted in the status bar.
   const unifiedRepos = useMemo(
     () =>
-      mergeSnapshotAndSessions(snapshot, sessions, {
-        tabsByWorktree,
-        ptyIdsByTabId,
-        runtimePaneTitlesByTabId,
-        workspaceSessionReady,
-        repoDisplayNameById
-      }),
+      open
+        ? mergeSnapshotAndSessions(snapshot, sessions, {
+            tabsByWorktree,
+            ptyIdsByTabId,
+            runtimePaneTitlesByTabId,
+            workspaceSessionReady,
+            repoDisplayNameById
+          })
+        : [],
     [
+      open,
       snapshot,
       sessions,
       tabsByWorktree,
@@ -729,13 +737,30 @@ export function ResourceUsageStatusSegment({
     ]
   )
 
-  const boundPtyIds = useMemo(
-    () => new Set(Object.values(ptyIdsByTabId).flat().filter(Boolean)),
-    [ptyIdsByTabId]
-  )
-  const orphanCount = workspaceSessionReady
-    ? sessions.filter((s) => !boundPtyIds.has(s.id)).length
-    : 0
+  // Why: orphanCount drives the trigger badge (always visible in the status
+  // bar, popover open or not) so it must compute outside the open-gate.
+  // Build the bound set with a single flat walk instead of nested Object
+  // iterations to keep this light on every store update.
+  const orphanCount = useMemo(() => {
+    if (!workspaceSessionReady) {
+      return 0
+    }
+    const bound = new Set<string>()
+    for (const ids of Object.values(ptyIdsByTabId)) {
+      for (const id of ids) {
+        if (id) {
+          bound.add(id)
+        }
+      }
+    }
+    let n = 0
+    for (const s of sessions) {
+      if (!bound.has(s.id)) {
+        n++
+      }
+    }
+    return n
+  }, [sessions, ptyIdsByTabId, workspaceSessionReady])
 
   const { totalMemory, totalCpu, hostShare, memBadgeLabel } = useMemo(() => {
     const memory = snapshot?.totalMemory ?? 0
@@ -827,7 +852,15 @@ export function ResourceUsageStatusSegment({
     if (!workspaceSessionReady) {
       return
     }
-    const orphans = sessions.filter((s) => !boundPtyIds.has(s.id))
+    const bound = new Set<string>()
+    for (const ids of Object.values(ptyIdsByTabId)) {
+      for (const id of ids) {
+        if (id) {
+          bound.add(id)
+        }
+      }
+    }
+    const orphans = sessions.filter((s) => !bound.has(s.id))
     if (orphans.length === 0) {
       return
     }
@@ -837,7 +870,7 @@ export function ResourceUsageStatusSegment({
     setSessions((prev) => prev.filter((s) => !orphanIds.has(s.id)))
     await Promise.allSettled(orphans.map((s) => window.api.pty.kill(s.id)))
     void refreshSessions()
-  }, [sessions, boundPtyIds, workspaceSessionReady, refreshSessions])
+  }, [sessions, ptyIdsByTabId, workspaceSessionReady, refreshSessions])
 
   const runKillConfirmed = useCallback(async () => {
     if (!killConfirm) {

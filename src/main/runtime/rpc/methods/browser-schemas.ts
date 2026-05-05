@@ -155,15 +155,7 @@ export const Exec = BrowserTarget.extend({
 
 export const ProfileCreate = z.object({
   label: requiredString('Missing required --label'),
-  scope: z
-    .unknown()
-    .transform((value) => {
-      if (value === 'imported') {
-        return 'imported'
-      }
-      return 'isolated'
-    })
-    .pipe(z.enum(['isolated', 'imported']))
+  scope: z.enum(['isolated', 'imported'])
 })
 
 export const ProfileDelete = z.object({

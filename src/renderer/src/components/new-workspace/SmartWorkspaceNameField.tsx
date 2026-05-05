@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CaseSensitive,
   CircleDot,
+  ExternalLink,
   GitBranch,
   GitPullRequest,
   Github,
@@ -59,6 +60,7 @@ export type SmartWorkspaceNameSelection = {
   kind: 'github' | 'branch' | 'linear'
   label: string
   description?: string
+  url?: string
 }
 
 const SEARCH_DEBOUNCE_MS = 200
@@ -547,14 +549,33 @@ export default function SmartWorkspaceNameField({
                 // dialog wider than its max-w.
                 <div className="flex h-9 w-full min-w-0 items-center gap-2 rounded-md border border-input bg-transparent px-2.5 text-sm shadow-xs focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50">
                   <SelectionIcon kind={selectedSource.kind} />
-                  <div className="min-w-0 flex-1 truncate">
-                    <span className="font-medium text-foreground">{selectedSource.label}</span>
+                  {/* Why: items-baseline + leading-none on both spans keeps the
+                      14px label and 12px description visually centered in the
+                      row; default leading on mixed font sizes inflates the
+                      line box and shifts the text above center. */}
+                  <div className="flex min-w-0 flex-1 items-baseline gap-1 leading-none">
+                    <span className="min-w-0 flex-1 truncate font-medium leading-none text-foreground">
+                      {selectedSource.label}
+                    </span>
                     {selectedSource.description ? (
-                      <span className="ml-1 text-xs text-muted-foreground">
+                      <span className="shrink-0 text-xs leading-none text-muted-foreground">
                         {selectedSource.description}
                       </span>
                     ) : null}
                   </div>
+                  {selectedSource.url ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => void window.api.shell.openUrl(selectedSource.url!)}
+                      className="size-6 shrink-0 rounded-sm text-muted-foreground hover:text-foreground"
+                      aria-label="Open link in browser"
+                      title="Open in browser"
+                    >
+                      <ExternalLink className="size-3.5" />
+                    </Button>
+                  ) : null}
                   <Button
                     type="button"
                     variant="ghost"

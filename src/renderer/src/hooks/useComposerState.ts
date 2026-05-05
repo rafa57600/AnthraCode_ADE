@@ -1150,7 +1150,8 @@ export function useComposerState(options: UseComposerStateOptions): UseComposerS
           ? 'Linear'
           : linkedWorkItem.type === 'pr'
             ? 'GitHub PR'
-            : 'GitHub issue'
+            : 'GitHub issue',
+        url: linkedWorkItem.url
       }
     }
     if (baseBranch) {

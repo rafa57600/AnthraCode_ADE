@@ -17,6 +17,7 @@ import type {
   GitHubAssignableUser,
   GitHubCommentResult,
   GitHubWorkItem,
+  GitUpstreamStatus,
   GhosttyImportPreview,
   ListWorkItemsResult,
   MemorySnapshot,
@@ -518,6 +519,9 @@ const api = {
       feedback: string
       githubLogin: string | null
       githubEmail: string | null
+      anonymousGithubLogin?: string | null
+      anonymousEmail?: string | null
+      anonymousX?: string | null
     }): Promise<{ ok: true } | { ok: false; status: number | null; error: string }> =>
       ipcRenderer.invoke('feedback:submit', args)
   },
@@ -1523,6 +1527,19 @@ const api = {
       baseRef: string
       connectionId?: string
     }): Promise<unknown> => ipcRenderer.invoke('git:branchCompare', args),
+    upstreamStatus: (args: {
+      worktreePath: string
+      connectionId?: string
+    }): Promise<GitUpstreamStatus> => ipcRenderer.invoke('git:upstreamStatus', args),
+    fetch: (args: { worktreePath: string; connectionId?: string }): Promise<void> =>
+      ipcRenderer.invoke('git:fetch', args),
+    push: (args: {
+      worktreePath: string
+      publish?: boolean
+      connectionId?: string
+    }): Promise<void> => ipcRenderer.invoke('git:push', args),
+    pull: (args: { worktreePath: string; connectionId?: string }): Promise<void> =>
+      ipcRenderer.invoke('git:pull', args),
     branchDiff: (args: {
       worktreePath: string
       compare: { baseRef: string; baseOid: string; headOid: string; mergeBase: string }

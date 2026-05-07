@@ -20,6 +20,7 @@ import type {
   GitConflictOperation,
   GitDiffResult,
   GitStatusResult,
+  GitUpstreamStatus,
   GitHubAssignableUser,
   GitHubPRFile,
   GitHubPRFileContents,
@@ -505,6 +506,9 @@ export type PreloadApi = {
       feedback: string
       githubLogin: string | null
       githubEmail: string | null
+      anonymousGithubLogin?: string | null
+      anonymousEmail?: string | null
+      anonymousX?: string | null
     }) => Promise<{ ok: true } | { ok: false; status: number | null; error: string }>
   }
   export: ExportApi
@@ -915,6 +919,17 @@ export type PreloadApi = {
       baseRef: string
       connectionId?: string
     }) => Promise<GitBranchCompareResult>
+    upstreamStatus: (args: {
+      worktreePath: string
+      connectionId?: string
+    }) => Promise<GitUpstreamStatus>
+    fetch: (args: { worktreePath: string; connectionId?: string }) => Promise<void>
+    push: (args: {
+      worktreePath: string
+      publish?: boolean
+      connectionId?: string
+    }) => Promise<void>
+    pull: (args: { worktreePath: string; connectionId?: string }) => Promise<void>
     branchDiff: (args: {
       worktreePath: string
       compare: {

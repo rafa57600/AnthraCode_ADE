@@ -40,6 +40,7 @@ import { getLocalPtyProvider } from './pty'
 import { removeWorktreeSymlinks } from './worktree-symlinks'
 import { track } from '../telemetry/client'
 import { workspaceSourceSchema, type WorkspaceSource } from '../../shared/telemetry-events'
+import { classifyWorkspaceCreateError } from './worktree-create-error-class'
 
 // Why: worktrees discovered on disk (not created via Orca's UI) have no
 // persisted WorktreeMeta, so mergeWorktree falls back to `lastActivityAt: 0`.
@@ -158,10 +159,34 @@ export function registerWorktreeHandlers(
         throw new Error('Folder mode does not support creating worktrees.')
       }
 
-      // Remote repos route all git operations through the relay
-      const result = repo.connectionId
-        ? await createRemoteWorktree(args, repo, store, mainWindow)
-        : await createLocalWorktree(args, repo, store, mainWindow, runtime)
+      // Why: the only Setup-step affordance that has a main-process seam to
+      // ride. The other four (skip/configure/open_existing/back) are pure-UI
+      // transitions and emit from the renderer (see AddRepoDialog.tsx).
+      // Firing here covers the load-bearing case where the create request
+      // actually landed — a renderer-side emit on the SetupStep "Create"
+      // click would also count abandoned composer sessions.
+      track('add_repo_setup_step_action', { action: 'create_worktree' })
+
+      const sourceParse = workspaceSourceSchema.safeParse(args.telemetrySource)
+      const source: WorkspaceSource = sourceParse.success ? sourceParse.data : 'unknown'
+
+      let result: CreateWorktreeResult
+      try {
+        // Why: only wrap the helpers themselves. The pre-validation throws
+        // above (`Repo not found`, `Folder mode does not support creating
+        // worktrees`) signal IPC-shape bugs, not the user-visible
+        // git/filesystem failures the funnel cares about — bucketing them
+        // into `unknown` would pollute the failure taxonomy.
+        result = repo.connectionId
+          ? await createRemoteWorktree(args, repo, store, mainWindow)
+          : await createLocalWorktree(args, repo, store, mainWindow, runtime)
+      } catch (error) {
+        track('workspace_create_failed', {
+          source,
+          error_class: classifyWorkspaceCreateError(error)
+        })
+        throw error
+      }
 
       // Why: emit `workspace_created` only after the underlying create has
       // resolved (the helpers throw on failure, so reaching this line means
@@ -171,8 +196,6 @@ export function registerWorktreeHandlers(
       // baseBranch; an unspecified baseBranch means "branch from default
       // HEAD", which is the not-from-existing-branch case. We never send
       // the branch name itself.
-      const sourceParse = workspaceSourceSchema.safeParse(args.telemetrySource)
-      const source: WorkspaceSource = sourceParse.success ? sourceParse.data : 'unknown'
       track('workspace_created', {
         source,
         from_existing_branch: typeof args.baseBranch === 'string' && args.baseBranch.length > 0

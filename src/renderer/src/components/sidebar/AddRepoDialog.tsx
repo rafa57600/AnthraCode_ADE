@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { activateAndRevealWorktree } from '@/lib/worktree-activation'
+import { track } from '@/lib/telemetry'
 import { RemoteStep, CloneStep, useRemoteRepo } from './AddRepoSteps'
 import { CreateStep, useCreateRepo } from './AddRepoCreateStep'
 import { SetupStep } from './AddRepoSetupStep'
@@ -193,6 +194,7 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
 
   const handleOpenWorktree = useCallback(
     (worktree: Worktree) => {
+      track('add_repo_setup_step_action', { action: 'open_existing' })
       activateAndRevealWorktree(worktree.id)
       closeModal()
     },
@@ -210,6 +212,7 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
   }, [closeModal, openModal, repoId])
 
   const handleConfigureRepo = useCallback(() => {
+    track('add_repo_setup_step_action', { action: 'configure' })
     closeModal()
     openSettingsTarget({ pane: 'repo', repoId })
     openSettingsPage()
@@ -217,6 +220,15 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
 
   // Why: handleBack reuses resetState which already aborts clones and resets all fields.
   const handleBack = resetState
+
+  // Why: only the Setup step's "Add another project" back arrow counts as a
+  // funnel event — the in-flight Back arrows on clone/remote/create are not
+  // a Setup-step affordance. Keeping the emit scoped to this handler avoids
+  // also tagging mid-clone backs.
+  const handleSetupStepBack = useCallback(() => {
+    track('add_repo_setup_step_action', { action: 'back' })
+    handleBack()
+  }, [handleBack])
 
   return (
     <Dialog
@@ -243,7 +255,7 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
           {step === 'setup' && (
             <button
               className="absolute left-6 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              onClick={handleBack}
+              onClick={handleSetupStepBack}
             >
               <ArrowLeft className="size-3" />
               Add another project
@@ -397,6 +409,7 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
             onCreateWorktree={handleCreateWorktree}
             onConfigureRepo={handleConfigureRepo}
             onSkip={() => {
+              track('add_repo_setup_step_action', { action: 'skip' })
               closeModal()
               resetState()
             }}

@@ -73,6 +73,33 @@ export type ErrorClass = z.infer<typeof errorClassSchema>
 export const repoMethodSchema = z.enum(['folder_picker', 'clone_url', 'drag_drop'])
 export type RepoMethod = z.infer<typeof repoMethodSchema>
 
+// Five Setup-step affordances the user can pick after `repo_added` fires (see
+// AddRepoSetupStep). One enum because every value lives on the same screen and
+// the funnel question is "which one did they pick" — adding a sixth value
+// later is additive-safe per the schema-evolution doctrine below.
+export const addRepoSetupStepActionSchema = z.enum([
+  'create_worktree',
+  'configure',
+  'skip',
+  'open_existing',
+  'back'
+])
+export type AddRepoSetupStepAction = z.infer<typeof addRepoSetupStepActionSchema>
+
+// Deliberately a separate enum from `errorClassSchema` (PTY-spawn taxonomy):
+// different domain — this one buckets git/filesystem failures thrown by
+// `createLocalWorktree` / `createRemoteWorktree`. Merging the two would lock
+// both domains to the union forever, which the schema-evolution comment
+// below warns against.
+export const workspaceCreateErrorClassSchema = z.enum([
+  'git_failed',
+  'path_collision',
+  'permission_denied',
+  'base_ref_missing',
+  'unknown'
+])
+export type WorkspaceCreateErrorClass = z.infer<typeof workspaceCreateErrorClassSchema>
+
 export const workspaceSourceSchema = z.enum([
   'command_palette',
   'sidebar',
@@ -187,6 +214,21 @@ const settingsChangedSchema = z
 const telemetryOptedInSchema = z.object({ via: optInViaSchema }).strict()
 const telemetryOptedOutSchema = z.object({ via: optInViaSchema }).strict()
 
+const addRepoSetupStepActionEventSchema = z
+  .object({ action: addRepoSetupStepActionSchema })
+  .strict()
+
+// Why: same enum-only discipline as `agent_error` — `.strict()` rejects raw
+// error strings if a future call site tries to attach `error_message` /
+// `error_stack`. The classifier in worktrees.ts reads `error.message` to
+// bucket into the enum, but those strings never cross the wire.
+const workspaceCreateFailedSchema = z
+  .object({
+    source: workspaceSourceSchema,
+    error_class: workspaceCreateErrorClassSchema
+  })
+  .strict()
+
 // ── Event registry: the one record the validator consumes ───────────────
 //
 // The validator does `eventSchemas[name].safeParse(props)`. `EventMap` is
@@ -204,7 +246,9 @@ export const eventSchemas = {
   app_opened: emptySchema,
 
   repo_added: repoAddedSchema,
+  add_repo_setup_step_action: addRepoSetupStepActionEventSchema,
   workspace_created: workspaceCreatedSchema,
+  workspace_create_failed: workspaceCreateFailedSchema,
 
   agent_started: agentStartedSchema,
   agent_error: agentErrorSchema,

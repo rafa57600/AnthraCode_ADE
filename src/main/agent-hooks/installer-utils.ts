@@ -69,12 +69,12 @@ export function createManagedCommandMatcher(
 // switched dev↔prod installs, or had a partial install fail) used to fire
 // `/bin/sh "<missing path>"` on every tool call, which exits 127 and surfaces
 // as `PreToolUse hook (failed) error: hook exited with code 127` in the agent
-// transcript. Wrapping the launcher in `[ -x ... ] && ... || true` makes a
+// transcript. Wrapping the launcher in `if [ -x ... ]; then ...; fi` makes a
 // missing/non-executable script a silent no-op so a broken install never
 // poisons the user's session. Failures inside the script itself are
 // unaffected — only the missing-script case short-circuits.
 export function wrapPosixHookCommand(scriptPath: string): string {
-  return `[ -x "${scriptPath}" ] && /bin/sh "${scriptPath}" || true`
+  return `if [ -x "${scriptPath}" ]; then /bin/sh "${scriptPath}"; fi`
 }
 
 export function removeManagedCommands(

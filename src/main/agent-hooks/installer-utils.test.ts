@@ -148,13 +148,13 @@ describe('createManagedCommandMatcher', () => {
   })
 
   it('matches the guarded launcher form so wrapped commands sweep correctly', () => {
-    // Why: wrapPosixHookCommand wraps the launcher in `[ -x ... ] && ... || true`
+    // Why: wrapPosixHookCommand wraps the launcher in `if [ -x ... ]; then ...; fi`
     // so a stale entry no-ops instead of returning exit 127. The sweep on
     // install() must still recognize the guarded form as managed, otherwise
     // repeated installs would accumulate one guarded + one unguarded entry.
     expect(
       match(
-        '[ -x "/Users/alice/Library/Application Support/Orca/agent-hooks/claude-hook.sh" ] && /bin/sh "/Users/alice/Library/Application Support/Orca/agent-hooks/claude-hook.sh" || true'
+        'if [ -x "/Users/alice/Library/Application Support/Orca/agent-hooks/claude-hook.sh" ]; then /bin/sh "/Users/alice/Library/Application Support/Orca/agent-hooks/claude-hook.sh"; fi'
       )
     ).toBe(true)
   })
@@ -163,7 +163,7 @@ describe('createManagedCommandMatcher', () => {
 describe('wrapPosixHookCommand', () => {
   it('produces a guarded command that no-ops when the script is missing', () => {
     const cmd = wrapPosixHookCommand('/does/not/exist.sh')
-    expect(cmd).toBe('[ -x "/does/not/exist.sh" ] && /bin/sh "/does/not/exist.sh" || true')
+    expect(cmd).toBe('if [ -x "/does/not/exist.sh" ]; then /bin/sh "/does/not/exist.sh"; fi')
   })
 
   it('preserves spaces in the script path (Library/Application Support case)', () => {

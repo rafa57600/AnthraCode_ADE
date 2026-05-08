@@ -336,8 +336,10 @@ export class GitHandler {
 
     // Why: best-effort write so a deliberate user value (any scope) is
     // preserved and a real read failure is not silently overwritten. Final
-    // catch is warn-only — old git (<2.37) ignores the value and the user
-    // falls back to `git push -u` once. Mirrors local addWorktree exactly.
+    // catch is warn-only — if the remote host's git is <2.37 the value is
+    // ignored at push time and the user falls back to `git push -u` once.
+    // (Note: it is the SSH host's git that matters here, not the client's.)
+    // Mirrors local addWorktree exactly.
     try {
       let alreadySet = false
       try {

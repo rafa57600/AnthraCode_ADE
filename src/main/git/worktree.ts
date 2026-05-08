@@ -117,6 +117,9 @@ export async function listWorktrees(repoPath: string): Promise<GitWorktreeInfo[]
  * @param worktreePath - Absolute path where the worktree will be created
  * @param branch - Branch name for the new worktree
  * @param baseBranch - Optional base branch to create from (defaults to HEAD)
+ * @remarks Side effect: passes `--no-track` and may write `push.autoSetupRemote=true`
+ * to the repo's shared config (best-effort, warn-only on failure; preserves any
+ * user-set value at any scope). See body comment below for the full rationale.
  */
 export async function addWorktree(
   repoPath: string,
@@ -195,6 +198,10 @@ export async function addWorktree(
   }
   await gitExecFileAsync(args, { cwd: repoPath })
 
+  // SSH parity: src/relay/git-handler.ts addWorktree mirrors this exact
+  // probe-and-write state machine. If you change the logic here, update
+  // the relay handler in lockstep so local and SSH paths stay aligned.
+  //
   // Why: with --no-track there is no upstream until first push. Setting
   // push.autoSetupRemote=true makes a plain `git push` from the terminal
   // create origin/<branch> and set it as upstream automatically — matching

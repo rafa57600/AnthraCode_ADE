@@ -356,6 +356,28 @@ describe('GitHandler', () => {
       ])
     })
 
+    it('treats --get success with empty stdout as "already set" (key present but blank)', async () => {
+      // Why: `git config --get key` exits 0 if the key has any value at any
+      // scope, including an explicitly empty string. We must not fall through
+      // to `--local set true` and overwrite that. Mirrors the local addWorktree
+      // parity case in src/main/git/worktree.test.ts.
+      const { localDispatcher, gitMock } = setupMockedHandler(['/relay/repo', '/relay/wt'])
+      gitMock.mockResolvedValueOnce({ stdout: '', stderr: '' }) // worktree add
+      gitMock.mockResolvedValueOnce({ stdout: '', stderr: '' }) // --get success, empty value
+
+      await localDispatcher.callRequest('git.addWorktree', {
+        repoPath: '/relay/repo',
+        branchName: 'feature/empty',
+        targetDir: '/relay/wt',
+        base: 'main'
+      })
+
+      expect(gitMock.mock.calls.map((c) => c[0])).toEqual([
+        ['worktree', 'add', '--no-track', '-b', 'feature/empty', '/relay/wt', 'main'],
+        ['config', '--get', 'push.autoSetupRemote']
+      ])
+    })
+
     it('does not write --local when --get fails with non-unset code (corrupt config)', async () => {
       // Why: exit 1 from `git config --get` means "key unset" — anything else
       // is a real read failure (parse error, locked file). We must NOT fall

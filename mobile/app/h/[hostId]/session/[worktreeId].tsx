@@ -910,7 +910,11 @@ export default function SessionScreen() {
       try {
         await Clipboard.setStringAsync(text)
         triggerSuccess()
-        showToast('Copied')
+        // Why: Android 13+ shows its own system "Copied to clipboard" toast on
+        // every clipboard write, so our toast would be redundant; iOS shows
+        // nothing on copy (it only banners on paste), so the in-app toast is
+        // the only success signal there.
+        if (Platform.OS === 'ios') showToast('Copied')
         terminalRefs.current.get(handle)?.cancelSelect()
       } catch (e) {
         triggerError()

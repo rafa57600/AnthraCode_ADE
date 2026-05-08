@@ -135,7 +135,7 @@ const XTERM_HTML = `<!DOCTYPE html>
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
     display: flex;
     overflow: hidden;
-    transform: translate(-50%, -100%);
+    transform: translateY(-100%);
     margin-top: -12px;
     user-select: none;
     -webkit-user-select: none;
@@ -822,26 +822,36 @@ const XTERM_HTML = `<!DOCTYPE html>
     var endVisible = ePx.y >= 0 && ePx.y <= window.innerHeight;
     handleStart.style.visibility = startVisible ? 'visible' : 'hidden';
     handleEnd.style.visibility = endVisible ? 'visible' : 'hidden';
-    var menuX, menuY;
+    var menuCenterX, menuY, vTransform, marginTop;
     if (startVisible && sPx.y > 56) {
-      menuX = sPx.x; menuY = sPx.y;
+      menuCenterX = sPx.x; menuY = sPx.y;
+      vTransform = 'translateY(-100%)';
+      marginTop = '-12px';
     } else if (endVisible && ePx.y + cellH + 56 < window.innerHeight) {
-      menuX = ePx.x; menuY = ePx.y + cellH;
-      selMenu.style.transform = 'translate(-50%, 0)';
-      selMenu.style.marginTop = '12px';
+      menuCenterX = ePx.x; menuY = ePx.y + cellH;
+      vTransform = 'translateY(0)';
+      marginTop = '12px';
     } else {
       // selection covers full viewport — pin to visible center
-      menuX = window.innerWidth / 2;
+      menuCenterX = window.innerWidth / 2;
       menuY = window.innerHeight / 2;
-      selMenu.style.transform = 'translate(-50%, -50%)';
-      selMenu.style.marginTop = '0';
+      vTransform = 'translateY(-50%)';
+      marginTop = '0';
     }
-    if (startVisible && sPx.y > 56) {
-      selMenu.style.transform = 'translate(-50%, -100%)';
-      selMenu.style.marginTop = '-12px';
-    }
-    selMenu.style.left = menuX + 'px';
+    // Why: clamp horizontally so the pill stays fully visible when the
+    // selection sits near a screen edge. We position via plain left
+    // (no horizontal translate) so the clamp math is straightforward.
+    selMenu.style.transform = vTransform;
+    selMenu.style.marginTop = marginTop;
     selMenu.style.top = menuY + 'px';
+    selMenu.style.left = '0px';
+    var EDGE_MARGIN = 8;
+    var menuW = selMenu.offsetWidth || 0;
+    var minLeft = EDGE_MARGIN;
+    var maxLeft = Math.max(EDGE_MARGIN, window.innerWidth - menuW - EDGE_MARGIN);
+    var desiredLeft = menuCenterX - menuW / 2;
+    var clampedLeft = Math.max(minLeft, Math.min(maxLeft, desiredLeft));
+    selMenu.style.left = clampedLeft + 'px';
   }
 
   function startEdgeScroll(dir) {

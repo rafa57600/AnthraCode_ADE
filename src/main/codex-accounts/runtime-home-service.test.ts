@@ -648,6 +648,41 @@ describe('CodexRuntimeHomeService', () => {
     expect(readFileSync(runtimeAuthPath, 'utf-8')).toBe(selectedAuth)
   })
 
+  it('rejects same-email runtime read-back when account ids differ from sparse managed metadata', async () => {
+    const runtimeAuthPath = join(testState.fakeHomeDir, '.codex', 'auth.json')
+    writeFileSync(runtimeAuthPath, '{"account":"system"}\n', 'utf-8')
+    const selectedAuth = createCodexAuthJson('user@example.com', 'acct-selected', 'selected')
+    const staleLivePtyAuth = createCodexAuthJson('user@example.com', 'acct-stale', 'stale')
+    const managedHomePath = createManagedAuth(testState.userDataDir, 'account-1', selectedAuth)
+    const managedAuthPath = join(managedHomePath, 'auth.json')
+    const settings = createSettings({
+      codexManagedAccounts: [
+        {
+          id: 'account-1',
+          email: 'user@example.com',
+          managedHomePath,
+          providerAccountId: null,
+          workspaceLabel: null,
+          workspaceAccountId: null,
+          createdAt: 1,
+          updatedAt: 1,
+          lastAuthenticatedAt: 1
+        }
+      ],
+      activeCodexManagedAccountId: 'account-1'
+    })
+    const store = createStore(settings)
+
+    const { CodexRuntimeHomeService } = await import('./runtime-home-service')
+    const service = new CodexRuntimeHomeService(store as never)
+
+    writeFileSync(runtimeAuthPath, staleLivePtyAuth, 'utf-8')
+    service.syncForCurrentSelection()
+
+    expect(readFileSync(managedAuthPath, 'utf-8')).toBe(selectedAuth)
+    expect(readFileSync(runtimeAuthPath, 'utf-8')).toBe(selectedAuth)
+  })
+
   it('skips read-back on first sync after restart (lastWrittenAuthJson is null)', async () => {
     const runtimeAuthPath = join(testState.fakeHomeDir, '.codex', 'auth.json')
     // Pre-populate runtime with different content to simulate a CLI refresh while Orca was down

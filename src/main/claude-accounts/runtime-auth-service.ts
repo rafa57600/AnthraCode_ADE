@@ -34,6 +34,8 @@ type ClaudeAuthIdentity = {
   email: string | null
 }
 
+type ClaudeReadBackResult = 'unchanged' | 'persisted' | 'rejected' | 'unverifiable'
+
 export class ClaudeRuntimeAuthService {
   private readonly pathResolver = new ClaudeRuntimePathResolver()
   private mutationQueue: Promise<unknown> = Promise.resolve()
@@ -132,8 +134,14 @@ export class ClaudeRuntimeAuthService {
     // last wrote, the CLI must have refreshed — so we preserve those tokens
     // back to managed storage before overwriting runtime with managed state.
     if (this.lastSyncedAccountId === activeAccount.id) {
-      await this.readBackRefreshedTokens(activeAccount)
-      credentialsJson = (await this.readManagedCredentials(activeAccount)) ?? credentialsJson
+      const readBackResult = await this.readBackRefreshedTokens(activeAccount)
+      if (readBackResult === 'persisted') {
+        credentialsJson = (await this.readManagedCredentials(activeAccount)) ?? credentialsJson
+      } else if (readBackResult === 'unverifiable') {
+        this.writeRuntimeOauthAccount(this.readManagedOauthAccount(activeAccount))
+        this.lastSyncedAccountId = activeAccount.id
+        return
+      }
     }
 
     this.writeRuntimeCredentials(credentialsJson)
@@ -152,24 +160,30 @@ export class ClaudeRuntimeAuthService {
     this.lastWrittenCredentialsJson = null
   }
 
-  private async readBackRefreshedTokens(account: ClaudeManagedAccount): Promise<void> {
+  private async readBackRefreshedTokens(
+    account: ClaudeManagedAccount
+  ): Promise<ClaudeReadBackResult> {
     try {
       if (this.lastWrittenCredentialsJson === null) {
-        return
+        return 'unchanged'
       }
 
       const paths = this.pathResolver.getRuntimePaths()
       if (!existsSync(paths.credentialsPath)) {
-        return
+        return 'unchanged'
       }
 
       const runtimeContents = readFileSync(paths.credentialsPath, 'utf-8')
       if (runtimeContents === this.lastWrittenCredentialsJson) {
-        return
+        return 'unchanged'
       }
 
-      if (!this.runtimeCredentialsMatchAccount(runtimeContents, account)) {
-        return
+      const matchResult = this.runtimeCredentialsMatchAccount(runtimeContents, account)
+      if (matchResult === 'unverifiable') {
+        return 'unverifiable'
+      }
+      if (matchResult === 'mismatch') {
+        return 'rejected'
       }
 
       if (process.platform === 'darwin') {
@@ -178,11 +192,13 @@ export class ClaudeRuntimeAuthService {
         const credentialsPath = join(account.managedAuthPath, '.credentials.json')
         writeFileAtomically(credentialsPath, runtimeContents, { mode: 0o600 })
       }
+      return 'persisted'
     } catch (error) {
       // Why: read-back is best-effort. A transient fs error must not block the
       // forward sync path — the worst case is one more stale-token cycle, which
       // is strictly better than failing the entire sync.
       console.warn('[claude-runtime-auth] Failed to read back refreshed tokens:', error)
+      return 'rejected'
     }
   }
 
@@ -210,20 +226,23 @@ export class ClaudeRuntimeAuthService {
   private runtimeCredentialsMatchAccount(
     runtimeCredentialsJson: string,
     account: ClaudeManagedAccount
-  ): boolean {
+  ): 'match' | 'mismatch' | 'unverifiable' {
     const identity = this.readIdentityFromCredentials(runtimeCredentialsJson)
     if (!identity) {
-      return false
+      return 'mismatch'
     }
 
     // Why: this mirrors the Codex runtime-home guard. If another Claude login
     // or missed live process rewrites shared runtime credentials, do not
     // persist those credentials into the selected managed account.
+    if (!identity.email) {
+      return 'unverifiable'
+    }
     if (account.email && identity.email && this.normalizeField(account.email) !== identity.email) {
-      return false
+      return 'mismatch'
     }
 
-    return Boolean(identity.email)
+    return 'match'
   }
 
   private readIdentityFromCredentials(credentialsJson: string): ClaudeAuthIdentity | null {

@@ -112,6 +112,16 @@ function createClaudeCredentialsJson(email: string, accessToken: string): string
   })}\n`
 }
 
+function createClaudeCredentialsWithoutEmail(accessToken: string): string {
+  return `${JSON.stringify({
+    claudeAiOauth: {
+      accessToken,
+      refreshToken: `${accessToken}-refresh`,
+      expiresAt: Date.now() + 60_000
+    }
+  })}\n`
+}
+
 function readManagedCredentialsForTest(accountId: string, managedAuthPath: string): string | null {
   if (process.platform === 'darwin') {
     return testState.managedKeychainCredentials.get(accountId) ?? null
@@ -247,5 +257,31 @@ describe('ClaudeRuntimeAuthService', () => {
 
     expect(readManagedCredentialsForTest('account-1', managedAuthPath)).toBe(selectedCredentials)
     expect(readFileSync(runtimeCredentialsPath, 'utf-8')).toBe(selectedCredentials)
+  })
+
+  it('preserves unverifiable refreshed runtime credentials instead of overwriting them', async () => {
+    const runtimeCredentialsPath = join(testState.fakeHomeDir, '.claude', '.credentials.json')
+    const originalCredentials = createClaudeCredentialsWithoutEmail('original')
+    const refreshedCredentials = createClaudeCredentialsWithoutEmail('refreshed')
+    const managedAuthPath = createManagedClaudeAuth(
+      testState.userDataDir,
+      'account-1',
+      originalCredentials
+    )
+    const settings = createSettings({
+      claudeManagedAccounts: [createClaudeAccount('account-1', managedAuthPath)],
+      activeClaudeManagedAccountId: 'account-1'
+    })
+    const store = createStore(settings)
+
+    const { ClaudeRuntimeAuthService } = await import('./runtime-auth-service')
+    const service = new ClaudeRuntimeAuthService(store as never)
+    await service.syncForCurrentSelection()
+
+    writeFileSync(runtimeCredentialsPath, refreshedCredentials, 'utf-8')
+    await service.syncForCurrentSelection()
+
+    expect(readManagedCredentialsForTest('account-1', managedAuthPath)).toBe(originalCredentials)
+    expect(readFileSync(runtimeCredentialsPath, 'utf-8')).toBe(refreshedCredentials)
   })
 })

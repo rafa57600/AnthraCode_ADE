@@ -176,53 +176,43 @@ export class CodexRuntimeHomeService {
     // shared runtime home after the user switches accounts. Never persist
     // that write into the newly active managed account unless the auth claims
     // still match the account Orca believes is selected.
-    let hasPositiveMatch = false
-    if (
-      activeAccount.email &&
-      identity.email &&
-      this.normalizeField(activeAccount.email) !== identity.email
-    ) {
+    const accountEmail = this.normalizeField(activeAccount.email)
+    const accountProviderId = this.normalizeField(activeAccount.providerAccountId)
+    const accountWorkspaceId = this.normalizeField(activeAccount.workspaceAccountId)
+    const emailMatches = Boolean(accountEmail && identity.email && accountEmail === identity.email)
+    let hasStrongIdentity = false
+    if (accountEmail && identity.email && accountEmail !== identity.email) {
       return false
     }
-    if (
-      activeAccount.email &&
-      identity.email &&
-      this.normalizeField(activeAccount.email) === identity.email
-    ) {
-      hasPositiveMatch = true
-    }
 
-    if (
-      activeAccount.providerAccountId &&
-      identity.providerAccountId &&
-      this.normalizeField(activeAccount.providerAccountId) !== identity.providerAccountId
-    ) {
+    if (!this.strongIdentityFieldsMatch(accountProviderId, identity.providerAccountId)) {
       return false
     }
-    if (
-      activeAccount.providerAccountId &&
-      identity.providerAccountId &&
-      this.normalizeField(activeAccount.providerAccountId) === identity.providerAccountId
-    ) {
-      hasPositiveMatch = true
+    if (accountProviderId && identity.providerAccountId) {
+      hasStrongIdentity = true
     }
 
-    if (
-      activeAccount.workspaceAccountId &&
-      identity.workspaceAccountId &&
-      this.normalizeField(activeAccount.workspaceAccountId) !== identity.workspaceAccountId
-    ) {
+    if (!this.strongIdentityFieldsMatch(accountWorkspaceId, identity.workspaceAccountId)) {
       return false
     }
-    if (
-      activeAccount.workspaceAccountId &&
-      identity.workspaceAccountId &&
-      this.normalizeField(activeAccount.workspaceAccountId) === identity.workspaceAccountId
-    ) {
-      hasPositiveMatch = true
+    if (accountWorkspaceId && identity.workspaceAccountId) {
+      hasStrongIdentity = true
     }
 
-    return hasPositiveMatch
+    return (
+      hasStrongIdentity ||
+      (emailMatches && !identity.providerAccountId && !identity.workspaceAccountId)
+    )
+  }
+
+  private strongIdentityFieldsMatch(
+    accountField: string | null,
+    runtimeField: string | null
+  ): boolean {
+    if (!accountField && !runtimeField) {
+      return true
+    }
+    return Boolean(accountField && runtimeField && accountField === runtimeField)
   }
 
   private readIdentityFromAuthContents(contents: string): CodexAuthIdentity | null {

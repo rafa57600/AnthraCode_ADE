@@ -1086,6 +1086,14 @@ const LAST_STATUS_FILE_VERSION = 2
 // guaranteed final flush.
 const STATUS_PERSIST_DEBOUNCE_MS = 250
 
+// Why: bound the on-disk file's growth across many sessions. PTY-teardown
+// eviction handles closed panes, but daemon-restored PTYs that never re-attach
+// and crash-recovery paths where teardown never fires can leave entries
+// pinned forever. 7 days matches the user-visible "still relevant?" horizon —
+// older entries have almost certainly been resolved or abandoned and should
+// not resurrect on hydrate.
+const HYDRATE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
+
 type LastStatusFile = {
   version: number
   entries: Record<string, AgentHookEventPayload>
@@ -1121,6 +1129,12 @@ function sanitizeHydratedEntry(paneKey: string, rawEntry: unknown): AgentHookEve
   }
   const tabId = record.tabId
   if (tabId !== undefined && (typeof tabId !== 'string' || tabId.length === 0)) {
+    return null
+  }
+  // Why: paneKey is `${tabId}:${paneId}`; a stored entry whose tabId field
+  // diverges from the key's tab segment is corruption (renamer bug, manual
+  // edit, future shape drift). Drop instead of hydrating an inconsistent row.
+  if (typeof tabId === 'string' && tabId !== paneKey.slice(0, paneKey.indexOf(':'))) {
     return null
   }
   const worktreeId = record.worktreeId
@@ -1649,9 +1663,14 @@ export class AgentHookServer {
     }
     let hydrated = 0
     let dropped = 0
+    // Why: bound disk growth — drop anything older than HYDRATE_MAX_AGE_MS so
+    // entries from worktrees archived weeks ago do not pile up forever. Use
+    // Date.now() once to keep the cutoff consistent across all entries this
+    // tick.
+    const ttlCutoff = Date.now() - HYDRATE_MAX_AGE_MS
     for (const [paneKey, rawEntry] of Object.entries(entries)) {
       const entry = sanitizeHydratedEntry(paneKey, rawEntry)
-      if (entry) {
+      if (entry && entry.receivedAt >= ttlCutoff) {
         lastStatusByPaneKey.set(paneKey, entry)
         hydrated += 1
       } else {

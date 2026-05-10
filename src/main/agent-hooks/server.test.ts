@@ -1078,6 +1078,13 @@ describe('Last-status persistence', () => {
     return join(userDataPath, 'agent-hooks', 'last-status.json')
   }
 
+  // Why: hydrate now drops entries older than 7d (HYDRATE_MAX_AGE_MS). Use
+  // a recent-but-not-Date.now() timestamp in fixtures so the tests assert
+  // hydration behavior rather than racing the wall clock.
+  function recentTs(offsetMs = 0): number {
+    return Date.now() - 60 * 60 * 1000 + offsetMs
+  }
+
   async function postHookEvent(
     server: AgentHookServer,
     body: Body,
@@ -1179,6 +1186,8 @@ describe('Last-status persistence', () => {
   it('hydrates last-status.json into the cache before listener registration', async () => {
     // Pre-populate the file directly to simulate a prior session.
     mkdirSync(join(userDataPath, 'agent-hooks'), { recursive: true })
+    const receivedAt = recentTs()
+    const stateStartedAt = recentTs(-1000)
     const fileContents = {
       version: 2,
       entries: {
@@ -1186,8 +1195,8 @@ describe('Last-status persistence', () => {
           paneKey: PANE,
           tabId: 'tab-1',
           worktreeId: 'wt-1',
-          receivedAt: 1_700_000_000_000,
-          stateStartedAt: 1_699_999_999_000,
+          receivedAt,
+          stateStartedAt,
           payload: {
             state: 'done',
             prompt: 'survived restart',
@@ -1213,8 +1222,8 @@ describe('Last-status persistence', () => {
           paneKey: PANE,
           tabId: 'tab-1',
           worktreeId: 'wt-1',
-          receivedAt: 1_700_000_000_000,
-          stateStartedAt: 1_699_999_999_000,
+          receivedAt,
+          stateStartedAt,
           payload: expect.objectContaining({
             state: 'done',
             prompt: 'survived restart',
@@ -1227,8 +1236,8 @@ describe('Last-status persistence', () => {
           paneKey: PANE,
           tabId: 'tab-1',
           worktreeId: 'wt-1',
-          receivedAt: 1_700_000_000_000,
-          stateStartedAt: 1_699_999_999_000,
+          receivedAt,
+          stateStartedAt,
           state: 'done',
           prompt: 'survived restart',
           agentType: 'claude'
@@ -1352,8 +1361,8 @@ describe('Last-status persistence', () => {
           'tab-good:0': {
             paneKey: 'tab-good:0',
             tabId: 'tab-good',
-            receivedAt: 1_700_000_000_000,
-            stateStartedAt: 1_699_999_999_000,
+            receivedAt: recentTs(),
+            stateStartedAt: recentTs(-1000),
             payload: { state: 'done', prompt: 'survived', agentType: 'claude' }
           }
         }
@@ -1376,6 +1385,82 @@ describe('Last-status persistence', () => {
           payload: expect.objectContaining({ prompt: 'survived' })
         })
       )
+    } finally {
+      server.stop()
+    }
+  })
+
+  it('drops hydrate entries older than the TTL cutoff', async () => {
+    mkdirSync(join(userDataPath, 'agent-hooks'), { recursive: true })
+    const eightDaysAgoMs = Date.now() - 8 * 24 * 60 * 60 * 1000
+    writeFileSync(
+      lastStatusPath(),
+      JSON.stringify({
+        version: 2,
+        entries: {
+          // Stale — should be dropped.
+          'tab-old:0': {
+            paneKey: 'tab-old:0',
+            tabId: 'tab-old',
+            receivedAt: eightDaysAgoMs,
+            stateStartedAt: eightDaysAgoMs - 1000,
+            payload: { state: 'done', prompt: 'old', agentType: 'claude' }
+          },
+          // Recent — should survive.
+          'tab-fresh:0': {
+            paneKey: 'tab-fresh:0',
+            tabId: 'tab-fresh',
+            receivedAt: recentTs(),
+            stateStartedAt: recentTs(-1000),
+            payload: { state: 'done', prompt: 'fresh', agentType: 'claude' }
+          }
+        }
+      }),
+      'utf8'
+    )
+    const server = new AgentHookServer()
+    await server.start({
+      env: 'production',
+      userDataPath,
+      getDashboardEnabled: () => true
+    })
+    try {
+      const snapshot = server.getStatusSnapshot()
+      expect(snapshot.map((e) => e.paneKey)).toEqual(['tab-fresh:0'])
+    } finally {
+      server.stop()
+    }
+  })
+
+  it('drops a hydrate entry whose tabId disagrees with the paneKey prefix', async () => {
+    mkdirSync(join(userDataPath, 'agent-hooks'), { recursive: true })
+    writeFileSync(
+      lastStatusPath(),
+      JSON.stringify({
+        version: 2,
+        entries: {
+          'tab-A:0': {
+            paneKey: 'tab-A:0',
+            // Why: deliberately divergent — paneKey says tab-A, the entry
+            // claims tab-B. Sanitizer must drop rather than hydrate this
+            // inconsistent row.
+            tabId: 'tab-B',
+            receivedAt: recentTs(),
+            stateStartedAt: recentTs(-1000),
+            payload: { state: 'done', prompt: 'mismatch', agentType: 'claude' }
+          }
+        }
+      }),
+      'utf8'
+    )
+    const server = new AgentHookServer()
+    await server.start({
+      env: 'production',
+      userDataPath,
+      getDashboardEnabled: () => true
+    })
+    try {
+      expect(server.getStatusSnapshot()).toEqual([])
     } finally {
       server.stop()
     }

@@ -23,7 +23,7 @@ Out of scope:
 - Daemon-side persistence. The daemon owns PTY lifetime and scrollback, not hook events. The hook server (in the Electron main process) is the right home.
 - Cross-device sync. The on-disk file lives in `userData`; running Orca on a second machine does not carry retained activity.
 - Changing the experimental gate itself. The gate stays; this proposal makes the feature behave correctly when it is on.
-- A staleness TTL or visible "completed N days ago" indicator. The `done`-only retention case where staleness was sharpest in the prior renderer-side draft is unchanged here (`done` rows still auto-evict on dismiss; users who quit mid-task and return next morning see what they saw last). If long-tail staleness becomes a real complaint, a TTL on hydration is a small follow-up — see Follow-ups.
+- A visible "completed N days ago" indicator. The `done`-only retention case where staleness was sharpest in the prior renderer-side draft is unchanged here (`done` rows still auto-evict on dismiss; users who quit mid-task and return next morning see what they saw last).
 
 ## Background
 
@@ -257,11 +257,14 @@ Telemetry:
 
 - No new events. Hook server already runs unconditionally; we do not add observability for the persistence path beyond a single `console.warn` on file corruption (which would be silent today since corruption can't happen if the file does not exist).
 
+In scope, kept simple:
+
+- TTL-on-hydrate. `hydrateLastStatusFromDisk` drops entries with `receivedAt` older than `HYDRATE_MAX_AGE_MS` (7 days). Bounds disk growth across many sessions for the cases PTY-teardown eviction does not cover (daemon-restored PTYs that never re-attach, crash-recovery paths where teardown handlers never fired, worktrees archived a month ago). 7 days matches the "is this still relevant?" horizon — older entries have almost certainly been resolved or abandoned.
+
 Follow-ups (explicitly out of this design):
 
 - Visible "completed N hours/days ago" indicator on hydrated rows. Today's UI shows the relative `updatedAt` which works inside a session and reads as "ages ago" cross-session. If users complain that a 3-day-old `done` row looks identical to a fresh one, the smallest fix is a tiny "completed at quit time" affordance, but that is a UX iteration on a renderer component and is not blocked by this design.
-- TTL-on-hydrate (drop entries older than N days). Same rationale — easy to add inside `hydrateLastStatusFromDisk` if needed.
-- Explicit cap on file size or per-pane count. The existing in-memory cache has no cap and we have not seen runaway growth in production; persisting the same shape inherits the same risk profile.
+- Explicit cap on file size or per-pane count. The existing in-memory cache has no cap and we have not seen runaway growth in production; persisting the same shape (with TTL above) inherits the same risk profile.
 
 ## Non-Goals
 

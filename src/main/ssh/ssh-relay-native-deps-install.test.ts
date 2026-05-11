@@ -1,15 +1,13 @@
-// Why: regression coverage for the npm-init bypass + node-pty load-test
-// probe in `installNativeDeps`. The original "node-pty is not available"
-// bug shipped because every layer that could have caught it (chained
-// shell, redirected stderr, swallowing catch, weak presence probe) was
-// silent. These tests pin the contract that:
-//   1. package.json is written via SFTP BEFORE `npm install` runs (order)
-//   2. `npm install` failures propagate so `.install-complete` is NOT
-//      written by the deploy caller
-//   3. the post-install probe uses `node -e require()` (load-test, not
-//      mere directory presence) and warns clearly on MISSING
-//   4. SSH-channel failures of the probe itself are NOT swallowed
-//      (no `.catch(() => 'MISSING')` confusion)
+/* eslint-disable max-lines -- Why: pinning every layer that should have
+   caught the original "node-pty not available" bug (chained shell, package
+   ordering, probe shape, channel-failure surfacing, .bashrc-noise immunity,
+   platform-tagged logs) requires keeping these scenarios in one file so the
+   shared mock connection and exec-response fixture stay aligned. */
+// Why: regression coverage for the install-probe contract. The original
+// "node-pty is not available" bug shipped because every layer that should
+// have caught it (chained shell, swallowing catch, dir-only probe) was
+// silent. Tests below pin the parts that, individually, would have caught
+// it.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -119,43 +117,57 @@ function makeMockConnection(capture: SftpWriteCapture): SshConnection {
 
 type ExecResponse = string | { reject: string }
 
-// Actual exec call order under our mocks:
+// Exec call order under our mocks (deploy happy path):
 //   1: uname              2: $HOME            3: mkdir remoteDir (uploadRelay)
 //   4: chmod +x node      5: npm install      6: chmod prebuilds
-//   7: test -d (dir-exists guard)             8: node -e require() (load-test)
-//   9: socket DEAD       10: socket READY
+//   7: probe (cd && node -e require)
+//   [8: cat stderr — only when probe stdout is MISSING (graceful path)]
+//   8 or 9: rm probe-stderr (best-effort cleanup; runs whenever probe resolved)
+//   next: socket DEAD     next: socket READY
+//
+// When the probe rejects (SSH channel close or cd-failure when the install
+// dir vanished), the catch path skips both stderr-capture and the rm.
 function makeExecResponses(opts: {
   npmInstall: 'ok' | { reject: string }
-  // 'ok'      : probe load-test resolves with the sentinel
-  // 'missing' : probe load-test rejects (require throws), graceful warn path
-  // 'dir-gone': dir-exists guard rejects, deploy throws before load-test runs
-  // { reject }: probe load-test rejects with a custom error (e.g. SSH channel)
+  // 'ok'      : probe resolves with the sentinel; rm runs once
+  // 'missing' : probe resolves with 'MISSING'; cat stderr + rm both run
+  // 'dir-gone': probe rejects (cd-failure), exec rejects directly
+  // { reject }: probe rejects with custom error (e.g. SSH channel)
   probe: 'ok' | 'missing' | 'dir-gone' | { reject: string }
+  // Override probe stdout for shell-noise pressure tests. If set, replaces
+  // the load-test stdout entirely (useful for testing pollution prefixes).
+  probeStdoutOverride?: string
 }): ExecResponse[] {
-  const dirGuard: ExecResponse =
-    opts.probe === 'dir-gone' ? { reject: 'test -d failed: install dir gone' } : ''
-  const loadTest: ExecResponse =
-    opts.probe === 'ok'
-      ? 'ORCA-NPTY-PROBE-OK\n'
-      : opts.probe === 'missing'
-        ? // The shell-level `|| echo MISSING` resolves the exec with stdout
-          // 'MISSING\n' on require failure. Tests must mirror that shape.
-          'MISSING\n'
-        : opts.probe === 'dir-gone'
-          ? '' // unreached, dirGuard rejects first
-          : opts.probe
-  return [
+  const probeSlot: ExecResponse =
+    opts.probeStdoutOverride !== undefined
+      ? opts.probeStdoutOverride
+      : opts.probe === 'ok'
+        ? 'ORCA-NPTY-PROBE-OK\n'
+        : opts.probe === 'missing'
+          ? 'MISSING\n' // shell-level `|| echo MISSING` after require throw
+          : opts.probe === 'dir-gone'
+            ? { reject: 'cd: no such file or directory' }
+            : opts.probe
+  const slots: ExecResponse[] = [
     'Linux x86_64',
     '/home/u',
     '', // mkdir remoteDir (uploadRelay)
     '', // chmod +x node
     opts.npmInstall === 'ok' ? '' : opts.npmInstall,
     '', // chmod prebuilds
-    dirGuard,
-    loadTest,
-    'DEAD',
-    'READY'
+    probeSlot
   ]
+  // Cleanup execs only run when the probe resolved (not when it rejected).
+  const probeResolved = typeof probeSlot === 'string'
+  if (probeResolved) {
+    const probeOk = probeSlot.includes('ORCA-NPTY-PROBE-OK')
+    if (!probeOk) {
+      slots.push('') // cat stderr (graceful failure path captures detail)
+    }
+    slots.push('') // rm -f stderr (best-effort cleanup)
+  }
+  slots.push('DEAD', 'READY')
+  return slots
 }
 
 describe('installNativeDeps (via deployAndLaunchRelay)', () => {
@@ -258,14 +270,16 @@ describe('installNativeDeps (via deployAndLaunchRelay)', () => {
 
     await deployAndLaunchRelay(conn)
 
-    // Probe failure is non-fatal (graceful degradation), but it MUST log the
-    // greppable token so a user filing a bug pastes something that points
-    // at the real cause.
+    // Probe failure is non-fatal by design (see docs/ssh-relay-versioned-
+    // install-dirs.md): relay still serves fs/git/preflight, only pty.spawn
+    // fails at runtime. Throwing here would loop reconnects forever on
+    // hosts where node-pty truly cannot build (Alpine without compiler,
+    // glibc too old).
     const warnMessages = warnSpy.mock.calls.map((args) => String(args[0] ?? ''))
     expect(warnMessages.some((m) => m.includes('[ssh-relay][NPTY-MISSING]'))).toBe(true)
 
-    // finalizeInstall still runs — relay can serve fs/git/preflight.
-    expect(vi.mocked(finalizeInstall)).toHaveBeenCalled()
+    expect(vi.mocked(finalizeInstall)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(abandonInstall)).not.toHaveBeenCalled()
   })
 
   it('lets a probe SSH-channel failure bubble up rather than silently mapping to MISSING', async () => {
@@ -306,10 +320,21 @@ describe('installNativeDeps (via deployAndLaunchRelay)', () => {
     const conn = makeMockConnection(sftpCapture)
     feed(makeExecResponses({ npmInstall: 'ok', probe: 'dir-gone' }))
 
-    // The dir-exists guard must propagate so the next reconnect retries
-    // fresh. Conflating "dir vanished" with "node-pty missing" would mark
-    // the version installed and strand the user in degraded mode.
-    await expect(deployAndLaunchRelay(conn)).rejects.toThrow(/test -d failed/)
+    // The probe shape `cd ${dir} && (node -e ... || echo MISSING)` short-
+    // circuits on cd-failure (`&&`), so the whole exec rejects rather than
+    // resolving with the MISSING sentinel. Conflating "dir vanished" with
+    // "node-pty missing" would mark the version installed and strand the
+    // user in degraded mode forever.
+    await expect(deployAndLaunchRelay(conn)).rejects.toThrow(/cd:/)
+
+    // Pin that the rejection came from the probe slot specifically, not
+    // some earlier exec — otherwise a future refactor could move probe
+    // before npm install and this test would still pass for the wrong
+    // reason.
+    const execCalls = vi.mocked(execCommand).mock.calls.map(([, c]) => c)
+    const probeIdx = execCalls.findIndex((c) => c.includes('require("node-pty")'))
+    const npmInstallIdx = execCalls.findIndex((c) => c.includes('npm install node-pty'))
+    expect(probeIdx).toBeGreaterThan(npmInstallIdx)
 
     const warnMessages = warnSpy.mock.calls.map((args) => String(args[0] ?? ''))
     expect(warnMessages.some((m) => m.includes('[ssh-relay][NPTY-MISSING]'))).toBe(false)
@@ -334,6 +359,78 @@ describe('installNativeDeps (via deployAndLaunchRelay)', () => {
     // the native binding load is broken.
     expect(probeCmds.length).toBeGreaterThan(0)
     expect(probeCmds[0]).toMatch(/node['"]?\s+-e/)
+
+    // Pin the full installNativeDeps exec sequence: npm install → chmod
+    // prebuilds → probe. A refactor that moves chmod-prebuilds after the
+    // probe would silently break spawn-helper bits; one that probes before
+    // npm install would test an empty dir.
+    const all = vi.mocked(execCommand).mock.calls.map(([, c]) => c)
+    const npmIdx = all.findIndex((c) => c.includes('npm install node-pty'))
+    const chmodPrebuildsIdx = all.findIndex(
+      (c) => c.includes('spawn-helper') && c.includes('chmod +x')
+    )
+    const probeIdx = all.findIndex((c) => c.includes('require("node-pty")'))
+    expect(npmIdx).toBeGreaterThanOrEqual(0)
+    expect(chmodPrebuildsIdx).toBeGreaterThan(npmIdx)
+    expect(probeIdx).toBeGreaterThan(chmodPrebuildsIdx)
+
+    // Happy path: finalize exactly once, abandon never.
+    expect(vi.mocked(finalizeInstall)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(abandonInstall)).not.toHaveBeenCalled()
+  })
+
+  it('matches the sentinel even with bashrc/MOTD noise prefixed to probe stdout', async () => {
+    const conn = makeMockConnection(sftpCapture)
+    // Some remotes have customized .bashrc that prints to stdout on every
+    // non-interactive shell exec (corporate MOTD, NVM/conda init banners).
+    // Production uses .includes(PROBE_OK) with stderr redirected to a file,
+    // so noise on stdout BEFORE the sentinel must still resolve to OK.
+    feed(
+      makeExecResponses({
+        npmInstall: 'ok',
+        probe: 'ok',
+        probeStdoutOverride: 'Welcome to Acme Corp\nLast login: ...\nORCA-NPTY-PROBE-OK\n'
+      })
+    )
+
+    await deployAndLaunchRelay(conn)
+
+    const warnMessages = warnSpy.mock.calls.map((args) => String(args[0] ?? ''))
+    expect(warnMessages.some((m) => m.includes('[ssh-relay][NPTY-MISSING]'))).toBe(false)
+    expect(vi.mocked(finalizeInstall)).toHaveBeenCalledTimes(1)
+  })
+
+  it('detects MISSING even when the shell prepends noise before the MISSING token', async () => {
+    const conn = makeMockConnection(sftpCapture)
+    feed(
+      makeExecResponses({
+        npmInstall: 'ok',
+        probe: 'missing',
+        probeStdoutOverride: '(node:1234) [DEP0040] DeprecationWarning: ...\nMISSING\n'
+      })
+    )
+
+    await deployAndLaunchRelay(conn)
+
+    // Absence of PROBE_OK is what triggers the warn, regardless of what
+    // appears around it. finalize still runs (degraded-mode by design).
+    const warnMessages = warnSpy.mock.calls.map((args) => String(args[0] ?? ''))
+    expect(warnMessages.some((m) => m.includes('[ssh-relay][NPTY-MISSING]'))).toBe(true)
+    expect(vi.mocked(finalizeInstall)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(abandonInstall)).not.toHaveBeenCalled()
+  })
+
+  it('includes the platform tuple in NPTY-MISSING and NPTY-INSTALL-FAIL logs', async () => {
+    // Platform tuple lets bug reports be triaged for prebuild availability
+    // without asking the user to dig out their arch.
+    const conn = makeMockConnection(sftpCapture)
+    feed(makeExecResponses({ npmInstall: 'ok', probe: 'missing' }))
+    await deployAndLaunchRelay(conn)
+    const missingMsgs = warnSpy.mock.calls
+      .map((args) => String(args[0] ?? ''))
+      .filter((m) => m.includes('[ssh-relay][NPTY-MISSING]'))
+    expect(missingMsgs.length).toBeGreaterThan(0)
+    expect(missingMsgs[0]).toContain('linux-x64')
   })
 
   it('writes an idempotent package.json (same bytes on every install)', async () => {

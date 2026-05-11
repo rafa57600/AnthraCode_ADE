@@ -1,4 +1,8 @@
 import { join } from 'path'
+/* eslint-disable max-lines -- Why: the relay-deploy module owns one cohesive
+   contract — version detection, install-locked deploy, native-deps probe,
+   relay launch, and GC — and splitting risks drift between the install
+   sequence and the GC's live-socket invariant. */
 import { existsSync } from 'fs'
 import { app } from 'electron'
 import { createHash } from 'crypto'
@@ -129,7 +133,7 @@ async function deployAndLaunchRelayInner(
 
         onProgress?.('Installing native dependencies...')
         console.log('[ssh-relay] Installing node-pty...')
-        await installNativeDeps(conn, remoteRelayDir)
+        await installNativeDeps(conn, remoteRelayDir, platform)
         console.log('[ssh-relay] Native deps installed')
 
         // Why: write `.install-complete` BEFORE releasing the lock so a
@@ -224,7 +228,11 @@ async function uploadRelay(
 // from CI and skips `npm install` on the remote entirely. That approach
 // eliminates the whole class of bugs around npm/compiler/network failures
 // on the remote. Worth doing once we're past the immediate fix.
-async function installNativeDeps(conn: SshConnection, remoteDir: string): Promise<void> {
+async function installNativeDeps(
+  conn: SshConnection,
+  remoteDir: string,
+  platform: RelayPlatform
+): Promise<void> {
   const nodePath = await resolveRemoteNodePath(conn)
   // Why: node's bin directory must be in PATH for npm's child processes.
   // npm install runs node-pty's prebuild script (`node scripts/prebuild.js`)
@@ -271,7 +279,7 @@ async function installNativeDeps(conn: SshConnection, remoteDir: string): Promis
     // searchable.
     const msg = (err as Error).message
     console.warn(
-      `[ssh-relay][NPTY-INSTALL-FAIL] npm install node-pty failed at ${remoteDir}: ${msg}`
+      `[ssh-relay][NPTY-INSTALL-FAIL] npm install node-pty failed at ${remoteDir} (${platform}): ${msg}`
     )
     throw err
   }
@@ -283,31 +291,28 @@ async function installNativeDeps(conn: SshConnection, remoteDir: string): Promis
     `find ${shellEscape(`${remoteDir}/node_modules/node-pty/prebuilds`)} -name spawn-helper -exec chmod +x {} + 2>/dev/null; true`
   )
 
-  // Probe via `node -e require()` so unloadable installs (wrong arch, missing
-  // prebuild, broken native binding) are caught — `test -d` would miss those.
-  // Two execs separate concerns:
-  //   (1) `test -d` confirms the install dir is still present. A reject here
-  //       (dir vanished, fs unmounted, permission flip) propagates as a deploy
-  //       error so the next reconnect retries fresh rather than stranding the
-  //       user with a written `.install-complete`.
-  //   (2) `node -e require()` with stderr discarded so the user's .bashrc
-  //       stderr noise can't pollute our sentinel match. The shell-level
-  //       `|| echo MISSING` keeps SSH-channel failures distinguishable from
-  //       require failures: a closed channel rejects the exec call directly,
-  //       a require throw exits the node process nonzero and the shell falls
-  //       through to `echo MISSING`. PROBE_OK is passed via argv to keep the
-  //       JS literal trivial regardless of future sentinel characters.
-  await execCommand(conn, `test -d ${escapedDir}`)
+  // node -e require() catches unloadable installs (wrong arch, missing
+  // prebuild, broken native binding) that test -d cannot. Stderr → file
+  // so .bashrc noise can't pollute the sentinel match; preserved for the
+  // [NPTY-MISSING] breadcrumb. MISSING is non-fatal by design — see
+  // docs/ssh-relay-versioned-install-dirs.md (relay still serves
+  // fs/git/preflight; only pty.spawn fails at runtime).
   const PROBE_OK = 'ORCA-NPTY-PROBE-OK'
+  const stderrFile = `${remoteDir}/.npty-probe.stderr`
+  const escapedStderr = shellEscape(stderrFile)
   const probeOutput = await execCommand(
     conn,
-    `cd ${escapedDir} && (${escapedNode} -e 'require("node-pty"); console.log(process.argv[1])' ${shellEscape(PROBE_OK)} 2>/dev/null || echo MISSING)`
+    `export PATH=${escapedBinDir}:$PATH && cd ${escapedDir} && (${escapedNode} -e 'require("node-pty"); console.log(process.argv[1])' ${shellEscape(PROBE_OK)} 2>${escapedStderr} || echo MISSING)`
   )
-  if (!probeOutput.trim().endsWith(PROBE_OK)) {
+  if (!probeOutput.includes(PROBE_OK)) {
+    const remoteStderr = await execCommand(conn, `cat ${escapedStderr} 2>/dev/null; true`).catch(
+      () => ''
+    )
     console.warn(
-      `[ssh-relay][NPTY-MISSING] node-pty installed but require() failed at ${remoteDir}: ${probeOutput.trim().slice(-500)}`
+      `[ssh-relay][NPTY-MISSING] node-pty installed but require() failed at ${remoteDir} (${platform}). stdout=${probeOutput.trim().slice(-200)} stderr=${remoteStderr.trim().slice(-500)}`
     )
   }
+  await execCommand(conn, `rm -f ${escapedStderr} 2>/dev/null; true`).catch(() => {})
 }
 
 function getLocalRelayPath(platform: RelayPlatform): string | null {

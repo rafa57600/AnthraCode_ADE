@@ -10,7 +10,7 @@ import type {
   BaseRefDefaultResult,
   BrowserViewportOverride,
   CreateWorktreeArgs,
-  CustomSidekick,
+  CustomPet,
   FsChangedPayload,
   GetRateLimitResult,
   GitHubAssignableUser,
@@ -21,10 +21,14 @@ import type {
   ListWorkItemsResult,
   MemorySnapshot,
   NotificationDispatchResult,
+  NotificationPermissionStatusResult,
   NotificationSoundDataResult,
   NotificationSoundPathResult,
   NotificationSoundResult,
-  SearchResult
+  OnboardingState,
+  SearchResult,
+  WorktreeBaseStatusEvent,
+  WorktreeRemoteBranchConflictEvent
 } from '../shared/types'
 import type { RuntimeStatus, RuntimeSyncWindowGraph } from '../shared/runtime-types'
 import type { RateLimitState } from '../shared/rate-limit-types'
@@ -56,14 +60,19 @@ import type {
   UpdatePullRequestBySlugArgs,
   UpdateProjectItemFieldArgs
 } from '../shared/github-project-types'
+import {
+  richMarkdownContextMenuCommandChannel,
+  type RichMarkdownContextMenuCommandPayload
+} from '../shared/rich-markdown-context-menu'
 import type {
   SshConnectionState,
   SshTarget,
   PortForwardEntry,
   DetectedPort
 } from '../shared/ssh-types'
-import type { AgentStatusState } from '../shared/agent-status-types'
+import type { AgentStatusIpcPayload } from '../shared/agent-status-types'
 import type { TelemetryConsentState } from '../shared/telemetry-consent-types'
+import type { RefreshAgentsResult } from './api-types'
 import type { AgentKind, LaunchSource, RequestKind } from '../shared/telemetry-events'
 import {
   ORCA_EDITOR_SAVE_DIRTY_FILES_EVENT,
@@ -244,7 +253,9 @@ const api = {
     // src/renderer/src/lib/keyboard-layout/input-source-id.ts, issue #1205).
     // Returns null on non-Darwin or when the defaults read fails.
     getKeyboardInputSourceId: (): Promise<string | null> =>
-      ipcRenderer.invoke('app:getKeyboardInputSourceId')
+      ipcRenderer.invoke('app:getKeyboardInputSourceId'),
+    setUnreadDockBadgeCount: (count: number): Promise<void> =>
+      ipcRenderer.invoke('app:setUnreadDockBadgeCount', count)
   },
 
   wsl: {
@@ -275,6 +286,9 @@ const api = {
     }): Promise<unknown> => ipcRenderer.invoke('repos:create', args),
 
     remove: (args: { repoId: string }): Promise<void> => ipcRenderer.invoke('repos:remove', args),
+
+    reorder: (args: { orderedIds: string[] }): Promise<{ status: 'applied' | 'rejected' }> =>
+      ipcRenderer.invoke('repos:reorder', args),
 
     update: (args: { repoId: string; updates: Record<string, unknown> }): Promise<unknown> =>
       ipcRenderer.invoke('repos:update', args),
@@ -370,6 +384,24 @@ const api = {
         callback(data)
       ipcRenderer.on('worktrees:changed', listener)
       return () => ipcRenderer.removeListener('worktrees:changed', listener)
+    },
+
+    onBaseStatus: (callback: (data: WorktreeBaseStatusEvent) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, data: WorktreeBaseStatusEvent) =>
+        callback(data)
+      ipcRenderer.on('worktree:baseStatus', listener)
+      return () => ipcRenderer.removeListener('worktree:baseStatus', listener)
+    },
+
+    onRemoteBranchConflict: (
+      callback: (data: WorktreeRemoteBranchConflictEvent) => void
+    ): (() => void) => {
+      const listener = (
+        _event: Electron.IpcRendererEvent,
+        data: WorktreeRemoteBranchConflictEvent
+      ) => callback(data)
+      ipcRenderer.on('worktree:remoteBranchConflict', listener)
+      return () => ipcRenderer.removeListener('worktree:remoteBranchConflict', listener)
     }
   },
 
@@ -649,6 +681,7 @@ const api = {
       repoPath: string
       number: number
       body: string
+      type?: 'issue' | 'pr'
     }): Promise<GitHubCommentResult> => ipcRenderer.invoke('gh:addIssueComment', args),
 
     addPRReviewCommentReply: (args: {
@@ -676,6 +709,21 @@ const api = {
 
     listAssignableUsers: (args: { repoPath: string }): Promise<GitHubAssignableUser[]> =>
       ipcRenderer.invoke('gh:listAssignableUsers', args),
+
+    // Why: every renderer subscribes to local mutation broadcasts so each
+    // window's work-item-details cache invalidates the affected entry. The
+    // event fires after a successful mutation in any window — see
+    // src/main/ipc/github.ts broadcastWorkItemMutated.
+    onWorkItemMutated: (
+      callback: (payload: { repoPath: string; type: 'issue' | 'pr'; number: number }) => void
+    ): (() => void) => {
+      const listener = (
+        _event: Electron.IpcRendererEvent,
+        payload: { repoPath: string; type: 'issue' | 'pr'; number: number }
+      ): void => callback(payload)
+      ipcRenderer.on('gh:workItemMutated', listener)
+      return () => ipcRenderer.removeListener('gh:workItemMutated', listener)
+    },
 
     checkOrcaStarred: (): Promise<boolean | null> => ipcRenderer.invoke('gh:checkOrcaStarred'),
     starOrca: (): Promise<boolean> => ipcRenderer.invoke('gh:starOrca'),
@@ -897,11 +945,8 @@ const api = {
       linear: { connected: boolean }
     }> => ipcRenderer.invoke('preflight:check', args),
     detectAgents: (): Promise<string[]> => ipcRenderer.invoke('preflight:detectAgents'),
-    refreshAgents: (): Promise<{
-      agents: string[]
-      addedPathSegments: string[]
-      shellHydrationOk: boolean
-    }> => ipcRenderer.invoke('preflight:refreshAgents'),
+    refreshAgents: (): Promise<RefreshAgentsResult> =>
+      ipcRenderer.invoke('preflight:refreshAgents'),
     detectRemoteAgents: (args: { connectionId: string }): Promise<string[]> =>
       ipcRenderer.invoke('preflight:detectRemoteAgents', args)
   },
@@ -910,6 +955,10 @@ const api = {
     dispatch: (args: Record<string, unknown>): Promise<NotificationDispatchResult> =>
       ipcRenderer.invoke('notifications:dispatch', args),
     openSystemSettings: (): Promise<void> => ipcRenderer.invoke('notifications:openSystemSettings'),
+    getPermissionStatus: (): Promise<NotificationPermissionStatusResult> =>
+      ipcRenderer.invoke('notifications:getPermissionStatus'),
+    requestPermission: (): Promise<NotificationPermissionStatusResult> =>
+      ipcRenderer.invoke('notifications:requestPermission'),
     playSound: async (options?: { force?: boolean }): Promise<NotificationSoundResult> => {
       try {
         // Why: drop replays while the sound is still ringing. The "test"
@@ -971,6 +1020,15 @@ const api = {
     }
   },
 
+  onboarding: {
+    get: (): Promise<OnboardingState> => ipcRenderer.invoke('onboarding:get'),
+    update: (
+      updates: Partial<Omit<OnboardingState, 'checklist'>> & {
+        checklist?: Partial<OnboardingState['checklist']>
+      }
+    ): Promise<OnboardingState> => ipcRenderer.invoke('onboarding:update', updates)
+  },
+
   developerPermissions: {
     getStatus: (): Promise<unknown> => ipcRenderer.invoke('developerPermissions:getStatus'),
     request: (args: { id: string }): Promise<unknown> =>
@@ -1003,14 +1061,13 @@ const api = {
       ipcRenderer.invoke('shell:copyFile', args)
   },
 
-  sidekick: {
-    import: (): Promise<CustomSidekick | null> => ipcRenderer.invoke('sidekick:import'),
-    importPetBundle: (): Promise<CustomSidekick | null> =>
-      ipcRenderer.invoke('sidekick:importPetBundle'),
+  pet: {
+    import: (): Promise<CustomPet | null> => ipcRenderer.invoke('pet:import'),
+    importPetBundle: (): Promise<CustomPet | null> => ipcRenderer.invoke('pet:importPetBundle'),
     read: (id: string, fileName: string, kind?: 'image' | 'bundle'): Promise<ArrayBuffer | null> =>
-      ipcRenderer.invoke('sidekick:read', id, fileName, kind),
+      ipcRenderer.invoke('pet:read', id, fileName, kind),
     delete: (id: string, fileName: string, kind?: 'image' | 'bundle'): Promise<void> =>
-      ipcRenderer.invoke('sidekick:delete', id, fileName, kind)
+      ipcRenderer.invoke('pet:delete', id, fileName, kind)
   },
 
   browser: {
@@ -1908,11 +1965,54 @@ const api = {
     setMarkdownEditorFocused: (focused: boolean): void => {
       ipcRenderer.send('ui:setMarkdownEditorFocused', focused)
     },
+    onRichMarkdownContextCommand: (
+      callback: (payload: RichMarkdownContextMenuCommandPayload) => void
+    ): (() => void) => {
+      const listener = (
+        _event: Electron.IpcRendererEvent,
+        payload: RichMarkdownContextMenuCommandPayload
+      ) => callback(payload)
+      ipcRenderer.on(richMarkdownContextMenuCommandChannel, listener)
+      return () => ipcRenderer.removeListener(richMarkdownContextMenuCommandChannel, listener)
+    },
     onFullscreenChanged: (callback: (isFullScreen: boolean) => void): (() => void) => {
       const listener = (_event: Electron.IpcRendererEvent, isFullScreen: boolean) =>
         callback(isFullScreen)
       ipcRenderer.on('window:fullscreen-changed', listener)
       return () => ipcRenderer.removeListener('window:fullscreen-changed', listener)
+    },
+    /** Windows only: minimize the window via the renderer-drawn title bar. */
+    minimize: (): void => {
+      ipcRenderer.send('window:minimize')
+    },
+    /** Windows only: toggle maximize/restore via the renderer-drawn title bar. */
+    maximize: (): void => {
+      ipcRenderer.send('window:maximize')
+    },
+    /** Windows only: read the current maximize state on mount, since
+     *  window:maximize-changed only fires on transitions and a window that
+     *  starts maximized would otherwise show the wrong icon. */
+    isMaximized: (): Promise<boolean> => ipcRenderer.invoke('window:isMaximized'),
+    /** Windows only: subscribe to maximize state changes so the renderer-drawn
+     *  maximize button can show the correct restore/maximize icon. */
+    onMaximizeChanged: (callback: (isMaximized: boolean) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, isMaximized: boolean) =>
+        callback(isMaximized)
+      ipcRenderer.on('window:maximize-changed', listener)
+      return () => ipcRenderer.removeListener('window:maximize-changed', listener)
+    },
+    /** Windows only: request a close from the renderer-drawn close button.
+     *  Routes through main so the BrowserWindow 'close' event fires and the
+     *  terminal-running confirmation guard in the renderer stays active.
+     *  window.close() is unreliable in sandboxed renderers. */
+    requestClose: (): void => {
+      ipcRenderer.send('window:request-close')
+    },
+    /** Windows only: pop up the application menu at the cursor position.
+     *  Replicates the Alt-key reveal that autoHideMenuBar normally provides,
+     *  triggered by the ··· button in the renderer-drawn title bar. */
+    popupMenu: (): void => {
+      ipcRenderer.send('menu:popup')
     },
     /** Fired by the main process when the user tries to close the window
      *  (X button, Cmd+Q, etc.). Renderer should show a confirmation dialog
@@ -2176,6 +2276,7 @@ const api = {
 
     getPairingQR: (args?: {
       address?: string
+      rotate?: boolean
     }): Promise<
       | { available: false }
       | {
@@ -2200,37 +2301,23 @@ const api = {
 
   agentStatus: {
     /** Listen for agent status updates forwarded from native hook receivers. */
-    onSet: (
-      callback: (data: {
-        paneKey: string
-        tabId?: string
-        worktreeId?: string
-        state: AgentStatusState
-        prompt?: string
-        agentType?: string
-        toolName?: string
-        toolInput?: string
-        lastAssistantMessage?: string
-        interrupted?: boolean
-      }) => void
-    ): (() => void) => {
-      const listener = (
-        _event: Electron.IpcRendererEvent,
-        data: {
-          paneKey: string
-          tabId?: string
-          worktreeId?: string
-          state: AgentStatusState
-          prompt?: string
-          agentType?: string
-          toolName?: string
-          toolInput?: string
-          lastAssistantMessage?: string
-          interrupted?: boolean
-        }
-      ) => callback(data)
+    onSet: (callback: (data: AgentStatusIpcPayload) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, data: AgentStatusIpcPayload) =>
+        callback(data)
       ipcRenderer.on('agentStatus:set', listener)
       return () => ipcRenderer.removeListener('agentStatus:set', listener)
+    },
+    /** Pull the current cached hook statuses after renderer workspace-session
+     *  hydration. This avoids losing startup replays before the renderer
+     *  knows which tabs exist. */
+    getSnapshot: (): Promise<AgentStatusIpcPayload[]> =>
+      ipcRenderer.invoke('agentStatus:getSnapshot'),
+    /** Drop the cached hook status for a paneKey on both sides — main-process
+     *  cache (lastStatusByPaneKey) and on-disk last-status file. Fired from
+     *  the renderer when the user dismisses a retained row so a relaunch
+     *  cannot resurrect it. Fire-and-forget; no response. */
+    drop: (paneKey: string): void => {
+      ipcRenderer.send('agentStatus:drop', paneKey)
     }
   }
 }

@@ -12,7 +12,10 @@ import type {
   Repo,
   SparsePreset,
   WorktreeMeta,
-  GlobalSettings
+  GlobalSettings,
+  OnboardingChecklistState,
+  OnboardingOutcome,
+  OnboardingState
 } from '../shared/types'
 import type { SshTarget } from '../shared/ssh-types'
 import { isFolderRepo } from '../shared/repo-kind'
@@ -20,9 +23,11 @@ import { getGitUsername } from './git/repo'
 import {
   getDefaultPersistedState,
   getDefaultNotificationSettings,
+  getDefaultOnboardingState,
   getDefaultUIState,
   getDefaultRepoHookSettings,
-  getDefaultWorkspaceSession
+  getDefaultWorkspaceSession,
+  ONBOARDING_FINAL_STEP
 } from '../shared/constants'
 import { parseWorkspaceSession } from '../shared/workspace-session-schema'
 
@@ -103,6 +108,72 @@ function normalizeSshTarget(t: SshTarget): SshTarget {
   return { ...t, configHost: t.configHost ?? t.label ?? t.host }
 }
 
+// Why: shared by load-time merge and the IPC update handler so the same
+// strict whitelist guards every entry into onboarding state — arbitrary
+// renderer/disk input cannot inject unknown keys or wrong-typed values.
+// Returns only validated fields; unknown keys are dropped silently.
+// Why: returns Partial<...> with a partial checklist so the IPC update path
+// merges over current state without wiping previously-true keys. Invalid
+// top-level fields are OMITTED (not coerced to fallbacks) so partial updates
+// don't clobber valid persisted state; the load-path caller spreads defaults.
+export function sanitizeOnboardingUpdate(
+  input: unknown
+): Partial<Omit<OnboardingState, 'checklist'>> & { checklist?: Partial<OnboardingChecklistState> } {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return {}
+  }
+  const raw = input as Record<string, unknown>
+  const out: Partial<Omit<OnboardingState, 'checklist'>> & {
+    checklist?: Partial<OnboardingChecklistState>
+  } = {}
+
+  if ('closedAt' in raw) {
+    // Why: `typeof raw.closedAt === 'number'` would let NaN/Infinity through;
+    // JSON.stringify writes those as `null` on save, which silently reverts
+    // closedAt and re-opens the wizard on next load. Require a finite,
+    // non-negative timestamp so live state matches what disk can persist.
+    if (typeof raw.closedAt === 'number' && Number.isFinite(raw.closedAt) && raw.closedAt >= 0) {
+      out.closedAt = raw.closedAt
+    } else if (raw.closedAt === null) {
+      out.closedAt = null
+    }
+    // else: omit — preserve existing persisted value on merge.
+  }
+  if ('outcome' in raw) {
+    const v = raw.outcome
+    if (v === 'completed' || v === 'dismissed') {
+      out.outcome = v as OnboardingOutcome
+    } else if (v === null) {
+      out.outcome = null
+    }
+    // else: omit.
+  }
+  if ('lastCompletedStep' in raw) {
+    const v = raw.lastCompletedStep
+    if (typeof v === 'number' && Number.isInteger(v) && v >= -1 && v <= ONBOARDING_FINAL_STEP) {
+      out.lastCompletedStep = v
+    }
+    // else: omit.
+  }
+  if ('checklist' in raw) {
+    const rawChecklist = raw.checklist
+    if (rawChecklist && typeof rawChecklist === 'object' && !Array.isArray(rawChecklist)) {
+      // Why: copy ONLY caller-sent boolean keys so partial updates (e.g.
+      // `{ addedRepo: true }`) don't reset other checklist items to false.
+      const defaults = getDefaultOnboardingState().checklist
+      const rc = rawChecklist as Record<string, unknown>
+      const checklist: Partial<OnboardingChecklistState> = {}
+      for (const key of Object.keys(defaults) as (keyof OnboardingChecklistState)[]) {
+        if (key in rc && typeof rc[key] === 'boolean') {
+          checklist[key] = rc[key] as boolean
+        }
+      }
+      out.checklist = checklist
+    }
+  }
+  return out
+}
+
 // Why: read a settings field that was removed from the GlobalSettings type
 // but still round-trips on disk via the ...parsed.settings spread. One-shot
 // use only — for the inline-agents default-on migration's Case B discriminator.
@@ -113,6 +184,10 @@ function readDeprecatedExperimentFlag(parsed: PersistedState | undefined): boole
     (parsed?.settings as { experimentalAgentDashboard?: boolean } | undefined)
       ?.experimentalAgentDashboard === true
   )
+}
+
+function readLegacySidekickFlag(parsed: PersistedState | undefined): boolean | undefined {
+  return (parsed?.settings as { experimentalSidekick?: boolean } | undefined)?.experimentalSidekick
 }
 
 export class Store {
@@ -180,6 +255,10 @@ export class Store {
           settings: {
             ...defaults.settings,
             ...parsed.settings,
+            // Why: v1.3.42 renamed the cosmetic sidekick setting to pet. Carry
+            // the old persisted flag forward once so enabled users don't lose it.
+            experimentalPet:
+              parsed.settings?.experimentalPet ?? readLegacySidekickFlag(parsed) ?? false,
             terminalMacOptionAsAlt: migratedOptionAsAlt,
             terminalMacOptionAsAltMigrated: true,
             notifications: {
@@ -276,7 +355,37 @@ export class Store {
             }
             return { ...defaults.workspaceSession, ...result.value }
           })(),
-          sshTargets: (parsed.sshTargets ?? []).map(normalizeSshTarget)
+          sshTargets: (parsed.sshTargets ?? []).map(normalizeSshTarget),
+          onboarding: (() => {
+            // Why: if we successfully parsed an existing orca-data.json that
+            // lacks an onboarding block, this is an upgrade-cohort user —
+            // backfill as completed (not dismissed) so they don't get dropped
+            // into the wizard regardless of whether they currently have repos,
+            // SSH targets, or just non-default settings. Analytics still
+            // distinguish this from users who explicitly bailed mid-funnel.
+            if (!parsed.onboarding) {
+              return {
+                ...defaults.onboarding,
+                closedAt: Date.now(),
+                outcome: 'completed' as const,
+                lastCompletedStep: ONBOARDING_FINAL_STEP
+              }
+            }
+            // Why: validate every persisted onboarding key explicitly via the
+            // shared sanitizer instead of spreading raw values. A type-flipped
+            // field on disk (string where number expected, unknown checklist
+            // key) is dropped or coerced to the default rather than poisoning
+            // in-memory state.
+            const sanitized = sanitizeOnboardingUpdate(parsed.onboarding)
+            return {
+              ...defaults.onboarding,
+              ...sanitized,
+              checklist: {
+                ...defaults.onboarding.checklist,
+                ...sanitized.checklist
+              }
+            }
+          })()
         }
       }
     } catch (err) {
@@ -470,6 +579,16 @@ export class Store {
     return this.state.repos.map((repo) => this.hydrateRepo(repo))
   }
 
+  /**
+   * O(1) read of the persisted repo count. Use this when you only need the
+   * count (e.g. cohort-classifier) — `getRepos()` hydrates each repo and
+   * may run a synchronous git subprocess via `getGitUsername()`, which is
+   * wasteful when the caller only reads `.length`.
+   */
+  getRepoCount(): number {
+    return this.state.repos.length
+  }
+
   getRepo(id: string): Repo | undefined {
     const repo = this.state.repos.find((r) => r.id === id)
     return repo ? this.hydrateRepo(repo) : undefined
@@ -478,6 +597,38 @@ export class Store {
   addRepo(repo: Repo): void {
     this.state.repos.push(repo)
     this.scheduleSave()
+  }
+
+  // Why: returns false on a stale permutation (concurrent add/remove races
+  // the renderer's drag) so the caller can tell the renderer to resync rather
+  // than persist an order that drops or duplicates ids.
+  reorderRepos(orderedIds: string[]): boolean {
+    const current = this.state.repos
+    if (orderedIds.length !== current.length) {
+      return false
+    }
+    const seen = new Set<string>()
+    for (const id of orderedIds) {
+      if (typeof id !== 'string' || seen.has(id)) {
+        return false
+      }
+      seen.add(id)
+    }
+    const byId = new Map<string, Repo>()
+    for (const r of current) {
+      byId.set(r.id, r)
+    }
+    const next: Repo[] = []
+    for (const id of orderedIds) {
+      const repo = byId.get(id)
+      if (!repo) {
+        return false
+      }
+      next.push(repo)
+    }
+    this.state.repos = next
+    this.scheduleSave()
+    return true
   }
 
   removeRepo(id: string): void {
@@ -653,6 +804,38 @@ export class Store {
     this.scheduleSave()
   }
 
+  // ── Onboarding ────────────────────────────────────────────────────
+
+  getOnboarding(): PersistedState['onboarding'] {
+    const defaults = getDefaultOnboardingState()
+    return {
+      ...defaults,
+      ...this.state.onboarding,
+      checklist: {
+        ...defaults.checklist,
+        ...this.state.onboarding?.checklist
+      }
+    }
+  }
+
+  updateOnboarding(
+    updates: Partial<Omit<PersistedState['onboarding'], 'checklist'>> & {
+      checklist?: Partial<OnboardingChecklistState>
+    }
+  ): PersistedState['onboarding'] {
+    const current = this.getOnboarding()
+    this.state.onboarding = {
+      ...current,
+      ...updates,
+      checklist: {
+        ...current.checklist,
+        ...updates.checklist
+      }
+    }
+    this.scheduleSave()
+    return this.getOnboarding()
+  }
+
   // ── GitHub Cache ──────────────────────────────────────────────────
 
   getGitHubCache(): PersistedState['githubCache'] {
@@ -671,6 +854,46 @@ export class Store {
   }
 
   setWorkspaceSession(session: PersistedState['workspaceSession']): void {
+    // Why: closes the second half of the SIGKILL race (Issue #217). The
+    // renderer's debounced session writer captures its state BEFORE pty:spawn
+    // returns, so the snapshot it later flushes via session:set has no
+    // tab.ptyId / ptyIdsByLeafId for the just-spawned PTY. If that stale
+    // snapshot lands AFTER persistPtyBinding's sync flush, it would overwrite
+    // the durable binding and re-open the orphan window. Merge in any
+    // existing bindings whenever the incoming snapshot's binding is empty.
+    const prior = this.state.workspaceSession
+    if (session && prior) {
+      const priorTabs = prior.tabsByWorktree ?? {}
+      const nextTabs = session.tabsByWorktree ?? {}
+      for (const [worktreeId, tabs] of Object.entries(nextTabs)) {
+        const priorList = priorTabs[worktreeId]
+        if (!priorList) {
+          continue
+        }
+        for (const tab of tabs) {
+          if (tab.ptyId) {
+            continue
+          }
+          const priorTab = priorList.find((t) => t.id === tab.id)
+          if (priorTab?.ptyId) {
+            tab.ptyId = priorTab.ptyId
+          }
+        }
+      }
+      const priorLayouts = prior.terminalLayoutsByTabId ?? {}
+      const nextLayouts = session.terminalLayoutsByTabId ?? {}
+      for (const [tabId, layout] of Object.entries(nextLayouts)) {
+        const priorLayout = priorLayouts[tabId]
+        if (!priorLayout?.ptyIdsByLeafId) {
+          continue
+        }
+        const incoming = layout.ptyIdsByLeafId
+        if (incoming && Object.keys(incoming).length > 0) {
+          continue
+        }
+        layout.ptyIdsByLeafId = { ...priorLayout.ptyIdsByLeafId }
+      }
+    }
     this.state.workspaceSession = session
     this.scheduleSave()
   }

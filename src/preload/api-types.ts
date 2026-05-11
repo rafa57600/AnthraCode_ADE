@@ -11,7 +11,7 @@ import type {
   CodexRateLimitAccountsState,
   CreateWorktreeArgs,
   CreateWorktreeResult,
-  CustomSidekick,
+  CustomPet,
   DirEntry,
   FsChangedPayload,
   GhosttyImportPreview,
@@ -45,13 +45,17 @@ import type {
   GetRateLimitResult,
   NotificationDispatchRequest,
   NotificationDispatchResult,
+  NotificationPermissionStatusResult,
   NotificationSoundResult,
+  OnboardingState,
   OrcaHooks,
+  PathSource,
   PersistedUIState,
   PRCheckDetail,
   PRComment,
   PRInfo,
   Repo,
+  ShellHydrationFailureReason,
   SparsePreset,
   SearchOptions,
   SearchResult,
@@ -59,7 +63,9 @@ import type {
   MemorySnapshot,
   UpdateStatus,
   Worktree,
+  WorktreeBaseStatusEvent,
   WorktreeMeta,
+  WorktreeRemoteBranchConflictEvent,
   WorktreeSetupLaunch,
   WorktreeStartupLaunch,
   WorkspaceSessionState
@@ -91,6 +97,7 @@ import type {
   UpdatePullRequestBySlugArgs,
   UpdateProjectItemFieldArgs
 } from '../shared/github-project-types'
+import type { RichMarkdownContextMenuCommandPayload } from '../shared/rich-markdown-context-menu'
 import type {
   BrowserSetGrabModeArgs,
   BrowserSetGrabModeResult,
@@ -115,7 +122,7 @@ import type { ElectronAPI } from '@electron-toolkit/preload'
 import type { CliInstallStatus } from '../shared/cli-install-types'
 import type { E2EConfig } from '../shared/e2e-config'
 import type { AgentHookInstallStatus } from '../shared/agent-hook-types'
-import type { AgentStatusState } from '../shared/agent-status-types'
+import type { AgentStatusIpcPayload } from '../shared/agent-status-types'
 import type { RuntimeStatus, RuntimeSyncWindowGraph } from '../shared/runtime-types'
 import type {
   DeveloperPermissionId,
@@ -245,6 +252,15 @@ export type RefreshAgentsResult = {
   agents: string[]
   addedPathSegments: string[]
   shellHydrationOk: boolean
+  /** Why: drives the agent_picks `on_path:false` triage in dashboard 1562016
+   *  (insight A). `'shell_hydrate'` = detection saw the user's full shell PATH;
+   *  `'sync_seed_only'` = hydration failed and detection ran against the
+   *  seed list from `patchPackagedProcessPath`. */
+  pathSource: PathSource
+  /** Why: classified hydration outcome. `'none'` on success; one of the failure
+   *  modes when `shellHydrationOk` is false. Typed off the shared alias so
+   *  schema/main/preload/renderer stay in lockstep. */
+  pathFailureReason: ShellHydrationFailureReason
 }
 
 export type PreflightApi = {
@@ -356,6 +372,8 @@ export type AppApi = {
    *  US QWERTY but whose Option layer composes characters (issue #1205).
    *  Returns null on non-Darwin platforms or when the defaults read fails. */
   getKeyboardInputSourceId: () => Promise<string | null>
+  /** Updates the macOS Dock unread badge. No-op on Windows/Linux. */
+  setUnreadDockBadgeCount: (count: number) => Promise<void>
 }
 
 export type PreloadApi = {
@@ -371,6 +389,7 @@ export type PreloadApi = {
       kind?: 'git' | 'folder'
     }) => Promise<{ repo: Repo } | { error: string }>
     remove: (args: { repoId: string }) => Promise<void>
+    reorder: (args: { orderedIds: string[] }) => Promise<{ status: 'applied' | 'rejected' }>
     update: (args: {
       repoId: string
       updates: Partial<
@@ -433,6 +452,10 @@ export type PreloadApi = {
     updateMeta: (args: { worktreeId: string; updates: Partial<WorktreeMeta> }) => Promise<Worktree>
     persistSortOrder: (args: { orderedIds: string[] }) => Promise<void>
     onChanged: (callback: (data: { repoId: string }) => void) => () => void
+    onBaseStatus: (callback: (data: WorktreeBaseStatusEvent) => void) => () => void
+    onRemoteBranchConflict: (
+      callback: (data: WorktreeRemoteBranchConflictEvent) => void
+    ) => () => void
   }
   pty: {
     spawn: (opts: {
@@ -586,6 +609,12 @@ export type PreloadApi = {
       repoPath: string
       number: number
       body: string
+      /** Why: GitHub stores PR conversation comments under `/issues/N/comments`
+       *  too, so the IPC and `gh` call paths are identical. The renderer cache
+       *  key is keyed by the drawer's `type`, so callers pass it through to
+       *  scope the cross-window invalidation broadcast correctly and avoid
+       *  evicting an unrelated PR/issue that happens to share the number. */
+      type?: 'issue' | 'pr'
     }) => Promise<GitHubCommentResult>
     addPRReviewCommentReply: (args: {
       repoPath: string
@@ -599,6 +628,14 @@ export type PreloadApi = {
     addPRReviewComment: (args: GitHubPRReviewCommentInput) => Promise<GitHubCommentResult>
     listLabels: (args: { repoPath: string }) => Promise<string[]>
     listAssignableUsers: (args: { repoPath: string }) => Promise<GitHubAssignableUser[]>
+    /**
+     * Subscribe to local-mutation broadcasts. Used by the work-item-drawer
+     * cache to invalidate entries across windows after a successful mutation.
+     * Returns an unsubscribe function.
+     */
+    onWorkItemMutated: (
+      callback: (payload: { repoPath: string; type: 'issue' | 'pr'; number: number }) => void
+    ) => () => void
     checkOrcaStarred: () => Promise<boolean | null>
     starOrca: () => Promise<boolean>
     /**
@@ -750,7 +787,20 @@ export type PreloadApi = {
   notifications: {
     dispatch: (args: NotificationDispatchRequest) => Promise<NotificationDispatchResult>
     openSystemSettings: () => Promise<void>
+    getPermissionStatus: () => Promise<NotificationPermissionStatusResult>
+    requestPermission: () => Promise<NotificationPermissionStatusResult>
     playSound: (options?: { force?: boolean }) => Promise<NotificationSoundResult>
+  }
+  onboarding: {
+    get: () => Promise<OnboardingState>
+    // Why: main-process `updateOnboarding` merges checklist field-by-field, so
+    // callers can pass a partial checklist (e.g. just `{ addedRepo: true }`)
+    // without re-supplying every flag.
+    update: (
+      updates: Partial<Omit<OnboardingState, 'checklist'>> & {
+        checklist?: Partial<OnboardingState['checklist']>
+      }
+    ) => Promise<OnboardingState>
   }
   developerPermissions: {
     getStatus: () => Promise<DeveloperPermissionState[]>
@@ -769,9 +819,9 @@ export type PreloadApi = {
     pickDirectory: (args: { defaultPath?: string }) => Promise<string | null>
     copyFile: (args: { srcPath: string; destPath: string }) => Promise<void>
   }
-  sidekick: {
-    import: () => Promise<CustomSidekick | null>
-    importPetBundle: () => Promise<CustomSidekick | null>
+  pet: {
+    import: () => Promise<CustomPet | null>
+    importPetBundle: () => Promise<CustomPet | null>
     read: (id: string, fileName: string, kind?: 'image' | 'bundle') => Promise<ArrayBuffer | null>
     delete: (id: string, fileName: string, kind?: 'image' | 'bundle') => Promise<void>
   }
@@ -1073,7 +1123,16 @@ export type PreloadApi = {
     setZoomLevel: (level: number) => void
     syncTrafficLights: (zoomFactor: number) => void
     setMarkdownEditorFocused: (focused: boolean) => void
+    onRichMarkdownContextCommand: (
+      callback: (payload: RichMarkdownContextMenuCommandPayload) => void
+    ) => () => void
     onFullscreenChanged: (callback: (isFullScreen: boolean) => void) => () => void
+    minimize: () => void
+    maximize: () => void
+    isMaximized: () => Promise<boolean>
+    onMaximizeChanged: (callback: (isMaximized: boolean) => void) => () => void
+    requestClose: () => void
+    popupMenu: () => void
     onWindowCloseRequested: (callback: (data: { isQuitting: boolean }) => void) => () => void
     confirmWindowClose: () => void
   }
@@ -1173,26 +1232,18 @@ export type PreloadApi = {
   }
   agentStatus: {
     /** Listen for agent status updates forwarded from native hook receivers. */
-    onSet: (
-      callback: (data: {
-        paneKey: string
-        tabId?: string
-        worktreeId?: string
-        state: AgentStatusState
-        prompt?: string
-        agentType?: string
-        toolName?: string
-        toolInput?: string
-        lastAssistantMessage?: string
-        interrupted?: boolean
-      }) => void
-    ) => () => void
+    onSet: (callback: (data: AgentStatusIpcPayload) => void) => () => void
+    /** Return the current main-process hook cache after renderer hydration. */
+    getSnapshot: () => Promise<AgentStatusIpcPayload[]>
+    /** Drop a paneKey from the main-process hook cache and the on-disk
+     *  last-status file. Fire-and-forget. */
+    drop: (paneKey: string) => void
   }
   mobile: {
     listNetworkInterfaces: () => Promise<{
       interfaces: { name: string; address: string }[]
     }>
-    getPairingQR: (args?: { address?: string }) => Promise<
+    getPairingQR: (args?: { address?: string; rotate?: boolean }) => Promise<
       | { available: false }
       | {
           available: true

@@ -383,9 +383,18 @@ export default function SessionScreen() {
                 // phone dims. See log dump 2026-05-06 confirming the
                 // race + measure-result null pattern.
                 await getTerminalRef(handle)?.awaitReady()
+                if (subscribeSeqRef.current.get(handle) !== seq) return
                 const dims = await getTerminalRef(handle)?.measureFitDimensions(
                   terminalFrameHeightRef.current || undefined
                 )
+                // Why: re-check seq after the awaits — awaitReady (up to
+                // 3s) and measureFitDimensions can take hundreds of ms,
+                // during which a newer subscribe cycle may have armed
+                // its own subscription. Tearing it down here would reset
+                // the freshly-armed initialized flag and re-subscribe a
+                // stale generation.
+                if (subscribeSeqRef.current.get(handle) !== seq) return
+                if (!getTerminalRef(handle)) return
                 // Why: we just got `scrollback` with cols=80 (server's
                 // default fallback for null viewport). That means the
                 // server-side subscriber record was registered before we
@@ -569,10 +578,18 @@ export default function SessionScreen() {
   // (clientRef.current.sendRequest...) keep working without churn.
   useEffect(() => {
     clientRef.current = client
+  }, [client])
+
+  // Why: only clear terminal cache on actual unmount. Running it whenever
+  // `client` changes — including the initial null → real-client transition
+  // from useHostClient's async open path — would unsubscribe terminals and
+  // wipe xterm state mid-subscribe on a normal session-screen mount.
+  useEffect(() => {
     return () => {
       clearTerminalCache()
     }
-  }, [client, clearTerminalCache])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Why: deviceToken is read from host record so feature code can pass
   // `client.id` on subscribe/send for driver-state-machine identity.
@@ -891,6 +908,13 @@ export default function SessionScreen() {
   // because holding them is destructive or meaningless.
   const repeatTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const repeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Why: hold the latest handleAccessoryKey in a ref so the repeat interval
+  // always invokes the current callback. Otherwise a held key keeps firing
+  // through the callback captured when the interval started, which can route
+  // bytes to a stale terminal/RPC client after a tab switch or reconnect
+  // mid-hold.
+  const handleAccessoryKeyRef = useRef(handleAccessoryKey)
+  handleAccessoryKeyRef.current = handleAccessoryKey
   const stopAccessoryRepeat = useCallback(() => {
     if (repeatTimeoutRef.current) {
       clearTimeout(repeatTimeoutRef.current)
@@ -906,7 +930,7 @@ export default function SessionScreen() {
       stopAccessoryRepeat()
       repeatTimeoutRef.current = setTimeout(() => {
         repeatIntervalRef.current = setInterval(() => {
-          void handleAccessoryKey(bytes)
+          void handleAccessoryKeyRef.current(bytes)
         }, 45)
       }, 400)
     },
@@ -1002,7 +1026,13 @@ export default function SessionScreen() {
         altScreen: false
       }
       const wrap = modes.bracketedPasteMode && !modes.altScreen
-      const payload = wrap ? `\x1b[200~${text}\x1b[201~` : text
+      // Why: strip embedded bracketed-paste markers from clipboard text so a
+      // malicious copy containing `\x1b[201~` can't terminate paste mode early
+      // and have the trailing bytes interpreted as shell commands. Matches
+      // xterm.js / iTerm2 behavior.
+      // eslint-disable-next-line no-control-regex -- intentional bracketed-paste marker stripping
+      const sanitized = wrap ? text.replace(/\x1b\[20[01]~/g, '') : text
+      const payload = wrap ? `\x1b[200~${sanitized}\x1b[201~` : sanitized
       const wrappedBytes = new TextEncoder().encode(payload).byteLength
       if (wrappedBytes > 256 * 1024) {
         triggerError()

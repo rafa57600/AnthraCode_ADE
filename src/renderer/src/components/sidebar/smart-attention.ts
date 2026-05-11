@@ -268,6 +268,13 @@ export function buildAttentionByWorktree(
       if (hookEntries) {
         for (const entry of hookEntries) {
           panes.push({ kind: 'hook', entry })
+          // Why: only fresh hook entries should suppress the title-heuristic
+          // fallback for their pane. A stale hook is filtered out by
+          // resolveAttention; if we marked its pane as "hook-covered" we'd hide
+          // the live title behind a dead entry and drop the worktree to Class 4.
+          if (!isExplicitAgentStatusFresh(entry, now, AGENT_STATUS_STALE_AFTER_MS)) {
+            continue
+          }
           const paneId = paneIdFromPaneKey(entry.paneKey)
           if (paneId !== null) {
             hookPaneIds.add(paneId)

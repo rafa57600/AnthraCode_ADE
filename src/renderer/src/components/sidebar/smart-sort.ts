@@ -1,5 +1,6 @@
 import type { Worktree, Repo, TerminalTab } from '../../../../shared/types'
 import type { AgentStatusEntry } from '../../../../shared/agent-status-types'
+import { tabHasLivePty } from '@/lib/tab-has-live-pty'
 import { IDLE, buildAttentionByWorktree, type WorktreeAttention } from './smart-attention'
 
 type SortBy = 'name' | 'smart' | 'recent' | 'repo'
@@ -122,9 +123,12 @@ export function sortWorktreesSmart(
   runtimePaneTitlesByTabId: Record<string, Record<number, string>>,
   ptyIdsByTabId: Record<string, string[]>
 ): Worktree[] {
+  // Why: `tabHasLivePty` (over `ptyIdsByTabId`) is the source of truth for
+  // liveness — slept terminals retain `tab.ptyId` as a wake hint, so reading
+  // it directly would falsely keep cold-start ordering off after restart.
   const hasAnyLivePty = Object.values(tabsByWorktree)
     .flat()
-    .some((t) => t.ptyId)
+    .some((tab) => tabHasLivePty(ptyIdsByTabId, tab.id))
 
   if (!hasAnyLivePty) {
     // Cold start: use persisted sortOrder snapshot until the agent-status

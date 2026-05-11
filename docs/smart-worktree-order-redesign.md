@@ -154,7 +154,7 @@ Primary:
 - `src/renderer/src/components/sidebar/smart-attention.test.ts` — **new file**: helper-level tests
 - `src/renderer/src/components/sidebar/WorktreeList.tsx` — thread `runtimePaneTitlesByTabId` and `ptyIdsByTabId` into the sort path so the title-heuristic fallback (Edge case 9) can fire for hookless panes.
 - `src/renderer/src/components/sidebar/visible-worktrees.ts` — same: callers of `sortWorktreesSmart`/`buildWorktreeComparator` must thread the new state.
-- `src/renderer/src/components/WorktreeJumpPalette.tsx` — thread `agentStatusByPaneKey`, `runtimePaneTitlesByTabId`, and `ptyIdsByTabId` at lines 227 and 239.
+- `src/renderer/src/components/WorktreeJumpPalette.tsx` — thread `agentStatusByPaneKey`, `runtimePaneTitlesByTabId`, and `ptyIdsByTabId` into the two `sortWorktreesSmart(...)` calls (the typed-query and browser-tabs paths).
 
 No changes:
 - `src/shared/agent-status-types.ts` — already provides `AgentStatusEntry`, `AgentStateHistoryEntry.startedAt`, `AgentStateHistoryEntry.interrupted`, `AGENT_STATUS_STALE_AFTER_MS`, `AGENT_STATE_HISTORY_MAX`.
@@ -324,7 +324,7 @@ Callers today (verify before each edit):
 - `src/renderer/src/components/sidebar/visible-worktrees.ts:179` — already threads `state.agentStatusByPaneKey`. **Must add** `state.runtimePaneTitlesByTabId` and `state.ptyIdsByTabId`.
 - `src/renderer/src/components/sidebar/visible-worktrees.ts:188` — same: already threads agent status, **must add** the two title-fallback inputs.
 - `src/renderer/src/components/sidebar/WorktreeList.tsx:652` — uses `buildWorktreeComparator`; verify the parent state read picks up the two new fields and threads them through.
-- `src/renderer/src/components/WorktreeJumpPalette.tsx:227` and `:239` — currently `sortWorktreesSmart(visibleWorktrees, tabsByWorktree, repoMap, prCache)` (4 args). **Must change** to pass `agentStatusByPaneKey`, `runtimePaneTitlesByTabId`, and `ptyIdsByTabId` from the store.
+- The two `sortWorktreesSmart(...)` calls in `src/renderer/src/components/WorktreeJumpPalette.tsx` (the typed-query and browser-tabs paths) — updated to pass `agentStatusByPaneKey`, `runtimePaneTitlesByTabId`, and `ptyIdsByTabId` from the store.
 
 Make all three new parameters **non-optional** in the new `sortWorktreesSmart` signature (and on `buildWorktreeComparator`'s smart branch). Why: a forgotten caller fails type-check rather than silently regressing the palette to "all Class 4" or quietly losing the hookless-fallback path.
 
@@ -355,7 +355,7 @@ This section is the implementation handoff. Follow in order; each step lands a c
 - Keep the existing cold-start branch (`!hasAnyLivePty`) using persisted `sortOrder` as today — see Open Question #3 (Migration) and Edge case 8.
 
 **Step 5 — Update callers.**
-- Update `WorktreeJumpPalette.tsx:227` and `:239` to pass `state.agentStatusByPaneKey`, `state.runtimePaneTitlesByTabId`, and `state.ptyIdsByTabId`.
+- Update both `sortWorktreesSmart(...)` calls in `WorktreeJumpPalette.tsx` (the typed-query and browser-tabs paths) to pass `state.agentStatusByPaneKey`, `state.runtimePaneTitlesByTabId`, and `state.ptyIdsByTabId`.
 - Update `WorktreeList.tsx` and `visible-worktrees.ts` to thread the same two title-fallback fields.
 - Run `pnpm typecheck` to confirm no other callers slipped through.
 
@@ -397,9 +397,9 @@ This section is the implementation handoff. Follow in order; each step lands a c
 
 Three PostHog events ship with this change to validate the redesign post-launch (Orca project ID 406068):
 
-- **`smart_sort_class_distribution`** — fired from `WorktreeList` after each completed `sortedIds` recomputation, throttled to once per ~30s. Stops firing when `sortBy !== 'smart'` (timer ownership lives with the component, so a sort-selector switch cancels it cleanly). Properties: `class1Count`, `class2Count`, `class3Count`, `class4Count`, `totalWorktrees`. Lets us see whether real users actually have Class 1/2/3 populated or whether everyone sits in Class 4 (signal that hook coverage is too low and the redesign isn't doing work).
+- **`smart_sort_class_distribution`** — fired from `WorktreeList` after each completed `sortedIds` recomputation, throttled to once per ~30s. Stops firing when `sortBy !== 'smart'` (timer ownership lives with the component, so a sort-selector switch cancels it cleanly). Properties: `class1`, `class2`, `class3`, `class4`, `totalWorktrees`. Lets us see whether real users actually have Class 1/2/3 populated or whether everyone sits in Class 4 (signal that hook coverage is too low and the redesign isn't doing work).
 - **`smart_sort_class_1_promotion`** — fired from `WorktreeList` after each `sortedIds` recomputation, suppressing repeat-fires by comparing against a `prevClassByWorktreeId` map keyed by worktree id. Only fires on transitions INTO Class 1 (not on Class 1 → Class 1 noise from transient stale-window flickers). Properties: `cause` ∈ `{ 'blocked', 'waiting', 'title-heuristic' }`. Distinguishes hook-driven promotions from the title-heuristic fallback path so we can tell whether Edge case 9 is carrying weight or whether the heuristic is rarely needed.
-- **`smart_to_recent_switch`** — fired when a user switches the sort selector from `smart` to `recent` *after* the redesign ships. A spike post-launch is the cleanest regression signal we have ("users are voting with their feet"). Pair with the inverse `recent_to_smart_switch` to read net flow.
+- **`smart_to_recent_switch`** — fired when a user switches the sort selector from `smart` to `recent` *after* the redesign ships. A spike post-launch is the cleanest regression signal we have ("users are voting with their feet"). A future inverse event (`recent_to_smart_switch`) would pair with this for net-flow analysis; not shipped in v1 because the abandonment direction is the cleaner regression signal on its own.
 
 Keep payloads small; no per-worktree IDs or paths in event properties.
 

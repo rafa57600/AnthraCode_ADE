@@ -451,6 +451,20 @@ describe('sortWorktreesSmart — cold start fallback', () => {
     expect(sorted.map((w) => w.id)).toEqual(['b', 'a'])
   })
 
+  it('treats slept tabs (tab.ptyId without live entry) as cold start', () => {
+    // Why: tab.ptyId is the wake-hint sessionId preserved under sleep — not a
+    // liveness signal. With slept tabs but no live PTYs, sortWorktreesSmart
+    // must fall back to persisted sortOrder.
+    const a = makeWorktree({ id: 'a', sortOrder: 1, displayName: 'a' })
+    const b = makeWorktree({ id: 'b', sortOrder: 2, displayName: 'b' })
+    const tabsByWorktree = {
+      [a.id]: [makeTab({ id: 'ta', worktreeId: a.id, ptyId: 'wake-hint' })]
+    }
+    // ptyIdsByTabId is empty — slept tab has wake-hint ptyId but no live entry.
+    const sorted = sortWorktreesSmart([a, b], tabsByWorktree, repoMap, {}, {}, {})
+    expect(sorted.map((w) => w.id)).toEqual(['b', 'a'])
+  })
+
   it('uses the smart comparator once a PTY is alive', () => {
     const blocked = makeWorktree({ id: 'blocked', displayName: 'Blocked', sortOrder: 0 })
     const done = makeWorktree({ id: 'done', displayName: 'Done', sortOrder: 100 })
@@ -487,8 +501,8 @@ describe('sortWorktreesSmart — cold start fallback', () => {
 
 describe('sortWorktreesSmart — palette caller regression', () => {
   // Why: WorktreeJumpPalette routes typed queries through sortWorktreesSmart.
-  // This test pins that the palette path uses the class layer (not the
-  // dropped terminal-title heuristic) when threading agentStatusByPaneKey.
+  // This test pins that the palette path uses the class layer (not just the
+  // recent-activity fallback) when threading agentStatusByPaneKey.
   it('palette ranks blocked above working when both flow through sortWorktreesSmart', () => {
     const blocked = makeWorktree({ id: 'blocked', displayName: 'A-Blocked' })
     const working = makeWorktree({ id: 'working', displayName: 'B-Working' })

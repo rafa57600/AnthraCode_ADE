@@ -563,10 +563,10 @@ const WorktreeList = React.memo(function WorktreeList() {
 
   const cardProps = useAppStore((s) => s.worktreeCardProperties)
 
-  // PR cache is needed for PR-status grouping, smart sorting, and when the
-  // PR card property is visible.
+  // PR cache is needed for PR-status grouping and when the PR card property
+  // is visible.
   const prCache = useAppStore((s) =>
-    groupBy === 'pr-status' || sortBy === 'smart' || cardProps.includes('pr') ? s.prCache : null
+    groupBy === 'pr-status' || cardProps.includes('pr') ? s.prCache : null
   )
 
   const sortEpoch = useAppStore((s) => s.sortEpoch)
@@ -645,13 +645,14 @@ const WorktreeList = React.memo(function WorktreeList() {
       (worktree) => !worktree.isArchived
     )
 
-    // Why cold-start detection: the smart score is dominated by ephemeral
-    // signals (running jobs +60, live terminals +12, needs attention +35)
-    // that vanish after restart. Recomputing the smart score on cold start
-    // produces a shuffled ordering because those signals are gone while
-    // persistent ones (unread, linked PR) survive — changing relative ranks.
-    // Instead, restore the pre-shutdown order from the persisted sortOrder
-    // snapshot, and switch to the live smart score once PTYs start spawning.
+    // Why cold-start detection: smart-class resolution depends on the
+    // agent-status snapshot (agentStatusByPaneKey) hydrating from the hook
+    // server, which lands asynchronously after launch. Running the warm
+    // comparator before that arrives would collapse every worktree to Class 4
+    // and shuffle the sidebar against the comparator's tiebreakers. Restore
+    // the pre-shutdown order from the persisted sortOrder snapshot until any
+    // live PTY appears, then switch to the live class layer. See Edge case 8
+    // in docs/smart-worktree-order-redesign.md.
     if (sortBy === 'smart' && !sessionHasHadPty.current) {
       // Why: `tabHasLivePty` (over `ptyIdsByTabId`) is the source of truth for
       // liveness — slept terminals retain `tab.ptyId` as a wake hint, so reading

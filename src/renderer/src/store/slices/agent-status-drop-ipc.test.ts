@@ -49,7 +49,7 @@ describe('dropAgentStatus → IPC fan-out', () => {
     // Why: the renderer cannot know whether the main-process cache has an
     // entry for this paneKey (it might have one from a hydrated session). A
     // no-op renderer dismissal must still propagate so stale on-disk state
-    // is purged; the main-process clearPaneState is itself idempotent.
+    // is purged; the main-process dropStatusEntry is itself idempotent.
     const { drop } = stubWindowApi()
     const store = createTestStore()
     store.getState().dropAgentStatus('tab-missing:0')
@@ -60,7 +60,7 @@ describe('dropAgentStatus → IPC fan-out', () => {
   it('idempotent: repeated drops on the same paneKey fire the IPC each time (main-side gate is the dedupe)', () => {
     // Why: the renderer keeps drop() side-effect free relative to its own
     // state — sending an extra IPC for an already-dropped paneKey is safe
-    // because main-side clearPaneState is a no-op when the entry is gone.
+    // because main-side dropStatusEntry is a no-op when the entry is gone.
     // Asserting this contract documents the renderer's hands-off posture.
     const { drop } = stubWindowApi()
     const store = createTestStore()

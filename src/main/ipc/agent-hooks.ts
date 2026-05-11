@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import type { AgentHookInstallStatus } from '../../shared/agent-hook-types'
-import { agentHookServer } from '../agent-hooks/server'
+import type { AgentStatusIpcPayload } from '../../shared/agent-status-types'
+import { agentHookServer, isValidPaneKey } from '../agent-hooks/server'
 import { claudeHookService } from '../claude/hook-service'
 import { codexHookService } from '../codex/hook-service'
 import { geminiHookService } from '../gemini/hook-service'
@@ -29,34 +30,33 @@ export function registerAgentHookHandlers(store: Store): void {
   // though the module-level registered guard already prevents re-entry today.
   ipcMain.removeAllListeners('agentStatus:drop')
   ipcMain.on('agentStatus:drop', (_event, paneKey: unknown) => {
-    if (typeof paneKey !== 'string' || paneKey.length === 0) {
+    if (typeof paneKey !== 'string' || !isValidPaneKey(paneKey)) {
       return
     }
     // Why: gate on the same experimentalAgentDashboard flag used everywhere
-    // else in main. clearPaneState is itself idempotent, but the gate keeps
+    // else in main. dropStatusEntry is itself idempotent, but the gate keeps
     // a non-opted-in renderer from churning the persistence path.
     if (store.getSettings().experimentalAgentDashboard !== true) {
       return
     }
     try {
-      agentHookServer.clearPaneState(paneKey)
+      // Why: dropStatusEntry (not clearPaneState) is correct here — the user is
+      // dismissing a status row, not tearing down a PTY. clearPaneState would also
+      // wipe the per-pane prompt/tool caches, which the next hook event for that
+      // (still-alive) pane needs to render a coherent row.
+      agentHookServer.dropStatusEntry(paneKey)
     } catch (err) {
-      console.warn('[agent-hooks] clearPaneState failed:', err)
+      console.warn('[agent-hooks] dropStatusEntry failed:', err)
     }
   })
-  ipcMain.handle('agentStatus:getSnapshot', () => {
+  ipcMain.handle('agentStatus:getSnapshot', (): AgentStatusIpcPayload[] => {
     // Why: the renderer pulls this after settings + workspace hydration, so
     // startup cannot lose replayed statuses while its local store is still
     // empty. Keep the same opt-in gate as push delivery and disk writes.
-    try {
-      if (store.getSettings().experimentalAgentDashboard !== true) {
-        return []
-      }
-      return agentHookServer.getStatusSnapshot()
-    } catch (err) {
-      console.warn('[agent-hooks] getStatusSnapshot failed:', err)
+    if (store.getSettings().experimentalAgentDashboard !== true) {
       return []
     }
+    return agentHookServer.getStatusSnapshot()
   })
 
   // Why: errors from getStatus() (fs permission denied, homedir resolution

@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Why: cover the agentStatus:drop IPC handler — it must propagate the
-// renderer dismissal to clearPaneState so the on-disk last-status file
+// renderer dismissal to dropStatusEntry so the on-disk last-status file
 // evicts the entry. Gated on experimentalAgentDashboard so a non-opted-in
 // renderer cannot churn the persistence path.
 
-const clearPaneState = vi.fn()
+const dropStatusEntry = vi.fn()
 const getStatusSnapshot = vi.fn()
 const onHandlers = new Map<string, (event: unknown, ...args: unknown[]) => void>()
 const handleHandlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>()
@@ -27,8 +27,17 @@ vi.mock('electron', () => ({
 
 vi.mock('../agent-hooks/server', () => ({
   agentHookServer: {
-    clearPaneState,
+    dropStatusEntry,
     getStatusSnapshot
+  },
+  // Why: matches the real isValidPaneKey shape (exactly one ':' with non-empty
+  // halves). The IPC handler imports this validator alongside agentHookServer.
+  isValidPaneKey: (value: unknown): value is string => {
+    if (typeof value !== 'string') {
+      return false
+    }
+    const colon = value.indexOf(':')
+    return colon > 0 && colon < value.length - 1 && !value.includes(':', colon + 1)
   }
 }))
 
@@ -46,7 +55,7 @@ vi.mock('../cursor/hook-service', () => ({
 }))
 
 beforeEach(() => {
-  clearPaneState.mockReset()
+  dropStatusEntry.mockReset()
   getStatusSnapshot.mockReset()
   onHandlers.clear()
   handleHandlers.clear()
@@ -97,7 +106,7 @@ describe('agentStatus:getSnapshot IPC', () => {
 })
 
 describe('agentStatus:drop IPC', () => {
-  it('forwards drop to clearPaneState when the experimental dashboard is on', async () => {
+  it('forwards drop to dropStatusEntry when the experimental dashboard is on', async () => {
     const { registerAgentHookHandlers } = await import('./agent-hooks')
     const store = {
       getSettings: () => ({ experimentalAgentDashboard: true })
@@ -107,7 +116,7 @@ describe('agentStatus:drop IPC', () => {
     const handler = onHandlers.get('agentStatus:drop')
     expect(handler).toBeDefined()
     handler!({}, 'tab-1:0')
-    expect(clearPaneState).toHaveBeenCalledWith('tab-1:0')
+    expect(dropStatusEntry).toHaveBeenCalledWith('tab-1:0')
   })
 
   it('no-ops when the experimental dashboard is off (the gate prevents persistence churn)', async () => {
@@ -118,7 +127,7 @@ describe('agentStatus:drop IPC', () => {
     registerAgentHookHandlers(store as unknown as Parameters<typeof registerAgentHookHandlers>[0])
 
     onHandlers.get('agentStatus:drop')!({}, 'tab-1:0')
-    expect(clearPaneState).not.toHaveBeenCalled()
+    expect(dropStatusEntry).not.toHaveBeenCalled()
   })
 
   it('rejects non-string paneKey (defensive against a malformed renderer message)', async () => {
@@ -129,10 +138,21 @@ describe('agentStatus:drop IPC', () => {
     registerAgentHookHandlers(store as unknown as Parameters<typeof registerAgentHookHandlers>[0])
 
     const handler = onHandlers.get('agentStatus:drop')!
-    const bad: unknown[] = [123, undefined, '', null, {}, []]
+    const bad: unknown[] = [
+      123,
+      undefined,
+      '',
+      null,
+      {},
+      [],
+      'no-colon', // missing colon — rejected by isValidPaneKey
+      ':leading', // empty tabId half
+      'trailing:', // empty paneId half
+      'a:b:c' // multiple colons
+    ]
     for (const value of bad) {
       expect(() => handler({}, value)).not.toThrow()
     }
-    expect(clearPaneState).not.toHaveBeenCalled()
+    expect(dropStatusEntry).not.toHaveBeenCalled()
   })
 })

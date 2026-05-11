@@ -126,9 +126,9 @@ export const createAgentStatusSlice: StateCreator<AppState, [], [], AgentStatusS
       const updatedAt = timing?.updatedAt ?? Date.now()
       set((s) => {
         const existing = s.agentStatusByPaneKey[paneKey]
-        // Why: startup snapshots are pulled asynchronously. If a newer live
-        // push already landed for this pane, ignore the older snapshot entry
-        // instead of rolling the visible status backward.
+        // Why: snapshots and live pushes share receivedAt from the same main-side
+        // lastStatusByPaneKey.set, so equal timestamps carry identical data. Strict <
+        // preserves live-after-live updates that land in the same millisecond.
         if (existing && updatedAt < existing.updatedAt) {
           return s
         }
@@ -166,14 +166,14 @@ export const createAgentStatusSlice: StateCreator<AppState, [], [], AgentStatusS
           }
         }
 
-        // Why: stateStartedAt anchors to the first time this state was
-        // reported. Carry forward the prior value on tool/prompt pings within
-        // the same state so stateHistory[].startedAt reflects true state-onset
-        // (see AgentStatusEntry.stateStartedAt docs).
+        // Why: prefer main's authoritative stateStartedAt when provided — main's
+        // attachStatusTiming preserves it across same-state pings (server.ts) and
+        // persists it across restart. Fall back to existing.stateStartedAt only when
+        // main did not send timing (legacy callers / OSC fallback path), and to
+        // updatedAt for a brand-new pane.
         const stateStartedAt =
-          existing && existing.state === payload.state
-            ? existing.stateStartedAt
-            : (timing?.stateStartedAt ?? updatedAt)
+          timing?.stateStartedAt ??
+          (existing && existing.state === payload.state ? existing.stateStartedAt : updatedAt)
 
         // Why: tool/assistant fields come pre-merged from the main-process
         // cache (see `resolveToolState` in server.ts), so the payload always

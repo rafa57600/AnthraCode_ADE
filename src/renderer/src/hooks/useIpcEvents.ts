@@ -876,7 +876,14 @@ export function useIpcEvents(): void {
           }
         })
         .catch((err) => {
-          snapshotRequestedForReadyWindow = false
+          // Why: keep snapshotRequestedForReadyWindow latched on failure. The
+          // store subscriber below fires on every update (including high-rate
+          // PTY ticks), so resetting the flag here would turn a persistent IPC
+          // failure into an unbounded retry storm. One warning per ready
+          // window is sufficient; the flag still clears via the gate-flip
+          // path above when experimentalAgentDashboard or
+          // workspaceSessionReady toggles off, so a fresh opt-in or workspace
+          // re-ready cycle will retry.
           console.warn('[agent-status] failed to load startup snapshot:', err)
         })
     }

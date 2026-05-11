@@ -1102,7 +1102,7 @@ type LastStatusFile = {
 // Why: paneKey is `${tabId}:${paneId}` — exactly one ':' with non-empty
 // segments on either side. Used both at write time (defensive) and at
 // hydrate time (drop on mismatch).
-function isValidPaneKey(value: unknown): value is string {
+export function isValidPaneKey(value: unknown): value is string {
   if (typeof value !== 'string' || value.length === 0) {
     return false
   }
@@ -1434,6 +1434,21 @@ export class AgentHookServer {
     warnedEnvs.clear()
   }
 
+  /* Why: invoked from the renderer-driven agentStatus:drop IPC when a user
+   * dismisses a still-active pane's status row. We must NOT wipe lastPromptByPaneKey
+   * or lastToolByPaneKey here — the pane's agent may still be alive, and the next
+   * hook event would otherwise arrive with an empty prompt and missing tool
+   * snapshot until a fresh UserPromptSubmit lands. clearPaneState (which wipes
+   * all three caches) is the right shape only for PTY-teardown.
+   */
+  dropStatusEntry(paneKey: string): void {
+    if (!lastStatusByPaneKey.has(paneKey)) {
+      return
+    }
+    lastStatusByPaneKey.delete(paneKey)
+    this.scheduleStatusPersist()
+  }
+
   clearPaneState(paneKey: string): void {
     // Why: callers invoke this on PTY teardown so the per-pane caches do not
     // accumulate entries for dead panes over the process lifetime. Without
@@ -1707,8 +1722,10 @@ export class AgentHookServer {
     if (!this.lastStatusFilePath) {
       return
     }
+    // Why: each call resets the timer; the disk write fires
+    // STATUS_PERSIST_DEBOUNCE_MS after the LAST event in the burst.
     if (this.statusPersistTimer) {
-      return
+      clearTimeout(this.statusPersistTimer)
     }
     this.statusPersistTimer = setTimeout(() => {
       this.statusPersistTimer = null

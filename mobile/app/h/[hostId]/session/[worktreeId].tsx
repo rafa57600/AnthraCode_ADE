@@ -244,9 +244,7 @@ function MarkdownReader({
       ? 'Read only'
       : doc.stale
         ? 'Changed on desktop'
-        : doc.isDirty
-          ? 'Unsaved on phone'
-          : null
+        : null
   const showRefresh = (doc.stale && !doc.isDirty) || !doc.editable
   const showCopy = doc.saveError || !doc.editable
   const showSave = doc.isDirty || doc.saving
@@ -2497,7 +2495,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: spacing.md,
     right: spacing.md,
-    bottom: spacing.md,
+    top: spacing.md,
     alignItems: 'flex-end',
     gap: spacing.xs
   },

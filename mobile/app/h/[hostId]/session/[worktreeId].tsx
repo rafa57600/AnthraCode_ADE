@@ -479,6 +479,7 @@ export default function SessionScreen() {
   const activeHandleRef = useRef<string | null>(null)
   const activeSessionTabTypeRef = useRef<'terminal' | 'markdown' | 'file' | null>(null)
   const pendingActiveSessionTabIdRef = useRef<string | null>(null)
+  const pendingActiveTerminalHandleRef = useRef<string | null>(null)
   const markdownSaveSeqRef = useRef<Map<string, number>>(new Map())
   const markdownSaveInFlightRef = useRef<Set<string>>(new Set())
   const subscribeSeqRef = useRef<Map<string, number>>(new Map())
@@ -951,6 +952,7 @@ export default function SessionScreen() {
 
       const snapshotActive = nextTabs.find((tab) => tab.isActive) ?? nextTabs[0] ?? null
       const pendingActiveSessionTabId = pendingActiveSessionTabIdRef.current
+      const pendingActiveTerminalHandle = pendingActiveTerminalHandleRef.current
       let active = snapshotActive
       if (pendingActiveSessionTabId) {
         if (snapshotActive?.id === pendingActiveSessionTabId) {
@@ -964,6 +966,34 @@ export default function SessionScreen() {
           } else {
             pendingActiveSessionTabIdRef.current = null
           }
+        }
+      }
+      if (pendingActiveTerminalHandle) {
+        const pendingTerminalTab = nextTabs.find(
+          (tab): tab is Extract<MobileSessionTab, { type: 'terminal' }> =>
+            tab.type === 'terminal' && tab.terminal === pendingActiveTerminalHandle
+        )
+        const pendingTerminalExists = mergedTerminalsForActive.some(
+          (terminal) => terminal.handle === pendingActiveTerminalHandle
+        )
+        if (
+          snapshotActive?.type === 'terminal' &&
+          snapshotActive.terminal === pendingActiveTerminalHandle
+        ) {
+          pendingActiveTerminalHandleRef.current = null
+        } else if (pendingTerminalTab) {
+          // Why: desktop active flags can lag a mobile terminal tap. Key by
+          // terminal handle too, because fallback PTY tabs may not yet have a
+          // stable session tab id during new-worktree startup.
+          active = pendingTerminalTab
+        } else if (pendingTerminalExists) {
+          setActiveSessionTabId(pendingActiveTerminalHandle)
+          activeSessionTabTypeRef.current = 'terminal'
+          setActiveHandle(pendingActiveTerminalHandle)
+          subscribeToTerminal(pendingActiveTerminalHandle)
+          return
+        } else {
+          pendingActiveTerminalHandleRef.current = null
         }
       }
       const currentHandle = activeHandleRef.current
@@ -1402,6 +1432,7 @@ export default function SessionScreen() {
     activeHandleRef.current = null
     activeSessionTabTypeRef.current = null
     pendingActiveSessionTabIdRef.current = null
+    pendingActiveTerminalHandleRef.current = null
     setActiveHandle(null)
     setTerminals([])
     terminalsRef.current = []
@@ -1512,6 +1543,7 @@ export default function SessionScreen() {
           tab.type === 'terminal' && tab.terminal === handle
       )
       pendingActiveSessionTabIdRef.current = matchingTab?.id ?? null
+      pendingActiveTerminalHandleRef.current = handle
       activeSessionTabTypeRef.current = 'terminal'
       setActiveSessionTabId(matchingTab?.id ?? null)
       const prev = activeHandleRef.current
@@ -1551,6 +1583,7 @@ export default function SessionScreen() {
 
       triggerSelection()
       pendingActiveSessionTabIdRef.current = tab.id
+      pendingActiveTerminalHandleRef.current = null
       activeSessionTabTypeRef.current = tab.type
       setActiveSessionTabId(tab.id)
       const prev = activeHandleRef.current
@@ -1983,6 +2016,7 @@ export default function SessionScreen() {
         if (activeHandleRef.current === target.handle) {
           const replacement = next[0] ?? null
           activeHandleRef.current = replacement?.handle ?? null
+          pendingActiveTerminalHandleRef.current = replacement?.handle ?? null
           setActiveHandle(replacement?.handle ?? null)
           if (replacement) {
             subscribeToTerminal(replacement.handle)

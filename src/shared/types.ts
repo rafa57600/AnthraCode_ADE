@@ -1,5 +1,5 @@
 /* eslint-disable max-lines */
-import type { SshTarget } from './ssh-types'
+import type { SshRemotePtyLease, SshTarget } from './ssh-types'
 import type { WorkspaceSource } from './telemetry-events'
 import type { GitHubProjectSettings } from './github-project-types'
 
@@ -1648,6 +1648,7 @@ export type PersistedState = {
   }
   workspaceSession: WorkspaceSessionState
   sshTargets: SshTarget[]
+  sshRemotePtyLeases: SshRemotePtyLease[]
   onboarding: OnboardingState
 }
 

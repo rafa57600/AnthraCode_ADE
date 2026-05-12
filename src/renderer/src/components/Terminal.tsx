@@ -189,8 +189,8 @@ function Terminal(): React.JSX.Element | null {
   // new click on the next dialog still works.
   const isClosingRef = useRef(false)
 
-  // Window close confirmation dialog — shown when the user tries to close the
-  // window (X button, Cmd+Q) while terminals with running processes exist.
+  // Window close confirmation dialog — shown for local terminals with running
+  // child processes. SSH terminals detach/persist through the relay lifecycle.
   const [windowCloseDialogOpen, setWindowCloseDialogOpen] = useState(false)
 
   // Why: when the main process requests a close while editor tabs are dirty, we
@@ -204,26 +204,31 @@ function Terminal(): React.JSX.Element | null {
     // a dirty-tab preventDefault() does not fire during the initial quit IPC
     // (that path can emit will-prevent-unload and clear isQuitting in main).
     window.dispatchEvent(new Event('beforeunload'))
-
-    if (isQuitting) {
-      window.api.ui.confirmWindowClose()
-      return
-    }
-    const state = useAppStore.getState()
-    const allPtyIds = Object.values(state.ptyIdsByTabId).flat()
-    if (allPtyIds.length === 0) {
-      window.api.ui.confirmWindowClose()
-      return
-    }
-    void Promise.all(allPtyIds.map((id) => window.api.pty.hasChildProcesses(id))).then(
-      (results) => {
-        if (results.some(Boolean)) {
-          setWindowCloseDialogOpen(true)
-        } else {
-          window.api.ui.confirmWindowClose()
+    if (!isQuitting) {
+      const state = useAppStore.getState()
+      const localPtyIds = Object.entries(state.tabsByWorktree).flatMap(
+        ([worktreeId, worktreeTabs]) => {
+          const connectionId = getConnectionId(worktreeId)
+          if (connectionId !== null) {
+            return []
+          }
+          return worktreeTabs.flatMap((tab) => state.ptyIdsByTabId[tab.id] ?? [])
         }
+      )
+      if (localPtyIds.length > 0) {
+        void Promise.all(localPtyIds.map((id) => window.api.pty.hasChildProcesses(id))).then(
+          (results) => {
+            if (results.some(Boolean)) {
+              setWindowCloseDialogOpen(true)
+            } else {
+              window.api.ui.confirmWindowClose()
+            }
+          }
+        )
+        return
       }
-    )
+    }
+    window.api.ui.confirmWindowClose()
   }, [])
 
   const waitForFileClosed = useCallback((fileId: string, timeoutMs: number): Promise<boolean> => {
@@ -1059,8 +1064,9 @@ function Terminal(): React.JSX.Element | null {
     return () => window.removeEventListener('beforeunload', handler)
   }, [])
 
-  // Listen for main-process window close requests. When any terminal has a
-  // child process running (not just an idle shell), show a confirmation dialog.
+  // Listen for main-process window close requests. Terminal sessions are
+  // detached by the daemon/SSH lifecycle; only dirty editor files should block
+  // close here. Explicit destructive terminal actions keep their own confirms.
   useEffect(() => {
     return window.api.ui.onWindowCloseRequested(({ isQuitting }) => {
       if (isUpdaterQuitAndInstallInProgress()) {
@@ -1084,36 +1090,9 @@ function Terminal(): React.JSX.Element | null {
         return
       }
 
-      // Why: capture terminal scrollback buffers while TerminalPane components
-      // are still mounted. Dispatching beforeunload triggers the App.tsx
-      // captureAndFlush handler which serializes each pane's xterm buffer
-      // and writes the session to disk via synchronous IPC.
-      window.dispatchEvent(new Event('beforeunload'))
-      // Why: during a quit (Cmd+Q), PTYs are still alive (cleanup is deferred
-      // to will-quit so buffers can be captured first). Skip the child-process
-      // confirmation dialog and proceed directly — the user's intent to quit
-      // is unambiguous.
-      if (isQuitting) {
-        window.api.ui.confirmWindowClose()
-        return
-      }
-      const state = useAppStore.getState()
-      const allPtyIds = Object.values(state.ptyIdsByTabId).flat()
-      if (allPtyIds.length === 0) {
-        window.api.ui.confirmWindowClose()
-        return
-      }
-      void Promise.all(allPtyIds.map((id) => window.api.pty.hasChildProcesses(id))).then(
-        (results) => {
-          if (results.some(Boolean)) {
-            setWindowCloseDialogOpen(true)
-          } else {
-            window.api.ui.confirmWindowClose()
-          }
-        }
-      )
+      proceedToNativeWindowClose(isQuitting)
     })
-  }, [queueEditorCloseRequests])
+  }, [proceedToNativeWindowClose, queueEditorCloseRequests])
 
   // Why: browser page state can disappear through store-only paths (CLI tab
   // close, worktree deletion). The store cannot call destroyPersistentWebview
@@ -1441,8 +1420,7 @@ function Terminal(): React.JSX.Element | null {
         </DialogContent>
       </Dialog>
 
-      {/* Window close confirmation dialog — shown when the window is being
-          closed and terminals are still running. */}
+      {/* Window close confirmation dialog */}
       <Dialog
         open={windowCloseDialogOpen}
         onOpenChange={(open) => {
@@ -1455,8 +1433,7 @@ function Terminal(): React.JSX.Element | null {
           <DialogHeader>
             <DialogTitle className="text-sm">Close Window?</DialogTitle>
             <DialogDescription className="text-xs">
-              There are terminals with running processes. If you close the window, those processes
-              will be killed.
+              There are local terminals with running processes. Close the window anyway?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">

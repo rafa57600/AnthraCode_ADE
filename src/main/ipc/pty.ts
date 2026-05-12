@@ -16,6 +16,7 @@ import { piTitlebarExtensionService } from '../pi/titlebar-extension-service'
 import { isPwshAvailable } from '../pwsh'
 import { LocalPtyProvider } from '../providers/local-pty-provider'
 import type { IPtyProvider, PtySpawnOptions, PtySpawnResult } from '../providers/types'
+import { SSH_SESSION_EXPIRED_ERROR, isSshPtyNotFoundError } from '../providers/ssh-pty-provider'
 import { mintPtySessionId, isSafePtySessionId } from '../daemon/pty-session-id'
 import { addNodePtyRecoveryHint } from '../daemon/node-pty-error-hints'
 import type { ClaudeRuntimeAuthPreparation } from '../claude-accounts/runtime-auth-service'
@@ -139,6 +140,14 @@ function getProviderForPty(ptyId: string): IPtyProvider {
   return getProvider(connectionId)
 }
 
+function tryGetProviderForPty(ptyId: string): IPtyProvider | undefined {
+  try {
+    return getProviderForPty(ptyId)
+  } catch {
+    return undefined
+  }
+}
+
 function normalizeNodePtySpawnError(err: unknown): Error {
   const rawMessage = err instanceof Error ? err.message : String(err)
   const hintedMessage = addNodePtyRecoveryHint(rawMessage)
@@ -152,6 +161,24 @@ function normalizeNodePtySpawnError(err: unknown): Error {
     return err
   }
   return new Error(hintedMessage)
+}
+
+function isPtyAlreadyGoneError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err)
+  return isSshPtyNotFoundError(err) || /Session not found/i.test(message)
+}
+
+function finishPtyShutdown(
+  id: string,
+  connectionId: string | null | undefined,
+  store: Store | undefined
+): void {
+  clearProviderPtyState(id)
+  if (connectionId) {
+    store?.markSshRemotePtyLease(connectionId, id, 'terminated')
+  }
+  ptyOwnership.delete(id)
+  markClaudePtyExited(id)
 }
 
 // ─── Host PTY env assembly ──────────────────────────────────────────
@@ -429,6 +456,10 @@ export function clearProviderPtyState(id: string): void {
 
 export function deletePtyOwnership(id: string): void {
   ptyOwnership.delete(id)
+}
+
+export function setPtyOwnership(id: string, connectionId: string | null): void {
+  ptyOwnership.set(id, connectionId)
 }
 
 // Why: localProvider.onData/onExit return unsubscribe functions. Without
@@ -841,14 +872,41 @@ export function registerPtyHandlers(
       }
     },
     kill: (ptyId) => {
-      const provider = getProviderForPty(ptyId)
-      // Why: shutdown() is async but the PtyController interface is sync.
-      // Swallowing the rejection prevents an unhandled promise rejection crash
-      // if the remote SSH session is already gone.
-      void provider.shutdown(ptyId, { immediate: false }).catch(() => {})
-      clearProviderPtyState(ptyId)
-      markClaudePtyExited(ptyId)
-      runtime?.onPtyExit(ptyId, -1)
+      let provider: IPtyProvider
+      let connectionId: string | null | undefined
+      try {
+        connectionId = ptyOwnership.get(ptyId)
+        provider = getProviderForPty(ptyId)
+      } catch {
+        if (connectionId) {
+          // Why: runtime/CLI close can target a detached SSH PTY after its
+          // provider was unregistered. Tombstone the lease so reconnect does
+          // not revive a terminal the user explicitly closed.
+          finishPtyShutdown(ptyId, connectionId, store)
+          runtime?.onPtyExit(ptyId, -1)
+          return true
+        }
+        return false
+      }
+      // Why: shutdown() is async but the PtyController interface is sync. Defer
+      // cleanup until shutdown resolves so transient SSH/daemon failures don't
+      // hide a still-running remote process or local daemon session.
+      void provider
+        .shutdown(ptyId, { immediate: false })
+        .then(() => {
+          finishPtyShutdown(ptyId, connectionId, store)
+          runtime?.onPtyExit(ptyId, -1)
+        })
+        .catch((err) => {
+          if (isPtyAlreadyGoneError(err)) {
+            finishPtyShutdown(ptyId, connectionId, store)
+            runtime?.onPtyExit(ptyId, -1)
+            return
+          }
+          console.warn(
+            `[pty] Failed to stop PTY ${ptyId}: ${err instanceof Error ? err.message : String(err)}`
+          )
+        })
       return true
     },
     getForegroundProcess: async (ptyId) => {
@@ -1095,9 +1153,23 @@ export function registerPtyHandlers(
         }
         result = await provider.spawn(spawnOptions)
       } catch (err) {
+        const rawMessage = err instanceof Error ? err.message : String(err)
         const spawnError = normalizeNodePtySpawnError(err)
         if (effectiveSessionId !== undefined) {
           ptySizes.delete(effectiveSessionId)
+        }
+        if (
+          args.connectionId &&
+          effectiveSessionId !== undefined &&
+          (spawnError.message.includes(SSH_SESSION_EXPIRED_ERROR) ||
+            rawMessage.includes(SSH_SESSION_EXPIRED_ERROR))
+        ) {
+          // Why: expired remote reattach means the relay has already dropped
+          // the backing PTY. Clear the durable lease so later session writes
+          // cannot restore the stale pane binding.
+          clearProviderPtyState(effectiveSessionId)
+          deletePtyOwnership(effectiveSessionId)
+          store?.markSshRemotePtyLease(args.connectionId, effectiveSessionId, 'expired')
         }
         // Why: when buildPtyHostEnv materialized a Pi overlay for this id
         // but provider.spawn failed, the overlay would leak.
@@ -1136,19 +1208,32 @@ export function registerPtyHandlers(
         }
       }
       ptyOwnership.set(result.id, args.connectionId ?? null)
+      if (store && args.connectionId) {
+        // Why: remote PTYs live in the SSH relay grace window after Orca
+        // detaches. Persist their IDs immediately so reconnect can reattach
+        // instead of treating the tab as a fresh shell.
+        store.upsertSshRemotePtyLease({
+          targetId: args.connectionId,
+          ptyId: result.id,
+          ...(typeof args.worktreeId === 'string' ? { worktreeId: args.worktreeId } : {}),
+          ...(typeof args.tabId === 'string' ? { tabId: args.tabId } : {}),
+          ...(typeof args.leafId === 'string' ? { leafId: args.leafId } : {}),
+          state: 'attached',
+          lastAttachedAt: Date.now()
+        })
+      }
       if (preAllocatedHandle) {
         runtime?.registerPreAllocatedHandleForPty(result.id, preAllocatedHandle)
       }
       ptySizes.set(result.id, { cols: args.cols, rows: args.rows })
-      // Why: closes the SIGKILL-between-spawn-and-persist race (Issue #217).
+      // Why: closes the SIGKILL-between-spawn-and-persist race (Issue #217)
+      // for local daemon PTYs and the equivalent remote-relay race for SSH.
       // The renderer's debounced session writer runs in parallel for every
-      // other field; we patch the load-bearing (tab.ptyId, ptyIdsByLeafId)
+      // other field; patch the load-bearing (tab.ptyId, ptyIdsByLeafId)
       // binding synchronously so a force-quit in the ~450 ms debounce window
-      // can no longer orphan the daemon's history dir. Other spawn callers
-      // (mobile, runtime CLI, SSH) leave tabId/leafId undefined and this
-      // short-circuits — preserves their existing behavior.
+      // cannot orphan either daemon history or a remote relay PTY lease.
       if (
-        isDaemonHostSpawn &&
+        (isDaemonHostSpawn || args.connectionId) &&
         store &&
         args.worktreeId !== undefined &&
         args.tabId !== undefined &&
@@ -1305,7 +1390,7 @@ export function registerPtyHandlers(
     if (runtime?.getDriver(args.id).kind === 'mobile') {
       return
     }
-    getProviderForPty(args.id).write(args.id, args.data)
+    tryGetProviderForPty(args.id)?.write(args.id, args.data)
   })
 
   // Why: resize is fire-and-forget — the renderer doesn't need a reply.
@@ -1332,7 +1417,7 @@ export function registerPtyHandlers(
       return
     }
     ptySizes.set(args.id, { cols: args.cols, rows: args.rows })
-    getProviderForPty(args.id).resize(args.id, args.cols, args.rows)
+    tryGetProviderForPty(args.id)?.resize(args.id, args.cols, args.rows)
     runtime?.onExternalPtyResize(args.id, args.cols, args.rows)
   })
 
@@ -1356,42 +1441,47 @@ export function registerPtyHandlers(
   // Why: fire-and-forget — clears the DaemonPtyAdapter's sticky cold restore
   // cache after the renderer has consumed the data. No-op for non-daemon providers.
   ipcMain.on('pty:ackColdRestore', (_event, args: { id: string }) => {
-    const provider = getProviderForPty(args.id)
-    if ('ackColdRestore' in provider && typeof provider.ackColdRestore === 'function') {
+    const provider = tryGetProviderForPty(args.id)
+    if (provider && 'ackColdRestore' in provider && typeof provider.ackColdRestore === 'function') {
       provider.ackColdRestore(args.id)
     }
   })
 
   ipcMain.removeAllListeners('pty:signal')
   ipcMain.on('pty:signal', (_event, args: { id: string; signal: string }) => {
-    getProviderForPty(args.id)
-      .sendSignal(args.id, args.signal)
+    tryGetProviderForPty(args.id)
+      ?.sendSignal(args.id, args.signal)
       .catch(() => {})
   })
 
   ipcMain.handle('pty:kill', async (_event, args: { id: string; keepHistory?: boolean }) => {
-    // Why: try/finally ensures ptyOwnership is cleaned up even if shutdown
-    // throws (e.g. SSH connection already gone or daemon session already
-    // reaped). Swallowing the error prevents noisy renderer-side rejections
-    // when killing orphaned sessions that the daemon has already discarded.
+    const connectionId = ptyOwnership.get(args.id)
+    const provider = tryGetProviderForPty(args.id)
+    if (!provider && connectionId) {
+      // Why: detached SSH PTYs intentionally keep ownership after their
+      // provider is unregistered. If the user closes the pane while detached,
+      // make the lease non-restorable instead of reviving it on reconnect.
+      finishPtyShutdown(args.id, connectionId, store)
+      return
+    }
     try {
-      await getProviderForPty(args.id).shutdown(args.id, {
+      await (provider ?? getProviderForPty(args.id)).shutdown(args.id, {
         immediate: true,
         keepHistory: args.keepHistory ?? false
       })
-    } catch {
+    } catch (err) {
+      if (!isPtyAlreadyGoneError(err)) {
+        // Why: a failed SSH shutdown can leave the remote process alive in
+        // the relay grace window; daemon failures have the same risk locally.
+        // Keep ownership/lease state so the user can retry.
+        throw err
+      }
       /* session already dead — cleanup below handles the rest */
-    } finally {
-      // Why: onExit clears provider state for LocalPtyProvider, but remote
-      // SSH and daemon shutdown paths do not emit onExit through the local
-      // provider's listener. Call clearProviderPtyState explicitly here so
-      // the hook-server paneKey cache and OpenCode/Pi PTY-scoped state are
-      // cleared on explicit kill. clearProviderPtyState is idempotent — safe
-      // if onExit already ran.
-      clearProviderPtyState(args.id)
-      ptyOwnership.delete(args.id)
-      markClaudePtyExited(args.id)
     }
+    // Why: onExit clears provider state for LocalPtyProvider, but remote SSH
+    // and daemon shutdown paths do not emit onExit through the local provider's
+    // listener. Explicit cleanup is idempotent and covers already-dead PTYs.
+    finishPtyShutdown(args.id, connectionId, store)
   })
 
   ipcMain.handle(

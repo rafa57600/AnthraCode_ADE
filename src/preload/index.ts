@@ -2243,6 +2243,9 @@ const api = {
     disconnect: (args: { targetId: string }): Promise<void> =>
       ipcRenderer.invoke('ssh:disconnect', args),
 
+    terminateSessions: (args: { targetId: string }): Promise<void> =>
+      ipcRenderer.invoke('ssh:terminateSessions', args),
+
     getState: (args: { targetId: string }): Promise<SshConnectionState | null> =>
       ipcRenderer.invoke('ssh:getState', args),
 

@@ -1924,7 +1924,7 @@ export default function SessionScreen() {
               onPress={() =>
                 router.push({
                   pathname: '/h/[hostId]/files/[worktreeId]',
-                  params: { hostId, worktreeId, name: worktreeName || name || '' }
+                  params: { hostId, worktreeId, name: worktreeName || '' }
                 })
               }
               hitSlop={8}

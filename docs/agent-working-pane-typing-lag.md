@@ -199,11 +199,18 @@ Two-part fix in this branch:
 
 2. The relevant-fields gate at `App.tsx:438-450` now also bails
    when both `terminalLayoutsByTabId` and
-   `runtimePaneTitlesByTabId` are reference-stable. This means
-   `updateTabTitle` (the most common click-path mutation, which
-   reallocates `tabsByWorktree`) reaches `getRuntimeMobileSessionSyncKey`
-   only when the smaller projection actually needs comparing — no
-   stringify of accumulated tab state.
+   `runtimePaneTitlesByTabId` are reference-stable. This catches
+   the layout-only mutators (`setTabLayout`, `setPaneRuntimeTitle`,
+   etc.) that previously fell through to a full key build, and
+   keeps the gate a strict superset of "any input field could have
+   changed?" — every field consumed by
+   `getRuntimeMobileSessionSyncKey` is now reference-checked here,
+   so when the gate passes, the key is guaranteed identical without
+   needing to materialize one. The dominant click path
+   (`updateTabTitle` reallocating `tabsByWorktree`) still falls
+   through, but the key build it triggers now only stringifies
+   small projected shapes — no stringify of accumulated layout or
+   pane-title state.
 
 `runtimeMobileSessionSyncKeysEqual` is the new comparator. It does
 field-by-field reference equality plus three string compares for the

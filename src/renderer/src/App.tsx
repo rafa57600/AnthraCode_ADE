@@ -436,13 +436,11 @@ function App(): React.JSX.Element {
   useEffect(() => {
     let previousKey = getRuntimeMobileSessionSyncKey(useAppStore.getState())
     return useAppStore.subscribe((state, previousState) => {
-      // Why: cheap reference-equality fast path. The relevant-fields gate must
-      // also include `terminalLayoutsByTabId` and `runtimePaneTitlesByTabId` —
-      // otherwise unrelated mutations (e.g. `updateTabTitle` reallocating
-      // `tabsByWorktree`) fall through to the key build, which used to do an
-      // O(N) JSON.stringify of those large maps and pinned the main thread for
-      // ~750ms per click in workspaces with hundreds of accumulated tabs. See
-      // docs/agent-working-pane-typing-lag.md.
+      // Why: skip the key build entirely when no input field has changed by
+      // reference. Mirrors every field used by getRuntimeMobileSessionSyncKey
+      // so this gate stays a strict superset of "could the key have changed?"
+      // — if any field's reference is unchanged, neither the projection
+      // serialized from it nor the reference-compared map can have changed.
       if (
         state.tabsByWorktree === previousState.tabsByWorktree &&
         state.groupsByWorktree === previousState.groupsByWorktree &&

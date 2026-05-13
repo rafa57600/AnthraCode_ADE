@@ -259,8 +259,9 @@ export function FloatingTerminalPanel({
       ref={panelRef}
       data-floating-terminal-panel
       aria-hidden={!open}
-      className={`fixed z-50 flex min-h-[280px] min-w-[420px] overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-[0_10px_24px_rgba(0,0,0,0.18)] ${open ? '' : 'invisible pointer-events-none'}`}
+      className={`fixed z-50 flex min-h-[280px] min-w-[420px] overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-[0_10px_24px_rgba(0,0,0,0.18)] ${open ? 'opacity-100' : 'invisible pointer-events-none opacity-0'}`}
       style={{
+        visibility: open ? 'visible' : 'hidden',
         left: bounds.left,
         top: bounds.top,
         width: bounds.width,

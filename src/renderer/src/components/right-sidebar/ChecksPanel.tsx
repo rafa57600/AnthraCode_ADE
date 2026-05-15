@@ -21,6 +21,7 @@ import type { PRInfo, PRCheckDetail, PRComment } from '../../../../shared/types'
 import { getConnectionId } from '@/lib/connection-context'
 import { CreatePullRequestDialog } from './CreatePullRequestDialog'
 import type { HostedReviewCreationEligibility } from '../../../../shared/hosted-review'
+import { toast } from 'sonner'
 
 export default function ChecksPanel(): React.JSX.Element {
   const activeWorktree = useActiveWorktree()
@@ -491,6 +492,8 @@ export default function ChecksPanel(): React.JSX.Element {
             setComments((prev) =>
               prev.map((c) => (c.threadId === threadId ? { ...c, isResolved: resolve } : c))
             )
+          } else {
+            toast.error('Could not update review thread. Check the GitHub API budget.')
           }
         }
       )

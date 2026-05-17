@@ -874,7 +874,9 @@ function createCliApi(): NonNullable<Partial<PreloadApi>['cli']> {
 }
 
 function createAgentHooksApi(): NonNullable<Partial<PreloadApi>['agentHooks']> {
-  const status = (agent: 'claude' | 'codex' | 'gemini' | 'cursor' | 'droid' | 'grok' | 'hermes') =>
+  const status = (
+    agent: 'claude' | 'codex' | 'gemini' | 'cursor' | 'droid' | 'grok' | 'copilot' | 'hermes'
+  ) =>
     Promise.resolve({
       agent,
       state: 'not_installed',
@@ -889,6 +891,7 @@ function createAgentHooksApi(): NonNullable<Partial<PreloadApi>['agentHooks']> {
     cursorStatus: () => status('cursor'),
     droidStatus: () => status('droid'),
     grokStatus: () => status('grok'),
+    copilotStatus: () => status('copilot'),
     hermesStatus: () => status('hermes')
   }
 }

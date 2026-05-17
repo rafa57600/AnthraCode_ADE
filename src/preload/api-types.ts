@@ -1119,6 +1119,7 @@ export type PreloadApi = {
     cursorStatus: () => Promise<AgentHookInstallStatus>
     droidStatus: () => Promise<AgentHookInstallStatus>
     grokStatus: () => Promise<AgentHookInstallStatus>
+    copilotStatus: () => Promise<AgentHookInstallStatus>
     hermesStatus: () => Promise<AgentHookInstallStatus>
   }
   agentTrust: {

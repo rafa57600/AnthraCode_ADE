@@ -406,17 +406,41 @@ async function readHermesCronOutputRunRefs(jobId: string): Promise<HermesMergedR
 // cache this performs N readdir + N sqlite open/query on every list call,
 // which scales linearly with job and run-history size on the main process.
 const HERMES_RUN_COUNT_CACHE_TTL_MS = 2000
-const hermesRunCountCache = new Map<string, { count: number; expiresAt: number }>()
+type HermesRunCountCacheEntry = {
+  promise: Promise<number>
+  expiresAt: number
+}
+const hermesRunCountCache = new Map<string, HermesRunCountCacheEntry>()
+
+export function clearHermesCronOutputRunCountCache(jobId?: string): void {
+  if (jobId) {
+    hermesRunCountCache.delete(jobId)
+    return
+  }
+  hermesRunCountCache.clear()
+}
 
 async function readHermesCronOutputRunCount(jobId: string): Promise<number> {
   const now = Date.now()
   const cached = hermesRunCountCache.get(jobId)
   if (cached && cached.expiresAt > now) {
-    return cached.count
+    return cached.promise
   }
-  const count = (await readHermesCronOutputRunRefs(jobId)).length
-  hermesRunCountCache.set(jobId, { count, expiresAt: now + HERMES_RUN_COUNT_CACHE_TTL_MS })
-  return count
+  const entry: HermesRunCountCacheEntry = {
+    promise: readHermesCronOutputRunRefs(jobId).then((refs) => refs.length),
+    expiresAt: Number.POSITIVE_INFINITY
+  }
+  hermesRunCountCache.set(jobId, entry)
+  try {
+    const count = await entry.promise
+    entry.expiresAt = Date.now() + HERMES_RUN_COUNT_CACHE_TTL_MS
+    return count
+  } catch (error) {
+    if (hermesRunCountCache.get(jobId) === entry) {
+      hermesRunCountCache.delete(jobId)
+    }
+    throw error
+  }
 }
 
 async function hydrateHermesRunRef(jobId: string, ref: HermesMergedRunRef): Promise<unknown> {

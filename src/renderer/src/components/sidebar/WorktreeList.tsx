@@ -394,7 +394,7 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
     },
     [isCurrentVirtualRowElement]
   )
-  const markDirectScrollInput = useCallback(() => {
+  const markScrollMovement = useCallback(() => {
     suppressMeasurementAdjustmentUntilRef.current =
       window.performance.now() + USER_SCROLL_MEASUREMENT_ADJUSTMENT_SUPPRESS_MS
   }, [])
@@ -800,8 +800,12 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
       aria-multiselectable="true"
       aria-activedescendant={activeDescendantId}
       onKeyDown={handleContainerKeyDown}
-      onTouchMove={markDirectScrollInput}
-      onWheel={markDirectScrollInput}
+      // Why: trackpad momentum can continue as sparse scroll events after the
+      // original wheel/touch event stream quiets down. Keep measurement-based
+      // scroll correction suppressed until the viewport itself has stopped.
+      onScroll={markScrollMovement}
+      onTouchMove={markScrollMovement}
+      onWheel={markScrollMovement}
       className="worktree-sidebar-scrollbar flex-1 overflow-y-scroll overflow-x-hidden pl-1 scrollbar-sleek outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-inset pt-px"
       style={WORKTREE_SIDEBAR_SCROLL_STYLE}
     >

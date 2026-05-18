@@ -9,6 +9,7 @@ import { track } from '@/lib/telemetry'
 import { buildAgentPickedPayload } from './agent-picked-payload'
 import { ONBOARDING_FINAL_STEP } from '../../../../shared/constants'
 import { isGitRepoKind } from '../../../../shared/repo-kind'
+import type { EventProps } from '../../../../shared/telemetry-events'
 import type { GlobalSettings, OnboardingState, Repo, TuiAgent } from '../../../../shared/types'
 import type { NotificationDraft } from './NotificationStep'
 import {
@@ -27,6 +28,34 @@ export { STEPS } from './use-onboarding-flow-types'
 export type { StepId, StepNumber } from './use-onboarding-flow-types'
 
 export type OnboardingFlowController = ReturnType<typeof useOnboardingFlow>
+
+type TaskSourcesSnapshotProps = EventProps<'onboarding_task_sources_snapshot'>
+type TaskSourcesGithubStatus = TaskSourcesSnapshotProps['github_status']
+type TaskSourcesLinearStatus = TaskSourcesSnapshotProps['linear_status']
+type TaskSourcesExitAction = TaskSourcesSnapshotProps['exit_action']
+
+function getGitHubTaskSourceStatus(
+  status: ReturnType<typeof useAppStore.getState>['preflightStatus'],
+  loading: boolean
+): TaskSourcesGithubStatus {
+  if (loading || !status) {
+    return 'checking'
+  }
+  if (!status.gh.installed) {
+    return 'not_installed'
+  }
+  return status.gh.authenticated ? 'connected' : 'not_authenticated'
+}
+
+function getLinearTaskSourceStatus(
+  status: ReturnType<typeof useAppStore.getState>['linearStatus'],
+  checked: boolean
+): TaskSourcesLinearStatus {
+  if (status.connected) {
+    return 'connected'
+  }
+  return checked ? 'not_connected' : 'checking'
+}
 
 export function useOnboardingFlow(
   onboarding: OnboardingState,
@@ -47,6 +76,10 @@ export function useOnboardingFlow(
   const openModal = useAppStore((s) => s.openModal)
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
+  const preflightStatus = useAppStore((s) => s.preflightStatus)
+  const preflightStatusLoading = useAppStore((s) => s.preflightStatusLoading)
+  const linearStatus = useAppStore((s) => s.linearStatus)
+  const linearStatusChecked = useAppStore((s) => s.linearStatusChecked)
 
   const initialStep = Math.min(Math.max(onboarding.lastCompletedStep, 0), STEPS.length - 1)
   const [stepIndex, setStepIndex] = useState(initialStep)
@@ -237,6 +270,25 @@ export function useOnboardingFlow(
     return Math.max(0, Date.now() - stepStartedAtRef.current)
   }, [])
 
+  const trackTaskSourcesSnapshot = useCallback(
+    (
+      exitAction: TaskSourcesExitAction,
+      durationMs: number,
+      advancedVia: 'button' | 'keyboard'
+    ): void => {
+      // Why: one low-cardinality snapshot answers whether task sources were
+      // usable at step exit without paying for per-button telemetry.
+      track('onboarding_task_sources_snapshot', {
+        github_status: getGitHubTaskSourceStatus(preflightStatus, preflightStatusLoading),
+        linear_status: getLinearTaskSourceStatus(linearStatus, linearStatusChecked),
+        exit_action: exitAction,
+        duration_ms: durationMs,
+        advanced_via: advancedVia
+      })
+    },
+    [linearStatus, linearStatusChecked, preflightStatus, preflightStatusLoading]
+  )
+
   // Why: only auto-pick on first mount when detection completes; otherwise
   // selecting an agent would re-trigger this effect and clobber/race user clicks.
   const didAutoSelectRef = useRef(false)
@@ -369,12 +421,16 @@ export function useOnboardingFlow(
             // not double-count the same step completion.
             notificationsStepCompletedTrackedRef.current = true
           }
+          const durationMs = consumeStepDurationMs()
           track('onboarding_step_completed', {
             step: currentStep.stepNumber,
             value_kind: currentStep.valueKind,
-            duration_ms: consumeStepDurationMs(),
+            duration_ms: durationMs,
             advanced_via: advancedVia
           })
+          if (currentStep.id === 'integrations') {
+            trackTaskSourcesSnapshot('continue', durationMs, advancedVia)
+          }
         }
         const result = await persistCurrentStep()
         const nextCommand = result.featureSetupResult?.skillInstallCommand ?? null
@@ -404,7 +460,8 @@ export function useOnboardingFlow(
       featureSetupSelection,
       featureSetupTerminalCommand,
       hasSelectedFeatureSetup,
-      persistCurrentStep
+      persistCurrentStep,
+      trackTaskSourcesSnapshot
     ]
   )
 
@@ -544,6 +601,9 @@ export function useOnboardingFlow(
         duration_ms: durationMs,
         advanced_via: 'button'
       })
+      if (currentStep.id === 'integrations') {
+        trackTaskSourcesSnapshot('skip_to_project_setup', durationMs, 'button')
+      }
       setStepIndex(repoStepIndex)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
@@ -558,6 +618,7 @@ export function useOnboardingFlow(
     onOnboardingChange,
     selectedAgent,
     settings,
+    trackTaskSourcesSnapshot,
     updateSettings
   ])
 

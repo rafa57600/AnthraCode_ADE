@@ -586,6 +586,10 @@ function createGitApi(): NonNullable<Partial<PreloadApi>['git']> {
       success: false,
       error: 'Commit message generation is unavailable in the web client.'
     }),
+    discoverCommitMessageModels: async () => ({
+      success: false,
+      error: 'Commit message model discovery is unavailable in the web client.'
+    }),
     cancelGenerateCommitMessage: () => Promise.resolve(),
     generatePullRequestFields: async () => ({
       success: false,
@@ -692,6 +696,7 @@ function createGitHubApi(): NonNullable<Partial<PreloadApi>['gh']> {
     countWorkItems: direct('github.countWorkItems'),
     listWorkItems: direct('github.listWorkItems'),
     prChecks: direct('github.prChecks'),
+    prCheckDetails: direct('github.prCheckDetails'),
     rerunPRChecks: direct('github.rerunPRChecks'),
     prComments: direct('github.prComments'),
     resolveReviewThread: direct('github.resolveReviewThread'),
@@ -700,6 +705,7 @@ function createGitHubApi(): NonNullable<Partial<PreloadApi>['gh']> {
     mergePR: direct('github.mergePR'),
     updatePRState: direct('github.updatePRState'),
     requestPRReviewers: direct('github.requestPRReviewers'),
+    removePRReviewers: direct('github.removePRReviewers'),
     updateIssue: direct('github.updateIssue'),
     addIssueComment: direct('github.addIssueComment'),
     addPRReviewCommentReply: direct('github.addPRReviewCommentReply'),

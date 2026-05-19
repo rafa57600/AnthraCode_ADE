@@ -27,20 +27,25 @@ import {
   FolderOpen,
   GitMerge,
   GitPullRequest,
+  GitPullRequestClosed,
   LayoutList,
+  ListChecks,
   LoaderCircle,
   MessageSquare,
   MessageSquarePlus,
+  Pencil,
   RefreshCw,
   Send,
   UndoDot,
   Users,
+  Wrench,
   X
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { ButtonGroup } from '@/components/ui/button-group'
 import { Input } from '@/components/ui/input'
+import { useConfirmationDialog } from '@/components/confirmation-dialog'
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { VisuallyHidden } from 'radix-ui'
 import {
@@ -51,7 +56,7 @@ import {
 } from '@/components/ui/accordion'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -87,10 +92,15 @@ import { useRepoLabels, useRepoAssignees, useImmediateMutation } from '@/hooks/u
 import { useRepoLabelsBySlug, useRepoAssigneesBySlug } from '@/hooks/useGitHubSlugMetadata'
 import IssueSourceIndicator, { sameGitHubOwnerRepo } from '@/components/github/IssueSourceIndicator'
 import {
-  appendGitHubPRRequestedReviewers,
   getGitHubPRReviewerRows,
   normalizeGitHubReviewerLogins
 } from '@/components/github-pr-reviewer-display'
+import { AGENT_CATALOG } from '@/lib/agent-catalog'
+import { getConnectionId } from '@/lib/connection-context'
+import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
+import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
+import { launchWorkItemDirect } from '@/lib/launch-work-item-direct'
+import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import type {
   GitHubOwnerRepo,
   GitHubPRFile,
@@ -101,9 +111,14 @@ import type {
   GitHubAssignableUser,
   GitHubReaction,
   PRCheckDetail,
-  PRComment
+  PRCheckRunDetails,
+  PRComment,
+  TuiAgent,
+  Worktree
 } from '../../../shared/types'
 import { PER_REPO_FETCH_LIMIT } from '../../../shared/work-items'
+
+const IS_MAC = navigator.userAgent.includes('Mac')
 
 // Why: the GH item dialog can be opened from any work-item list surface and
 // doesn't have the full owner/repo context the list's cache entry carries.
@@ -132,7 +147,7 @@ function parseOwnerRepoFromItemUrl(url: string): GitHubOwnerRepo | null {
 const DiffViewer = lazy(() => import('@/components/editor/DiffViewer'))
 const MonacoCodeExcerpt = lazy(() => import('@/components/editor/MonacoCodeExcerpt'))
 
-type ItemDialogTab = 'conversation' | 'files'
+export type ItemDialogTab = 'conversation' | 'checks' | 'files'
 
 type MentionOption = {
   login: string
@@ -161,6 +176,16 @@ const REACTION_EMOJI: Record<GitHubReaction['content'], string> = {
   eyes: '👀'
 }
 
+function normalizeItemDialogTab(
+  item: GitHubWorkItem | null,
+  tab: ItemDialogTab | undefined
+): ItemDialogTab {
+  if (item?.type !== 'pr') {
+    return 'conversation'
+  }
+  return tab ?? 'conversation'
+}
+
 /** Why: Project-origin rows don't always belong to the active local repo.
  *  When set, GHEditSection routes label/assignee/state mutations through
  *  slug-addressed IPCs against `owner`/`repo` instead of through `repoPath`,
@@ -182,6 +207,7 @@ type GitHubItemDialogProps = {
   workItem: GitHubWorkItem | null
   repoPath: string | null
   repoId?: string | null
+  initialTab?: ItemDialogTab
   /** Called when the user clicks the primary CTA to start work from this item. */
   onUse: (item: GitHubWorkItem) => void
   onReviewRequestsChange?: (
@@ -399,6 +425,45 @@ function ReviewerAvatar({
   )
 }
 
+function mergeReviewerSuggestions(
+  users: GitHubAssignableUser[],
+  seedUsers: GitHubAssignableUser[]
+): GitHubAssignableUser[] {
+  const byLogin = new Map<string, GitHubAssignableUser>()
+  for (const user of [...seedUsers, ...users]) {
+    const key = user.login.toLowerCase()
+    const existing = byLogin.get(key)
+    if (!existing) {
+      byLogin.set(key, user)
+      continue
+    }
+    if (!existing.avatarUrl && user.avatarUrl) {
+      byLogin.set(key, { ...existing, avatarUrl: user.avatarUrl })
+    }
+  }
+  return Array.from(byLogin.values()).sort((a, b) => a.login.localeCompare(b.login))
+}
+
+function buildRequestedReviewUsers(
+  logins: string[],
+  candidates: GitHubAssignableUser[],
+  existingRequests: GitHubAssignableUser[]
+): GitHubAssignableUser[] {
+  const byLogin = new Map<string, GitHubAssignableUser>()
+  for (const user of existingRequests) {
+    byLogin.set(user.login.toLowerCase(), user)
+  }
+  const candidatesByLogin = new Map(candidates.map((user) => [user.login.toLowerCase(), user]))
+  for (const login of logins) {
+    const key = login.toLowerCase()
+    if (byLogin.has(key)) {
+      continue
+    }
+    byLogin.set(key, candidatesByLogin.get(key) ?? { login, name: null, avatarUrl: '' })
+  }
+  return Array.from(byLogin.values())
+}
+
 function PRReviewersPanel({
   item,
   loading,
@@ -410,19 +475,73 @@ function PRReviewersPanel({
   repoPath: string | null
   onReviewersRequested: (reviewRequests: GitHubAssignableUser[]) => void
 }): React.JSX.Element {
+  const [open, setOpen] = useState(false)
   const [reviewerInput, setReviewerInput] = useState('')
+  const [reviewerPickerSide, setReviewerPickerSide] = useState<'top' | 'bottom'>('bottom')
+  const [reviewerPickerMaxHeight, setReviewerPickerMaxHeight] = useState<number | null>(null)
+  const [activeReviewerIndex, setActiveReviewerIndex] = useState(0)
   const [submitting, setSubmitting] = useState(false)
   const [localReviewRequests, setLocalReviewRequests] = useState<GitHubAssignableUser[]>(
     () => item.reviewRequests ?? []
   )
   const patchWorkItem = useAppStore((s) => s.patchWorkItem)
+  const settings = useAppStore((s) => s.settings)
+  const reviewerInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     setLocalReviewRequests(item.reviewRequests ?? [])
   }, [item.id, item.reviewRequests])
 
+  const reviewerSeedUsers = useMemo<GitHubAssignableUser[]>(() => {
+    const byLogin = new Map<string, GitHubAssignableUser>()
+    const add = (user: GitHubAssignableUser): void => {
+      if (!user.login) {
+        return
+      }
+      byLogin.set(user.login.toLowerCase(), user)
+    }
+    for (const user of localReviewRequests) {
+      add(user)
+    }
+    for (const review of item.latestReviews ?? []) {
+      add({
+        login: review.login,
+        name: null,
+        avatarUrl: review.avatarUrl ?? ''
+      })
+    }
+    if (item.author) {
+      add({ login: item.author, name: null, avatarUrl: '' })
+    }
+    return Array.from(byLogin.values())
+  }, [item.author, item.latestReviews, localReviewRequests])
+
+  const reviewSlug = useMemo(() => parseOwnerRepoFromItemUrl(item.url), [item.url])
+  const reviewerMetadataBySlug = useRepoAssigneesBySlug(
+    open && reviewSlug ? reviewSlug.owner : null,
+    open && reviewSlug ? reviewSlug.repo : null,
+    reviewerSeedUsers.map((user) => user.login),
+    settings
+  )
+  const reviewerMetadataByPath = useRepoAssignees(
+    open && !reviewSlug ? repoPath : null,
+    open && !reviewSlug ? item.repoId : null
+  )
+  const reviewerMetadata = reviewSlug ? reviewerMetadataBySlug : reviewerMetadataByPath
   const displayItem = { ...item, reviewRequests: localReviewRequests }
   const reviewers = getGitHubPRReviewerRows(displayItem)
+  const authorLogin = item.author?.toLowerCase() ?? null
+  const reviewerCandidates = useMemo(
+    () =>
+      mergeReviewerSuggestions(reviewerMetadata.data, reviewerSeedUsers).filter(
+        (user) => user.login.toLowerCase() !== authorLogin
+      ),
+    [authorLogin, reviewerMetadata.data, reviewerSeedUsers]
+  )
+  const reviewerCandidatesByLogin = useMemo(
+    () => new Map(reviewerCandidates.map((user) => [user.login.toLowerCase(), user])),
+    [reviewerCandidates]
+  )
   const selectedReviewerLogins = useMemo(
     () =>
       new Set(
@@ -430,21 +549,94 @@ function PRReviewersPanel({
       ),
     [localReviewRequests]
   )
+  const reviewerQuery = reviewerInput.trim().replace(/^@/, '').toLowerCase()
+  const filteredReviewerCandidates = useMemo(() => {
+    const query = reviewerQuery
+    return reviewerCandidates
+      .filter((user) => {
+        const login = user.login.toLowerCase()
+        return (
+          query.length === 0 ||
+          login.includes(query) ||
+          (user.name ?? '').toLowerCase().includes(query)
+        )
+      })
+      .sort((a, b) => {
+        const aLogin = a.login.toLowerCase()
+        const bLogin = b.login.toLowerCase()
+        const aStarts = aLogin.startsWith(query)
+        const bStarts = bLogin.startsWith(query)
+        if (aStarts !== bStarts) {
+          return aStarts ? -1 : 1
+        }
+        return a.login.localeCompare(b.login)
+      })
+  }, [reviewerCandidates, reviewerQuery])
+  const suggestedReviewerRows = useMemo(
+    () =>
+      reviewerQuery.length === 0
+        ? reviewerSeedUsers
+            .filter((user) => !selectedReviewerLogins.has(user.login.toLowerCase()))
+            .filter((user) => user.login.toLowerCase() !== authorLogin)
+            .map((user) => reviewerCandidatesByLogin.get(user.login.toLowerCase()) ?? user)
+            .slice(0, 1)
+        : [],
+    [
+      authorLogin,
+      reviewerCandidatesByLogin,
+      reviewerQuery.length,
+      reviewerSeedUsers,
+      selectedReviewerLogins
+    ]
+  )
+  const everyoneElseReviewerRows = useMemo(() => {
+    const suggestedLogins = new Set(suggestedReviewerRows.map((user) => user.login.toLowerCase()))
+    return filteredReviewerCandidates.filter(
+      (user) => !suggestedLogins.has(user.login.toLowerCase())
+    )
+  }, [filteredReviewerCandidates, suggestedReviewerRows])
+  const actionableReviewerRows = useMemo(
+    () => [...suggestedReviewerRows, ...everyoneElseReviewerRows],
+    [everyoneElseReviewerRows, suggestedReviewerRows]
+  )
+
+  useEffect(() => {
+    setActiveReviewerIndex(0)
+  }, [reviewerQuery, actionableReviewerRows.length])
+
   const hasReviewerMetadata =
     item.reviewDecision !== undefined ||
     localReviewRequests.length > 0 ||
     item.reviewRequests !== undefined ||
     item.latestReviews !== undefined
-  const canRequestReview =
-    !!repoPath || getActiveRuntimeTarget(useAppStore.getState().settings).kind === 'environment'
+  const canRequestReview = !!repoPath || getActiveRuntimeTarget(settings).kind === 'environment'
 
-  const handleRequestReview = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
-    event.preventDefault()
+  const measureReviewerPickerPlacement = useCallback(() => {
+    const rect = reviewerInputRef.current?.getBoundingClientRect()
+    if (!rect) {
+      setReviewerPickerSide('bottom')
+      setReviewerPickerMaxHeight(null)
+      return
+    }
+
+    const gap = 8
+    const minUsefulHeight = 180
+    const availableBelow = window.innerHeight - rect.bottom - gap
+    const availableAbove = rect.top - gap
+    const nextSide =
+      availableBelow < minUsefulHeight && availableAbove > availableBelow ? 'top' : 'bottom'
+    const available = nextSide === 'top' ? availableAbove : availableBelow
+
+    setReviewerPickerSide(nextSide)
+    setReviewerPickerMaxHeight(Math.max(120, Math.min(330, available)))
+  }, [])
+
+  const handleRequestReview = async (requestedLogins?: string[]): Promise<void> => {
     if (submitting) {
       return
     }
     const logins = normalizeGitHubReviewerLogins(
-      reviewerInput.split(/[\s,]+/),
+      requestedLogins ?? reviewerInput.split(/[\s,]+/),
       selectedReviewerLogins
     )
     if (logins.length === 0) {
@@ -455,7 +647,7 @@ function PRReviewersPanel({
       toast.error('You can request up to 15 reviewers')
       return
     }
-    const target = getActiveRuntimeTarget(useAppStore.getState().settings)
+    const target = getActiveRuntimeTarget(settings)
     if (target.kind !== 'environment' && !repoPath) {
       toast.error('No repo context available for this pull request.')
       return
@@ -480,7 +672,11 @@ function PRReviewersPanel({
         toast.error(result.error ?? 'Failed to request reviewer')
         return
       }
-      const nextReviewRequests = appendGitHubPRRequestedReviewers(localReviewRequests, logins)
+      const nextReviewRequests = buildRequestedReviewUsers(
+        logins,
+        reviewerCandidates,
+        localReviewRequests
+      )
       setLocalReviewRequests(nextReviewRequests)
       patchWorkItem(item.id, { reviewRequests: nextReviewRequests }, item.repoId)
       onReviewersRequested(nextReviewRequests)
@@ -491,6 +687,132 @@ function PRReviewersPanel({
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const handleRemoveReviewers = async (reviewersToRemove: string[]): Promise<void> => {
+    if (submitting) {
+      return
+    }
+    const selected = new Set(localReviewRequests.map((reviewer) => reviewer.login.toLowerCase()))
+    const logins = reviewersToRemove
+      .map((reviewer) => reviewer.trim().replace(/^@/, ''))
+      .filter((reviewer) => reviewer.length > 0 && selected.has(reviewer.toLowerCase()))
+    if (logins.length === 0) {
+      return
+    }
+    const target = getActiveRuntimeTarget(settings)
+    if (target.kind !== 'environment' && !repoPath) {
+      toast.error('No repo context available for this pull request.')
+      return
+    }
+    setSubmitting(true)
+    try {
+      const result =
+        target.kind === 'environment'
+          ? await callRuntimeRpc<{ ok: boolean; error?: string }>(
+              target,
+              'github.removePRReviewers',
+              { repo: item.repoId, prNumber: item.number, reviewers: logins },
+              { timeoutMs: 30_000 }
+            )
+          : await window.api.gh.removePRReviewers({
+              repoPath: repoPath ?? '',
+              repoId: item.repoId,
+              prNumber: item.number,
+              reviewers: logins
+            })
+      if (!result.ok) {
+        toast.error(result.error ?? 'Failed to remove reviewer')
+        return
+      }
+      const removed = new Set(logins.map((login) => login.toLowerCase()))
+      const nextReviewRequests = localReviewRequests.filter(
+        (reviewer) => !removed.has(reviewer.login.toLowerCase())
+      )
+      setLocalReviewRequests(nextReviewRequests)
+      patchWorkItem(item.id, { reviewRequests: nextReviewRequests }, item.repoId)
+      onReviewersRequested(nextReviewRequests)
+      setReviewerInput('')
+      toast.success(logins.length === 1 ? 'Reviewer removed' : 'Reviewers removed')
+    } catch {
+      toast.error('Failed to remove reviewer')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const requestReviewer = async (reviewer: GitHubAssignableUser): Promise<void> => {
+    await (selectedReviewerLogins.has(reviewer.login.toLowerCase())
+      ? handleRemoveReviewers([reviewer.login])
+      : handleRequestReview([reviewer.login]))
+    requestAnimationFrame(() => reviewerInputRef.current?.focus())
+  }
+
+  const handleReviewerPickerOpenChange = (nextOpen: boolean): void => {
+    if (nextOpen) {
+      measureReviewerPickerPlacement()
+    }
+    setOpen(nextOpen)
+    if (nextOpen) {
+      requestAnimationFrame(() => reviewerInputRef.current?.focus())
+      return
+    }
+    setReviewerInput('')
+  }
+
+  const renderReviewerPickerRow = (
+    reviewer: GitHubAssignableUser,
+    options: { suggested: boolean; activeIndex: number }
+  ): React.JSX.Element => {
+    const selected = selectedReviewerLogins.has(reviewer.login.toLowerCase())
+    const active = actionableReviewerRows[activeReviewerIndex]?.login === reviewer.login
+    return (
+      <button
+        key={`${options.suggested ? 'suggested' : 'reviewer'}:${reviewer.login}`}
+        type="button"
+        aria-label={
+          selected ? `Unrequest reviewer ${reviewer.login}` : `Request reviewer ${reviewer.login}`
+        }
+        aria-pressed={selected}
+        className={cn(
+          'flex min-h-10 w-full items-center gap-2 border-b border-border/70 px-3 py-2 text-left text-[13px] outline-none last:border-b-0 hover:bg-accent/70 focus-visible:bg-accent focus-visible:text-accent-foreground',
+          active && 'bg-accent text-accent-foreground',
+          selected && 'font-medium'
+        )}
+        onMouseEnter={() => setActiveReviewerIndex(options.activeIndex)}
+        onMouseDown={(event) => {
+          event.preventDefault()
+        }}
+        onFocus={() => setActiveReviewerIndex(options.activeIndex)}
+        onClick={() => {
+          void requestReviewer(reviewer)
+        }}
+      >
+        <span className="flex size-4 shrink-0 items-center justify-center text-foreground">
+          {selected ? <Check className="size-3.5" /> : null}
+        </span>
+        {reviewer.avatarUrl ? (
+          <img src={reviewer.avatarUrl} alt="" className="size-5 shrink-0 rounded-full" />
+        ) : (
+          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
+            {reviewer.login.slice(0, 1).toUpperCase()}
+          </span>
+        )}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate">
+            <span className="font-semibold text-foreground">{reviewer.login}</span>
+            {reviewer.name ? (
+              <span className="ml-1 font-normal text-muted-foreground">{reviewer.name}</span>
+            ) : null}
+          </span>
+          {options.suggested ? (
+            <span className="block truncate text-[12px] leading-4 text-muted-foreground">
+              Recently edited these files
+            </span>
+          ) : null}
+        </span>
+      </button>
+    )
   }
 
   return (
@@ -512,46 +834,171 @@ function PRReviewersPanel({
           </div>
         ) : reviewers.length > 0 ? (
           <div className="flex flex-col gap-2">
-            {reviewers.map((reviewer) => (
-              <div key={reviewer.login} className="flex min-w-0 items-center gap-2">
-                <ReviewerAvatar login={reviewer.login} avatarUrl={reviewer.avatarUrl} />
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[13px] font-medium text-foreground">
-                    {reviewer.login}
-                  </div>
-                  {reviewer.name ? (
-                    <div className="truncate text-[11px] text-muted-foreground">
-                      {reviewer.name}
+            {reviewers.map((reviewer) => {
+              const canRemoveReviewer = selectedReviewerLogins.has(reviewer.login.toLowerCase())
+              return (
+                <div key={reviewer.login} className="flex min-w-0 items-center gap-2">
+                  <ReviewerAvatar login={reviewer.login} avatarUrl={reviewer.avatarUrl} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13px] font-medium text-foreground">
+                      {reviewer.login}
                     </div>
+                    {reviewer.name ? (
+                      <div className="truncate text-[11px] text-muted-foreground">
+                        {reviewer.name}
+                      </div>
+                    ) : null}
+                  </div>
+                  <span className="shrink-0 text-[11px] text-muted-foreground">
+                    {reviewer.stateLabel}
+                  </span>
+                  {canRemoveReviewer ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-xs"
+                          className="size-6 shrink-0 text-muted-foreground hover:text-foreground"
+                          disabled={submitting || !canRequestReview}
+                          aria-label={`Remove reviewer ${reviewer.login}`}
+                          onClick={() => {
+                            void handleRemoveReviewers([reviewer.login])
+                          }}
+                        >
+                          <X className="size-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Remove reviewer</TooltipContent>
+                    </Tooltip>
                   ) : null}
                 </div>
-                <span className="shrink-0 text-[11px] text-muted-foreground">
-                  {reviewer.stateLabel}
-                </span>
-              </div>
-            ))}
+              )
+            })}
           </div>
         ) : (
           <div className="py-1 text-[12px] text-muted-foreground">No reviewers requested.</div>
         )}
-        <form className="mt-3 flex items-center gap-2" onSubmit={handleRequestReview}>
-          <Input
-            value={reviewerInput}
-            onChange={(event) => setReviewerInput(event.target.value)}
-            disabled={submitting || !canRequestReview}
-            placeholder="Reviewer"
-            aria-label="Reviewer"
-            className="h-8 min-w-0 flex-1 rounded-md border-border/50 bg-background text-xs"
-          />
-          <Button
-            type="submit"
-            size="sm"
-            disabled={submitting || !canRequestReview || reviewerInput.trim().length === 0}
-            className="h-8 shrink-0 px-2.5 text-xs"
+        <Popover open={open} onOpenChange={handleReviewerPickerOpenChange}>
+          <PopoverAnchor asChild>
+            <Input
+              ref={reviewerInputRef}
+              value={reviewerInput}
+              onChange={(event) => {
+                setReviewerInput(event.target.value)
+                if (!open) {
+                  handleReviewerPickerOpenChange(true)
+                }
+              }}
+              disabled={submitting || !canRequestReview}
+              placeholder="Type or choose a user"
+              aria-label="Reviewer"
+              aria-expanded={open}
+              aria-haspopup="listbox"
+              className="mt-3 h-8 min-w-0 cursor-text rounded-md border-border/50 bg-background text-xs"
+              onFocus={() => {
+                if (canRequestReview) {
+                  handleReviewerPickerOpenChange(true)
+                }
+              }}
+              onClick={() => {
+                if (canRequestReview) {
+                  handleReviewerPickerOpenChange(true)
+                }
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'ArrowDown' && actionableReviewerRows.length > 0) {
+                  event.preventDefault()
+                  setOpen(true)
+                  setActiveReviewerIndex((current) => (current + 1) % actionableReviewerRows.length)
+                  return
+                }
+                if (event.key === 'ArrowUp' && actionableReviewerRows.length > 0) {
+                  event.preventDefault()
+                  setOpen(true)
+                  setActiveReviewerIndex(
+                    (current) =>
+                      (current - 1 + actionableReviewerRows.length) % actionableReviewerRows.length
+                  )
+                  return
+                }
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  const activeReviewer = actionableReviewerRows[activeReviewerIndex]
+                  if (activeReviewer) {
+                    void requestReviewer(activeReviewer)
+                    return
+                  }
+                  void handleRequestReview()
+                  return
+                }
+                if (event.key === 'Escape') {
+                  event.preventDefault()
+                  handleReviewerPickerOpenChange(false)
+                }
+              }}
+            />
+          </PopoverAnchor>
+          <PopoverContent
+            className="flex w-[330px] flex-col overflow-hidden rounded-md border-border/70 p-0"
+            align="start"
+            side={reviewerPickerSide}
+            sideOffset={6}
+            avoidCollisions={false}
+            style={{
+              maxHeight: reviewerPickerMaxHeight ? `${reviewerPickerMaxHeight}px` : undefined
+            }}
+            onOpenAutoFocus={(event) => {
+              event.preventDefault()
+            }}
           >
-            {submitting ? <LoaderCircle className="size-3.5 animate-spin" /> : 'Request'}
-          </Button>
-        </form>
+            <div className="border-b border-border/70 px-3 py-2">
+              <div className="text-[13px] font-semibold text-foreground">
+                Request up to 15 reviewers
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto scrollbar-sleek">
+              {reviewerMetadata.loading ? (
+                <div className="px-3 py-2 text-[13px] text-muted-foreground">Loading...</div>
+              ) : filteredReviewerCandidates.length > 0 ? (
+                <>
+                  {suggestedReviewerRows.length > 0 ? (
+                    <>
+                      <div className="border-b border-border/70 bg-muted/50 px-3 py-1.5 text-[12px] font-semibold text-foreground">
+                        Suggestions
+                      </div>
+                      {suggestedReviewerRows.map((reviewer, index) =>
+                        renderReviewerPickerRow(reviewer, { suggested: true, activeIndex: index })
+                      )}
+                    </>
+                  ) : null}
+                  <div className="border-b border-border/70 bg-muted/50 px-3 py-1.5 text-[12px] font-semibold text-foreground">
+                    Everyone else
+                  </div>
+                  {everyoneElseReviewerRows.length > 0 ? (
+                    everyoneElseReviewerRows.map((reviewer, index) =>
+                      renderReviewerPickerRow(reviewer, {
+                        suggested: false,
+                        activeIndex: suggestedReviewerRows.length + index
+                      })
+                    )
+                  ) : (
+                    <div className="px-3 py-2 text-[13px] text-muted-foreground">
+                      No matching reviewers.
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="px-3 py-2 text-[13px] text-muted-foreground">
+                  {reviewerMetadata.error ??
+                    (hasReviewerMetadata
+                      ? 'No matching reviewers.'
+                      : 'Open the PR details to view current reviewers.')}
+                </div>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
     </aside>
   )
@@ -955,6 +1402,19 @@ function patchCachedPRReviewRequests(
       ...prev.details,
       item: { ...prev.details.item, reviewRequests }
     },
+    fetchedAt: Date.now(),
+    error: undefined
+  })
+}
+
+function patchCachedWorkItemBody(cacheKey: string, body: string): void {
+  const prev = workItemDetailsCache.get(cacheKey)
+  if (!prev?.details) {
+    return
+  }
+  touchWorkItemDetailsCache(cacheKey, {
+    ...prev,
+    details: { ...prev.details, body },
     fetchedAt: Date.now(),
     error: undefined
   })
@@ -1693,14 +2153,15 @@ function ConversationTab({
   headSha,
   baseSha,
   loading,
+  detailsLoaded,
   checks,
   participants: detailsParticipants,
   localState,
   onStateChange,
   projectOrigin,
-  onUse,
   onMutated,
   onChecksUpdated,
+  onBodyUpdated,
   onCommentAdded,
   onReviewersRequested
 }: {
@@ -1713,20 +2174,25 @@ function ConversationTab({
   headSha: string | undefined
   baseSha: string | undefined
   loading: boolean
+  detailsLoaded: boolean
   checks: GitHubWorkItemDetails['checks']
   participants: GitHubAssignableUser[]
   localState: GitHubWorkItem['state']
   onStateChange: (state: GitHubWorkItem['state']) => void
   projectOrigin: GitHubItemDialogProjectOrigin | undefined
-  onUse: (item: GitHubWorkItem) => void
   onMutated: () => void
   onChecksUpdated: (checks: PRCheckDetail[]) => void
+  onBodyUpdated: (body: string) => void
   onCommentAdded: (comment: PRComment) => void
   onReviewersRequested: (reviewRequests: GitHubAssignableUser[]) => void
 }): React.JSX.Element {
   const authorLabel = item.author ?? 'unknown'
   const [replyingTo, setReplyingTo] = useState<number | null>(null)
   const [commentFilter, setCommentFilter] = useState<PRCommentAudienceFilter>('all')
+  const [bodyDraft, setBodyDraft] = useState(body)
+  const [bodyEditing, setBodyEditing] = useState(false)
+  const [bodySaving, setBodySaving] = useState(false)
+  const bodyTextareaRef = useRef<HTMLTextAreaElement>(null)
   const repoAssignees = useRepoAssignees(repoPath, item.repoId)
   const commentCounts = useMemo(() => getPRCommentAudienceCounts(comments), [comments])
   const visibleComments = useMemo(
@@ -1750,6 +2216,51 @@ function ConversationTab({
       setReplyingTo(null)
     }
   }, [replyingTo, visibleComments])
+
+  useEffect(() => {
+    if (!bodyEditing) {
+      setBodyDraft(body)
+    }
+  }, [body, bodyEditing, item.id])
+
+  useEffect(() => {
+    if (bodyEditing) {
+      requestAnimationFrame(() => bodyTextareaRef.current?.focus())
+    }
+  }, [bodyEditing])
+
+  const bodySlug = useMemo(() => parseOwnerRepoFromItemUrl(item.url), [item.url])
+  const markdownGitHubRepo = useMemo(
+    () => (projectOrigin ? { owner: projectOrigin.owner, repo: projectOrigin.repo } : bodySlug),
+    [bodySlug, projectOrigin]
+  )
+  const canEditBody =
+    item.type === 'pr' ? Boolean(projectOrigin || bodySlug) : Boolean(projectOrigin || repoPath)
+  const bodyChanged = bodyDraft !== body
+
+  const handleSaveBody = useCallback(async (): Promise<void> => {
+    if (bodySaving || !bodyChanged) {
+      setBodyEditing(false)
+      return
+    }
+    setBodySaving(true)
+    try {
+      await runWorkItemBodyUpdate({
+        item,
+        repoPath,
+        projectOrigin,
+        body: bodyDraft,
+        parsedSlug: bodySlug
+      })
+      onBodyUpdated(bodyDraft)
+      setBodyEditing(false)
+      toast.success('Description updated.')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update description.')
+    } finally {
+      setBodySaving(false)
+    }
+  }, [bodyChanged, bodyDraft, bodySaving, bodySlug, item, onBodyUpdated, projectOrigin, repoPath])
 
   const handleReply = useCallback(
     async (comment: PRComment, replyBody: string): Promise<boolean> => {
@@ -1789,21 +2300,9 @@ function ConversationTab({
     [item.number, item.repoId, item.type, onCommentAdded, repoPath]
   )
 
-  const startWorkspaceButton = (
-    <Button
-      onClick={() => onUse(item)}
-      className="self-start justify-center gap-2 xl:self-stretch"
-      aria-label={`Start workspace from ${item.type === 'pr' ? 'PR' : 'issue'}`}
-    >
-      {`Start workspace from ${item.type === 'pr' ? 'PR' : 'issue'}`}
-      <ArrowRight className="size-4" />
-    </Button>
-  )
-
   const rightPanel =
     item.type === 'pr' ? (
       <div className="flex h-fit flex-col gap-3 xl:sticky xl:top-4">
-        {startWorkspaceButton}
         <PRActionsPanel
           item={item}
           repoPath={repoPath}
@@ -1819,21 +2318,14 @@ function ConversationTab({
           repoPath={repoPath}
           onReviewersRequested={onReviewersRequested}
         />
-        <aside className="rounded-lg border border-border/50 bg-card/50 shadow-xs">
-          <div className="flex h-10 items-center gap-2 border-b border-border/50 px-3">
-            <CircleDashed className="size-3.5 text-muted-foreground" />
-            <span className="text-[13px] font-medium text-foreground">Checks</span>
-            <span className="ml-auto rounded-full border border-border/50 bg-muted/30 px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground">
-              {(checks ?? []).length}
-            </span>
-          </div>
+        <aside className="overflow-hidden rounded-lg border border-border/50 bg-card/50 shadow-xs">
           <ChecksTab
             item={item}
             repoPath={repoPath}
             repoId={item.repoId}
             headSha={headSha}
             checks={checks}
-            loading={loading}
+            loading={loading || !detailsLoaded}
             onChecksUpdated={onChecksUpdated}
           />
         </aside>
@@ -1844,12 +2336,12 @@ function ConversationTab({
     <div
       key={comment.id}
       className={cn(
-        'rounded-lg border border-border/40 bg-card/50 shadow-xs',
-        isReply && 'ml-6',
+        'min-w-0 overflow-hidden rounded-lg border border-border/40 bg-card/50 shadow-xs',
+        isReply && 'ml-6 max-w-[calc(100%-1.5rem)]',
         comment.isResolved && PR_COMMENT_RESOLVED_CONTAINER_CLASS
       )}
     >
-      <div className="flex items-center gap-2 border-b border-border/40 px-3 py-2">
+      <div className="flex min-w-0 items-center gap-2 border-b border-border/40 px-3 py-2">
         {comment.authorAvatarUrl ? (
           <img
             src={comment.authorAvatarUrl}
@@ -1861,17 +2353,17 @@ function ConversationTab({
         )}
         <span
           className={cn(
-            'text-[13px] font-semibold',
+            'min-w-0 truncate text-[13px] font-semibold',
             comment.isResolved ? PR_COMMENT_RESOLVED_AUTHOR_CLASS : PR_COMMENT_OPEN_AUTHOR_CLASS
           )}
         >
           {comment.author}
         </span>
-        <span className="text-[12px] text-muted-foreground">
+        <span className="shrink-0 text-[12px] text-muted-foreground">
           · {formatRelativeTime(comment.createdAt)}
         </span>
         {comment.path && (
-          <span className="font-mono text-[11px] text-muted-foreground/70">
+          <span className="min-w-0 truncate font-mono text-[11px] text-muted-foreground/70">
             {comment.path.split('/').pop()}
             {comment.line ? `:L${comment.line}` : ''}
           </span>
@@ -1881,7 +2373,7 @@ function ConversationTab({
             resolved
           </span>
         )}
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -1917,7 +2409,7 @@ function ConversationTab({
           )}
         </div>
       </div>
-      <div className="px-3 py-2">
+      <div className="min-w-0 px-3 py-2">
         <CommentCodeContext
           comment={comment}
           repoPath={repoPath}
@@ -1930,7 +2422,8 @@ function ConversationTab({
         <CommentMarkdown
           content={comment.body}
           variant="document"
-          className="text-[13px] leading-relaxed"
+          githubRepo={markdownGitHubRepo}
+          className="min-w-0 max-w-full overflow-hidden break-words text-[13px] leading-relaxed [&_a]:break-all [&_code]:break-words [&_pre]:max-w-full"
         />
         <CommentReactions reactions={comment.reactions} />
         {replyingTo === comment.id && (
@@ -1959,7 +2452,7 @@ function ConversationTab({
 
     if (!isResolvedPRCommentGroup(group)) {
       return (
-        <div key={getPRCommentGroupId(group)} className="flex flex-col gap-3">
+        <div key={getPRCommentGroupId(group)} className="flex min-w-0 flex-col gap-3">
           {cards}
         </div>
       )
@@ -1979,7 +2472,7 @@ function ConversationTab({
               {count > 1 ? ` (${count})` : ''}
             </span>
           </AccordionTrigger>
-          <AccordionContent className="flex flex-col gap-3 px-3 pb-3 pt-0">
+          <AccordionContent className="flex min-w-0 flex-col gap-3 px-3 pb-3 pt-0">
             {cards}
           </AccordionContent>
         </AccordionItem>
@@ -1990,8 +2483,11 @@ function ConversationTab({
   return (
     <div
       className={cn(
-        'grid gap-5 px-4 py-4',
-        item.type === 'pr' && 'xl:grid-cols-[minmax(0,1fr)_280px]'
+        'grid min-w-0 gap-5 px-4 py-4',
+        // Why: the drawer expands nearly full-width on narrow app windows, so
+        // keep PR controls beside the conversation instead of hiding them below
+        // long review threads.
+        item.type === 'pr' && 'grid-cols-[minmax(0,1fr)_300px]'
       )}
     >
       <div className="flex min-w-0 flex-col gap-4">
@@ -1999,13 +2495,94 @@ function ConversationTab({
           <div className="flex items-center gap-2 border-b border-border/50 px-3 py-2 text-[12px] text-muted-foreground">
             <span className="font-medium text-foreground">{authorLabel}</span>
             <span>updated {formatRelativeTime(item.updatedAt)}</span>
+            {canEditBody && !loading && detailsLoaded ? (
+              bodyEditing ? (
+                <div className="ml-auto flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    className="gap-1.5"
+                    disabled={bodySaving}
+                    onClick={() => {
+                      setBodyDraft(body)
+                      setBodyEditing(false)
+                    }}
+                  >
+                    <X className="size-3.5" />
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    size="xs"
+                    className="gap-1.5"
+                    disabled={bodySaving || !bodyChanged}
+                    onClick={() => void handleSaveBody()}
+                  >
+                    {bodySaving ? (
+                      <LoaderCircle className="size-3.5 animate-spin" />
+                    ) : (
+                      <Check className="size-3.5" />
+                    )}
+                    Save
+                  </Button>
+                </div>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      className="ml-auto size-7"
+                      onClick={() => {
+                        setBodyDraft(body)
+                        setBodyEditing(true)
+                      }}
+                      aria-label="Edit description"
+                    >
+                      <Pencil className="size-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Edit description</TooltipContent>
+                </Tooltip>
+              )
+            ) : null}
           </div>
           <div className="px-4 py-4 text-[14px] leading-relaxed text-foreground">
-            {body.trim() ? (
+            {loading && !detailsLoaded ? (
+              <div className="flex items-center justify-center py-5">
+                <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
+              </div>
+            ) : bodyEditing ? (
+              <MentionTextarea
+                textareaRef={bodyTextareaRef}
+                value={bodyDraft}
+                onValueChange={setBodyDraft}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') {
+                    event.preventDefault()
+                    setBodyDraft(body)
+                    setBodyEditing(false)
+                    return
+                  }
+                  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                    event.preventDefault()
+                    void handleSaveBody()
+                  }
+                }}
+                placeholder="Description"
+                rows={12}
+                mentionOptions={mentionOptions}
+                wrapperClassName="flex min-h-64 w-full items-stretch"
+                className="scrollbar-sleek block min-h-64 w-full resize-y rounded-md border border-input bg-background px-3 py-2 font-mono text-[13px] leading-5 placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            ) : body.trim() ? (
               <CommentMarkdown
                 content={body}
                 variant="document"
-                className="text-[14px] leading-relaxed"
+                githubRepo={markdownGitHubRepo}
+                className="min-w-0 max-w-full overflow-hidden break-words text-[14px] leading-relaxed [&_a]:break-all [&_code]:break-words [&_pre]:max-w-full"
               />
             ) : (
               <span className="italic text-muted-foreground">No description provided.</span>
@@ -2013,56 +2590,58 @@ function ConversationTab({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 pt-1">
-          <MessageSquare className="size-4 text-muted-foreground" />
-          <span className="text-[13px] font-medium text-foreground">Comments</span>
-          {comments.length > 0 && (
-            <span className="rounded-full border border-border/50 bg-muted/30 px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground">
-              {comments.length}
-            </span>
-          )}
-        </div>
+        {detailsLoaded ? (
+          <>
+            <div className="flex items-center gap-2 pt-1">
+              <MessageSquare className="size-4 text-muted-foreground" />
+              <span className="text-[13px] font-medium text-foreground">Comments</span>
+              {comments.length > 0 && (
+                <span className="rounded-full border border-border/50 bg-muted/30 px-1.5 py-0.5 text-[11px] tabular-nums text-muted-foreground">
+                  {comments.length}
+                </span>
+              )}
+            </div>
 
-        {item.type === 'pr' && comments.length > 0 && (
-          <div className="grid grid-cols-3 rounded-lg border border-border/50 bg-background p-0.5">
-            {PR_COMMENT_AUDIENCE_FILTERS.map((filter) => {
-              const isActive = commentFilter === filter.value
-              return (
-                <button
-                  key={filter.value}
-                  type="button"
-                  className={cn(
-                    'flex h-8 items-center justify-center gap-1 rounded-md px-2 text-[12px] font-medium text-muted-foreground transition-colors',
-                    isActive && 'bg-muted text-foreground'
-                  )}
-                  aria-pressed={isActive}
-                  onClick={() => setCommentFilter(filter.value)}
-                >
-                  <span>{filter.label}</span>
-                  <span className="tabular-nums">{commentCounts[filter.value]}</span>
-                </button>
-              )
-            })}
-          </div>
-        )}
+            {item.type === 'pr' && comments.length > 0 && (
+              <div className="grid grid-cols-3 rounded-lg border border-border/50 bg-background p-0.5">
+                {PR_COMMENT_AUDIENCE_FILTERS.map((filter) => {
+                  const isActive = commentFilter === filter.value
+                  return (
+                    <button
+                      key={filter.value}
+                      type="button"
+                      className={cn(
+                        'flex h-8 items-center justify-center gap-1 rounded-md px-2 text-[12px] font-medium text-muted-foreground transition-colors',
+                        isActive && 'bg-muted text-foreground'
+                      )}
+                      aria-pressed={isActive}
+                      onClick={() => setCommentFilter(filter.value)}
+                    >
+                      <span>{filter.label}</span>
+                      <span className="tabular-nums">{commentCounts[filter.value]}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
 
-        {loading && comments.length === 0 ? (
-          <div className="flex items-center justify-center rounded-lg border border-dashed border-border/50 py-8">
-            <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
-          </div>
-        ) : comments.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border/50 px-3 py-6 text-left text-[13px] text-muted-foreground">
-            No comments yet.
-          </div>
-        ) : visibleComments.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border/50 px-3 py-6 text-center text-[13px] text-muted-foreground">
-            {getPRCommentAudienceEmptyLabel(commentFilter)}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">{visibleCommentGroups.map(renderCommentGroup)}</div>
-        )}
+            {comments.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border/50 px-3 py-6 text-left text-[13px] text-muted-foreground">
+                No comments yet.
+              </div>
+            ) : visibleComments.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border/50 px-3 py-6 text-center text-[13px] text-muted-foreground">
+                {getPRCommentAudienceEmptyLabel(commentFilter)}
+              </div>
+            ) : (
+              <div className="flex min-w-0 flex-col gap-3">
+                {visibleCommentGroups.map(renderCommentGroup)}
+              </div>
+            )}
+          </>
+        ) : null}
 
-        {repoPath && (
+        {detailsLoaded && repoPath && (
           <GHCommentComposer
             className="mt-1"
             repoPath={repoPath}
@@ -2101,6 +2680,7 @@ function PRActionsPanel({
   const [mergePending, setMergePending] = useState(false)
   const patchWorkItem = useAppStore((s) => s.patchWorkItem)
   const patchProjectRowContent = useAppStore((s) => s.patchProjectRowContent)
+  const confirm = useConfirmationDialog()
   const actionItem = { ...item, state: localState }
   const canMutateState = localState !== 'merged' && (!!repoPath || !!projectOrigin)
   const nextState: 'open' | 'closed' = localState === 'closed' ? 'open' : 'closed'
@@ -2135,7 +2715,16 @@ function PRActionsPanel({
       return
     }
     const label = nextState === 'closed' ? 'Close' : 'Reopen'
-    if (!window.confirm(`${label} PR #${item.number}?`)) {
+    const confirmed = await confirm({
+      title: `${label} PR #${item.number}?`,
+      description:
+        nextState === 'closed'
+          ? 'This will close the pull request on GitHub.'
+          : 'This will reopen the pull request on GitHub.',
+      confirmLabel: label,
+      confirmVariant: nextState === 'closed' ? 'destructive' : 'default'
+    })
+    if (!confirmed) {
       return
     }
     const previousState = localState
@@ -2165,7 +2754,12 @@ function PRActionsPanel({
     }
     const label =
       method === 'squash' ? 'Squash and merge' : method === 'rebase' ? 'Rebase and merge' : 'Merge'
-    if (!window.confirm(`${label} PR #${item.number}?`)) {
+    const confirmed = await confirm({
+      title: `${label} PR #${item.number}?`,
+      description: 'This will update the pull request on GitHub.',
+      confirmLabel: label
+    })
+    if (!confirmed) {
       return
     }
     setMergePending(true)
@@ -2201,33 +2795,17 @@ function PRActionsPanel({
       </div>
 
       <div className="grid gap-2">
-        <Button
-          type="button"
-          variant={nextState === 'closed' ? 'destructive' : 'secondary'}
-          size="sm"
-          className="w-fit justify-center gap-2 xl:w-full"
-          disabled={!canMutateState || statePending}
-          onClick={() => void handleStateChange()}
-        >
-          {statePending ? (
-            <LoaderCircle className="size-3.5 animate-spin" />
-          ) : nextState === 'closed' ? (
-            <CircleDashed className="size-3.5" />
-          ) : (
-            <CircleDot className="size-3.5" />
-          )}
-          {nextState === 'closed' ? 'Close PR' : 'Reopen PR'}
-        </Button>
-
         <DropdownMenu modal={false}>
           <Tooltip>
             <TooltipTrigger asChild>
               <DropdownMenuTrigger asChild>
                 <Button
                   type="button"
-                  variant="outline"
                   size="sm"
-                  className="w-fit justify-center gap-2 xl:w-full"
+                  className={cn(
+                    'w-full justify-center gap-2 bg-green-600 text-white hover:bg-green-700',
+                    'disabled:cursor-not-allowed disabled:opacity-50'
+                  )}
                   disabled={mergePending || localState === 'closed' || localState === 'merged'}
                 >
                   {mergePending ? (
@@ -2263,6 +2841,28 @@ function PRActionsPanel({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <Button
+          type="button"
+          variant={nextState === 'closed' ? 'outline' : 'secondary'}
+          size="sm"
+          className={cn(
+            'w-full justify-center gap-2',
+            nextState === 'closed' &&
+              'border-border bg-background text-foreground hover:bg-accent hover:text-accent-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50'
+          )}
+          disabled={!canMutateState || statePending}
+          onClick={() => void handleStateChange()}
+        >
+          {statePending ? (
+            <LoaderCircle className="size-3.5 animate-spin" />
+          ) : nextState === 'closed' ? (
+            <GitPullRequestClosed className="size-3.5 text-destructive" />
+          ) : (
+            <CircleDot className="size-3.5" />
+          )}
+          {nextState === 'closed' ? 'Close pull request' : 'Reopen PR'}
+        </Button>
       </div>
     </aside>
   )
@@ -2365,6 +2965,176 @@ function CommentReplyForm({
   )
 }
 
+const CHECK_SORT_ORDER: Record<string, number> = {
+  failure: 0,
+  timed_out: 0,
+  cancelled: 1,
+  pending: 2,
+  neutral: 3,
+  skipped: 4,
+  success: 5
+}
+
+function getCheckConclusion(check: PRCheckDetail): NonNullable<PRCheckDetail['conclusion']> {
+  return check.conclusion ?? 'pending'
+}
+
+function getCheckStatusLabel(check: PRCheckDetail): string {
+  const conclusion = getCheckConclusion(check)
+  if (conclusion === 'success') {
+    return 'Successful'
+  }
+  if (conclusion === 'failure') {
+    return 'Failed'
+  }
+  if (conclusion === 'cancelled') {
+    return 'Cancelled'
+  }
+  if (conclusion === 'timed_out') {
+    return 'Timed out'
+  }
+  if (conclusion === 'neutral') {
+    return 'Neutral'
+  }
+  if (conclusion === 'skipped') {
+    return 'Skipped'
+  }
+  if (check.status === 'queued') {
+    return 'Queued'
+  }
+  if (check.status === 'in_progress') {
+    return 'In progress'
+  }
+  return 'Pending'
+}
+
+function getCheckCounts(checks: PRCheckDetail[]): {
+  passing: number
+  failing: number
+  pending: number
+  skipped: number
+  neutral: number
+} {
+  return checks.reduce(
+    (counts, check) => {
+      const conclusion = getCheckConclusion(check)
+      if (conclusion === 'success') {
+        counts.passing += 1
+      } else if (['failure', 'cancelled', 'timed_out'].includes(conclusion)) {
+        counts.failing += 1
+      } else if (conclusion === 'skipped') {
+        counts.skipped += 1
+      } else if (conclusion === 'neutral') {
+        counts.neutral += 1
+      } else {
+        counts.pending += 1
+      }
+      return counts
+    },
+    { passing: 0, failing: 0, pending: 0, skipped: 0, neutral: 0 }
+  )
+}
+
+function getChecksSummaryLabel(checks: PRCheckDetail[]): string {
+  const counts = getCheckCounts(checks)
+  if (checks.length === 0) {
+    return 'No checks found'
+  }
+  if (counts.failing > 0) {
+    return `${counts.failing} ${counts.failing === 1 ? 'check' : 'checks'} failing`
+  }
+  if (counts.pending > 0) {
+    return `${counts.pending} ${counts.pending === 1 ? 'check' : 'checks'} pending`
+  }
+  if (counts.passing === checks.length) {
+    return 'All checks passing'
+  }
+  return `${counts.passing} of ${checks.length} checks passing`
+}
+
+function getBrokenChecks(checks: PRCheckDetail[]): PRCheckDetail[] {
+  return checks.filter((check) =>
+    ['failure', 'cancelled', 'timed_out'].includes(getCheckConclusion(check))
+  )
+}
+
+function buildFixBrokenChecksPrompt(item: GitHubWorkItem, checks: PRCheckDetail[]): string {
+  const brokenChecks = getBrokenChecks(checks)
+  const checkLines =
+    brokenChecks.length > 0
+      ? brokenChecks.map((check) => {
+          const details = [
+            getCheckStatusLabel(check),
+            check.checkRunId ? `check run ${check.checkRunId}` : null,
+            check.workflowRunId ? `workflow run ${check.workflowRunId}` : null,
+            check.url ? `details: ${check.url}` : null
+          ]
+            .filter(Boolean)
+            .join(', ')
+          return `- ${check.name}${details ? ` (${details})` : ''}`
+        })
+      : ['- No failing check is currently listed; refresh PR checks first, then inspect CI.']
+
+  return [
+    `Fix the broken checks for PR #${item.number}: ${item.title}`,
+    `PR: ${item.url}`,
+    '',
+    'Broken checks:',
+    ...checkLines,
+    '',
+    'Focus only on making the failing checks pass. Inspect the CI output first, make the smallest correct code or test changes, and do not work on unrelated cleanup.'
+  ].join('\n')
+}
+
+function findWorkspaceAttachedToPR(
+  worktrees: Worktree[],
+  repoId: string,
+  prNumber: number
+): Worktree | null {
+  return (
+    worktrees.find(
+      (worktree) =>
+        worktree.repoId === repoId && worktree.linkedPR === prNumber && !worktree.isArchived
+    ) ?? null
+  )
+}
+
+function pickDefaultAgent(
+  defaultAgent: TuiAgent | 'blank' | null | undefined,
+  detectedAgents: TuiAgent[]
+): TuiAgent | null {
+  if (defaultAgent && defaultAgent !== 'blank' && detectedAgents.includes(defaultAgent)) {
+    return defaultAgent
+  }
+  return AGENT_CATALOG.find((entry) => detectedAgents.includes(entry.id))?.id ?? null
+}
+
+type CheckDetailsLoadState = {
+  loading: boolean
+  details: PRCheckRunDetails | null
+  error: string | null
+}
+
+function getCheckDetailsKey(check: PRCheckDetail): string {
+  return String(check.checkRunId ?? check.workflowRunId ?? check.url ?? check.name)
+}
+
+function formatCheckTimestamp(input: string | null | undefined): string | null {
+  if (!input) {
+    return null
+  }
+  const date = new Date(input)
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+  return date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  })
+}
+
 function ChecksTab({
   item,
   repoPath,
@@ -2372,6 +3142,7 @@ function ChecksTab({
   headSha,
   checks,
   loading,
+  variant = 'compact',
   onChecksUpdated
 }: {
   item: GitHubWorkItem
@@ -2380,18 +3151,49 @@ function ChecksTab({
   headSha: string | undefined
   checks: GitHubWorkItemDetails['checks']
   loading: boolean
+  variant?: 'compact' | 'page'
   onChecksUpdated: (checks: PRCheckDetail[]) => void
 }): React.JSX.Element {
   const [localChecks, setLocalChecks] = useState<PRCheckDetail[] | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [rerunning, setRerunning] = useState(false)
-  const list = localChecks ?? checks ?? []
-  const failedChecks = list.filter((check) =>
-    ['failure', 'cancelled', 'timed_out'].includes(check.conclusion ?? '')
+  const [fixingChecks, setFixingChecks] = useState(false)
+  const [expandedCheckKey, setExpandedCheckKey] = useState<string | null>(null)
+  const [detailsByCheckKey, setDetailsByCheckKey] = useState<Record<string, CheckDetailsLoadState>>(
+    {}
   )
+  const list = useMemo(() => localChecks ?? checks ?? [], [checks, localChecks])
+  const prRepo = useMemo(() => parseOwnerRepoFromItemUrl(item.url), [item.url])
+  const sorted = [...list].sort(
+    (a, b) =>
+      (CHECK_SORT_ORDER[getCheckConclusion(a)] ?? 3) -
+      (CHECK_SORT_ORDER[getCheckConclusion(b)] ?? 3)
+  )
+  const failedChecks = getBrokenChecks(list)
+  const counts = getCheckCounts(list)
+  const summaryLabel = getChecksSummaryLabel(list)
+  const SummaryIcon =
+    counts.failing > 0
+      ? CHECK_ICON.failure
+      : counts.pending > 0
+        ? CHECK_ICON.pending
+        : list.length > 0
+          ? CHECK_ICON.success
+          : CircleDashed
+  const summaryColor =
+    counts.failing > 0
+      ? CHECK_COLOR.failure
+      : counts.pending > 0
+        ? CHECK_COLOR.pending
+        : list.length > 0
+          ? CHECK_COLOR.success
+          : 'text-muted-foreground'
+  const canFixBrokenChecks = Boolean((repoId ?? item.repoId) && failedChecks.length > 0)
 
   useEffect(() => {
     setLocalChecks(null)
+    setExpandedCheckKey(null)
+    setDetailsByCheckKey({})
   }, [checks])
 
   const handleRefresh = useCallback(async (): Promise<PRCheckDetail[] | null> => {
@@ -2448,36 +3250,189 @@ function ChecksTab({
     [handleRefresh, headSha, item.number, rerunning, repoId, repoPath]
   )
 
-  const toolbar = (
-    <div className="flex items-center justify-end gap-1 border-b border-border/40 px-2 py-1.5">
+  const handleFixBrokenChecks = useCallback(async (): Promise<void> => {
+    const targetRepoId = repoId ?? item.repoId
+    if (!targetRepoId || fixingChecks) {
+      return
+    }
+    if (failedChecks.length === 0) {
+      toast.message('No broken checks to fix.')
+      return
+    }
+
+    setFixingChecks(true)
+    try {
+      const prompt = buildFixBrokenChecksPrompt(item, list)
+      const store = useAppStore.getState()
+      const attachedWorkspace = findWorkspaceAttachedToPR(
+        store.allWorktrees(),
+        targetRepoId,
+        item.number
+      )
+
+      if (!attachedWorkspace) {
+        await launchWorkItemDirect({
+          item: { ...item, pasteContent: prompt },
+          repoId: targetRepoId,
+          launchSource: 'task_page',
+          telemetrySource: 'sidebar',
+          openModalFallback: () => {
+            toast.error('Unable to create a fix workspace automatically.')
+          }
+        })
+        return
+      }
+
+      if (!activateAndRevealWorktree(attachedWorkspace.id)) {
+        toast.error('Unable to open the workspace attached to this pull request.')
+        return
+      }
+
+      const connectionId = getConnectionId(attachedWorkspace.id)
+      if (connectionId === undefined) {
+        toast.error('Unable to resolve the workspace connection.')
+        return
+      }
+
+      const activeStore = useAppStore.getState()
+      const detectedAgents =
+        typeof connectionId === 'string'
+          ? await activeStore.ensureRemoteDetectedAgents(connectionId)
+          : await activeStore.ensureDetectedAgents()
+      const agent = pickDefaultAgent(activeStore.settings?.defaultTuiAgent, detectedAgents)
+      if (!agent) {
+        toast.error('No AI agents detected. Configure a default agent in Settings.')
+        return
+      }
+
+      const result = launchAgentInNewTab({
+        agent,
+        worktreeId: attachedWorkspace.id,
+        prompt,
+        promptDelivery: 'draft',
+        launchSource: 'task_page'
+      })
+      if (!result) {
+        toast.error('Could not build the agent launch command.')
+        return
+      }
+      focusTerminalTabSurface(result.tabId)
+      toast.success('Started an AI agent for the broken checks.')
+    } finally {
+      setFixingChecks(false)
+    }
+  }, [failedChecks.length, fixingChecks, item, list, repoId])
+
+  const handleToggleCheckDetails = useCallback(
+    (check: PRCheckDetail): void => {
+      const key = getCheckDetailsKey(check)
+      setExpandedCheckKey((current) => (current === key ? null : key))
+      if (
+        !repoPath ||
+        detailsByCheckKey[key] ||
+        (!check.checkRunId && !check.workflowRunId && !check.url)
+      ) {
+        return
+      }
+      setDetailsByCheckKey((current) => ({
+        ...current,
+        [key]: { loading: true, details: null, error: null }
+      }))
+      void window.api.gh
+        .prCheckDetails({
+          repoPath,
+          repoId: repoId ?? undefined,
+          checkRunId: check.checkRunId,
+          workflowRunId: check.workflowRunId,
+          checkName: check.name,
+          url: check.url,
+          prRepo
+        })
+        .then((details) => {
+          setDetailsByCheckKey((current) => ({
+            ...current,
+            [key]: {
+              loading: false,
+              details,
+              error: details ? null : 'No inline details are available for this check.'
+            }
+          }))
+        })
+        .catch((err) => {
+          setDetailsByCheckKey((current) => ({
+            ...current,
+            [key]: {
+              loading: false,
+              details: null,
+              error: err instanceof Error ? err.message : 'Failed to load check details.'
+            }
+          }))
+        })
+    },
+    [detailsByCheckKey, prRepo, repoId, repoPath]
+  )
+
+  const refreshAction = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          className="size-7 shrink-0"
+          disabled={!repoPath || refreshing}
+          onClick={() => void handleRefresh()}
+          aria-label="Refresh checks"
+        >
+          <RefreshCw className={cn('size-3.5', refreshing && 'animate-spin')} />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" sideOffset={6}>
+        Refresh checks
+      </TooltipContent>
+    </Tooltip>
+  )
+  const fixBrokenChecksAction =
+    failedChecks.length > 0 || fixingChecks ? (
       <Tooltip>
         <TooltipTrigger asChild>
           <Button
             type="button"
-            variant="ghost"
-            size="icon-xs"
-            className="size-7"
-            disabled={!repoPath || refreshing}
-            onClick={() => void handleRefresh()}
-            aria-label="Refresh checks"
+            variant="outline"
+            size="xs"
+            className="h-7 gap-1 px-2 text-[11px]"
+            disabled={!canFixBrokenChecks || fixingChecks}
+            onClick={() => void handleFixBrokenChecks()}
           >
-            <RefreshCw className={cn('size-3.5', refreshing && 'animate-spin')} />
+            {fixingChecks ? (
+              <LoaderCircle className="size-3 animate-spin" />
+            ) : (
+              <Wrench className="size-3" />
+            )}
+            {variant === 'compact' ? 'Fix checks' : 'Fix broken checks'}
           </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom" sideOffset={6}>
-          Refresh checks
+          Start the default AI agent on these checks
         </TooltipContent>
       </Tooltip>
+    ) : null
+  const rerunAction =
+    list.length > 0 || rerunning ? (
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
-            variant="ghost"
+            variant="outline"
             size="xs"
-            className="h-7 gap-1.5 px-2 text-[11px]"
+            className="h-7 gap-1 px-2 text-[11px]"
             disabled={!repoPath || rerunning || list.length === 0}
           >
-            {rerunning ? <LoaderCircle className="size-3 animate-spin" /> : null}
+            {rerunning ? (
+              <LoaderCircle className="size-3 animate-spin" />
+            ) : (
+              <RefreshCw className="size-3" />
+            )}
             Rerun
             <ChevronDown className="size-3 opacity-60" />
           </Button>
@@ -2496,13 +3451,271 @@ function ChecksTab({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+    ) : null
+  const secondaryActions =
+    variant === 'compact' && !fixBrokenChecksAction ? null : fixBrokenChecksAction ||
+      rerunAction ? (
+      <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+        {fixBrokenChecksAction}
+        {variant === 'page' ? rerunAction : null}
+      </div>
+    ) : null
+  const actions = (
+    <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+      {refreshAction}
+      {fixBrokenChecksAction}
+      {rerunAction}
     </div>
   )
+  const compactHeader = (
+    <div className="border-b border-border/50 px-3 py-2">
+      <div className="flex min-w-0 items-start gap-2">
+        <div className="flex min-w-0 flex-1 items-start gap-2">
+          <SummaryIcon
+            className={cn(
+              'mt-0.5 size-3.5 shrink-0',
+              summaryColor,
+              counts.pending > 0 && counts.failing === 0 && 'animate-spin'
+            )}
+          />
+          <div className="min-w-0 flex-1">
+            <div className="text-[13px] font-medium leading-5 text-foreground">Checks</div>
+            {list.length > 0 && (
+              <div className="truncate text-[11px] leading-4 text-muted-foreground">
+                {summaryLabel}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          {refreshAction}
+          {list.length > 0 && (
+            <div className="[&_button]:h-7 [&_button]:px-2 [&_button]:text-[11px]">
+              {rerunAction}
+            </div>
+          )}
+        </div>
+      </div>
+      {secondaryActions ? (
+        <div className="mt-2 flex min-w-0 justify-end">{secondaryActions}</div>
+      ) : null}
+    </div>
+  )
+
+  const renderCheckRow = (check: PRCheckDetail): React.JSX.Element => {
+    const conclusion = getCheckConclusion(check)
+    const Icon = CHECK_ICON[conclusion] ?? CircleDashed
+    const color = CHECK_COLOR[conclusion] ?? 'text-muted-foreground'
+    const statusLabel = getCheckStatusLabel(check)
+    const key = getCheckDetailsKey(check)
+    const expanded = expandedCheckKey === key
+    const detailsState = detailsByCheckKey[key]
+    return (
+      <div key={key} className="min-w-0">
+        <button
+          type="button"
+          onClick={() => handleToggleCheckDetails(check)}
+          aria-expanded={expanded}
+          className={cn(
+            'flex w-full min-w-0 items-center gap-2 rounded-md text-left transition',
+            variant === 'page' ? 'px-3 py-2.5 hover:bg-accent/60' : 'px-2 py-1.5 hover:bg-muted/40'
+          )}
+        >
+          <ChevronDown
+            className={cn(
+              'size-3 shrink-0 text-muted-foreground transition-transform',
+              !expanded && '-rotate-90'
+            )}
+          />
+          <Icon
+            className={cn('size-3.5 shrink-0', color, conclusion === 'pending' && 'animate-spin')}
+          />
+          <span className="min-w-0 flex-1 truncate text-[12px] text-foreground">{check.name}</span>
+          <span className="shrink-0 text-[11px] text-muted-foreground">{statusLabel}</span>
+        </button>
+        {expanded && renderCheckDetails(check, detailsState)}
+      </div>
+    )
+  }
+
+  const renderCheckDetails = (
+    check: PRCheckDetail,
+    state: CheckDetailsLoadState | undefined
+  ): React.JSX.Element => {
+    const details = state?.details
+    const openUrl = details?.detailsUrl ?? details?.url ?? check.url
+    const startedAt = formatCheckTimestamp(details?.startedAt)
+    const completedAt = formatCheckTimestamp(details?.completedAt)
+    const detailsStatusCheck: PRCheckDetail = {
+      ...check,
+      status: (details?.status as PRCheckDetail['status'] | undefined) ?? check.status,
+      conclusion:
+        (details?.conclusion as PRCheckDetail['conclusion'] | undefined) ?? check.conclusion
+    }
+    const hasOutput = Boolean(details?.title || details?.summary || details?.text)
+    const hasAnnotations = (details?.annotations.length ?? 0) > 0
+    const hasJobs = (details?.jobs.length ?? 0) > 0
+
+    return (
+      <div className="mx-2 mb-2 mt-1 min-w-0 rounded-md border border-border/50 bg-muted/20 px-3 py-2">
+        {state?.loading ? (
+          <div className="flex items-center gap-2 py-2 text-[12px] text-muted-foreground">
+            <LoaderCircle className="size-3.5 animate-spin" />
+            Loading check details…
+          </div>
+        ) : (
+          <div className="flex min-w-0 flex-col gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+              <span>
+                Status:{' '}
+                {details ? getCheckStatusLabel(detailsStatusCheck) : getCheckStatusLabel(check)}
+              </span>
+              {startedAt && <span>Started {startedAt}</span>}
+              {completedAt && <span>Completed {completedAt}</span>}
+              {check.checkRunId && <span className="font-mono">check #{check.checkRunId}</span>}
+            </div>
+
+            {state?.error && <div className="text-[12px] text-muted-foreground">{state.error}</div>}
+
+            {hasOutput && (
+              <div className="min-w-0 rounded-md border border-border/40 bg-background/70 px-2.5 py-2">
+                {details?.title && (
+                  <div className="mb-1 text-[12px] font-medium text-foreground">
+                    {details.title}
+                  </div>
+                )}
+                {details?.summary && (
+                  <CommentMarkdown
+                    content={details.summary}
+                    variant="document"
+                    className="min-w-0 max-w-full overflow-hidden break-words text-[12px] leading-relaxed [&_a]:break-all [&_code]:break-words [&_pre]:max-w-full"
+                  />
+                )}
+                {details?.text && (
+                  <CommentMarkdown
+                    content={details.text}
+                    variant="document"
+                    className="mt-2 min-w-0 max-w-full overflow-hidden break-words text-[12px] leading-relaxed [&_a]:break-all [&_code]:break-words [&_pre]:max-w-full"
+                  />
+                )}
+              </div>
+            )}
+
+            {hasAnnotations && (
+              <div className="min-w-0 rounded-md border border-border/40 bg-background/70">
+                <div className="border-b border-border/40 px-2.5 py-1.5 text-[11px] font-medium text-foreground">
+                  Annotations
+                </div>
+                <div className="flex max-h-48 flex-col overflow-y-auto">
+                  {details!.annotations.map((annotation, index) => (
+                    <div
+                      key={`${annotation.path ?? 'annotation'}-${index}`}
+                      className={cn(
+                        'min-w-0 px-2.5 py-2 text-[12px]',
+                        index > 0 && 'border-t border-border/30'
+                      )}
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="min-w-0 truncate font-mono text-[11px] text-muted-foreground">
+                          {annotation.path ?? 'Annotation'}
+                          {annotation.startLine ? `:${annotation.startLine}` : ''}
+                        </span>
+                        {annotation.annotationLevel && (
+                          <span className="shrink-0 text-[11px] text-muted-foreground">
+                            {annotation.annotationLevel}
+                          </span>
+                        )}
+                      </div>
+                      {annotation.title && (
+                        <div className="mt-1 text-[12px] font-medium text-foreground">
+                          {annotation.title}
+                        </div>
+                      )}
+                      <div className="mt-1 break-words text-[12px] text-foreground">
+                        {annotation.message}
+                      </div>
+                      {annotation.rawDetails && (
+                        <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-muted/40 p-2 font-mono text-[11px] text-muted-foreground">
+                          {annotation.rawDetails}
+                        </pre>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {hasJobs && (
+              <div className="min-w-0 rounded-md border border-border/40 bg-background/70">
+                <div className="border-b border-border/40 px-2.5 py-1.5 text-[11px] font-medium text-foreground">
+                  Jobs
+                </div>
+                <div className="flex max-h-64 flex-col overflow-y-auto">
+                  {details!.jobs.map((job, index) => (
+                    <div
+                      key={`${job.name}-${index}`}
+                      className={cn(
+                        'min-w-0 px-2.5 py-2',
+                        index > 0 && 'border-t border-border/30'
+                      )}
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-foreground">
+                          {job.name}
+                        </span>
+                        <span className="shrink-0 text-[11px] text-muted-foreground">
+                          {job.conclusion ?? job.status ?? 'unknown'}
+                        </span>
+                      </div>
+                      {job.steps.length > 0 && (
+                        <div className="mt-1 grid gap-1">
+                          {job.steps.map((step) => (
+                            <div
+                              key={step.name}
+                              className="flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground"
+                            >
+                              <span className="min-w-0 flex-1 truncate">{step.name}</span>
+                              <span className="shrink-0">{step.conclusion ?? step.status}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!state?.error && !hasOutput && !hasAnnotations && !hasJobs && (
+              <div className="text-[12px] text-muted-foreground">
+                No inline output is available for this check.
+              </div>
+            )}
+
+            {openUrl && (
+              <div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  className="h-7 gap-1 px-2 text-[11px]"
+                  onClick={() => window.api.shell.openUrl(openUrl)}
+                >
+                  Open in GitHub
+                  <ExternalLink className="size-3" />
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   if (loading && list.length === 0) {
     return (
       <>
-        {toolbar}
+        {variant === 'compact' ? compactHeader : null}
         <div className="flex items-center justify-center py-10">
           <LoaderCircle className="size-5 animate-spin text-muted-foreground" />
         </div>
@@ -2510,50 +3723,93 @@ function ChecksTab({
     )
   }
   if (list.length === 0) {
+    if (variant === 'page') {
+      return (
+        <div className="flex flex-col gap-3 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <CircleDashed className="size-4 shrink-0 text-muted-foreground" />
+            <div className="flex min-w-0 flex-1 flex-col">
+              <span className="truncate text-[13px] font-medium text-foreground">
+                No checks found
+              </span>
+              <span className="truncate text-[11px] text-muted-foreground">
+                This pull request has no reported checks yet.
+              </span>
+            </div>
+            {actions}
+          </div>
+        </div>
+      )
+    }
     return (
       <>
-        {toolbar}
-        <div className="px-4 py-10 text-center text-[12px] text-muted-foreground">
-          No checks found.
+        {compactHeader}
+        <div className="flex flex-col items-center justify-center gap-1 px-4 py-6 text-center">
+          <CircleDashed className="size-4 text-muted-foreground/60" />
+          <div className="text-[12px] text-muted-foreground">No checks reported yet</div>
         </div>
       </>
     )
   }
+  if (variant === 'page') {
+    const countChips: { label: string; className: string }[] = []
+    if (counts.passing > 0) {
+      countChips.push({ label: `${counts.passing} passing`, className: CHECK_COLOR.success })
+    }
+    if (counts.failing > 0) {
+      countChips.push({ label: `${counts.failing} failing`, className: CHECK_COLOR.failure })
+    }
+    if (counts.pending > 0) {
+      countChips.push({ label: `${counts.pending} pending`, className: CHECK_COLOR.pending })
+    }
+    if (counts.skipped + counts.neutral > 0) {
+      countChips.push({
+        label: `${counts.skipped + counts.neutral} skipped`,
+        className: 'text-muted-foreground'
+      })
+    }
+    return (
+      <div className="flex flex-col gap-3 px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <SummaryIcon
+            className={cn(
+              'size-4 shrink-0',
+              summaryColor,
+              counts.pending > 0 && counts.failing === 0 && 'animate-spin'
+            )}
+          />
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <span className="truncate text-[13px] font-medium text-foreground">{summaryLabel}</span>
+            {countChips.length > 1 && (
+              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                {countChips.map((chip, i) => (
+                  <React.Fragment key={chip.label}>
+                    {i > 0 && <span className="opacity-40">·</span>}
+                    <span className={chip.className}>{chip.label}</span>
+                  </React.Fragment>
+                ))}
+              </span>
+            )}
+          </div>
+          {actions}
+        </div>
+        <div className="overflow-hidden rounded-lg border border-border/50 bg-card/50 shadow-xs">
+          {sorted.map((check, index) => (
+            <div
+              key={getCheckDetailsKey(check)}
+              className={cn(index > 0 && 'border-t border-border/40')}
+            >
+              {renderCheckRow(check)}
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
   return (
     <>
-      {toolbar}
-      <div className="px-2 py-2">
-        {list.map((check) => {
-          const conclusion = check.conclusion ?? 'pending'
-          const Icon = CHECK_ICON[conclusion] ?? CircleDashed
-          const color = CHECK_COLOR[conclusion] ?? 'text-muted-foreground'
-          return (
-            <button
-              key={check.name}
-              type="button"
-              onClick={() => {
-                if (check.url) {
-                  window.api.shell.openUrl(check.url)
-                }
-              }}
-              className={cn(
-                'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition',
-                check.url ? 'hover:bg-muted/40' : ''
-              )}
-            >
-              <Icon
-                className={cn(
-                  'size-3.5 shrink-0',
-                  color,
-                  conclusion === 'pending' && 'animate-spin'
-                )}
-              />
-              <span className="flex-1 truncate text-[12px] text-foreground">{check.name}</span>
-              {check.url && <ExternalLink className="size-3 shrink-0 text-muted-foreground/40" />}
-            </button>
-          )
-        })}
-      </div>
+      {compactHeader}
+      <div className="max-h-[280px] overflow-y-auto p-1">{sorted.map(renderCheckRow)}</div>
     </>
   )
 }
@@ -2748,6 +4004,51 @@ async function runIssueUpdate(args: {
   if (!res.ok) {
     throw new Error(res.error)
   }
+}
+
+async function runWorkItemBodyUpdate(args: {
+  item: GitHubWorkItem
+  repoPath: string | null
+  projectOrigin: GitHubItemDialogProjectOrigin | undefined
+  body: string
+  parsedSlug: GitHubOwnerRepo | null
+}): Promise<void> {
+  if (args.item.type === 'pr') {
+    const targetSlug = args.projectOrigin
+      ? { owner: args.projectOrigin.owner, repo: args.projectOrigin.repo }
+      : args.parsedSlug
+    if (!targetSlug) {
+      throw new Error('No GitHub repository context available for this pull request.')
+    }
+    const target = getActiveRuntimeTarget(useAppStore.getState().settings)
+    const updateArgs = {
+      owner: targetSlug.owner,
+      repo: targetSlug.repo,
+      number: args.item.number,
+      updates: { body: args.body }
+    }
+    const res =
+      target.kind === 'environment'
+        ? await callRuntimeRpc<Awaited<ReturnType<typeof window.api.gh.updatePullRequestBySlug>>>(
+            target,
+            'github.project.updatePullRequestBySlug',
+            updateArgs,
+            { timeoutMs: 30_000 }
+          )
+        : await window.api.gh.updatePullRequestBySlug(updateArgs)
+    if (!res.ok) {
+      throw new Error(res.error.message)
+    }
+    return
+  }
+
+  await runIssueUpdate({
+    repoPath: args.repoPath,
+    repoId: args.item.repoId,
+    projectOrigin: args.projectOrigin,
+    number: args.item.number,
+    updates: { body: args.body }
+  })
 }
 
 async function runPullRequestStateUpdate(args: {
@@ -3425,12 +4726,13 @@ export default function GitHubItemDialog({
   workItem,
   repoPath,
   repoId,
+  initialTab,
   projectOrigin,
   onUse,
   onReviewRequestsChange,
   onClose
 }: GitHubItemDialogProps): React.JSX.Element {
-  const [tab, setTab] = useState<ItemDialogTab>('conversation')
+  const [tab, setTab] = useState<ItemDialogTab>(() => normalizeItemDialogTab(workItem, initialTab))
   const [localState, setLocalState] = useState<GitHubWorkItem['state']>(workItem?.state ?? 'open')
   const [localLabels, setLocalLabels] = useState<string[]>(workItem?.labels ?? [])
   const [diffViewMode, setDiffViewMode] = useState<DiffViewMode>('flat')
@@ -3565,6 +4867,9 @@ export default function GitHubItemDialog({
 
   const loading = !!cachedEntry?.pending && !cachedEntry?.details
   const error = cachedEntry?.error && !cachedEntry?.details ? cachedEntry.error : null
+  const detailsLoaded =
+    Boolean(cachedEntry?.details) ||
+    Boolean(cachedEntry && !cachedEntry.pending && !cachedEntry.error && cachedEntry.fetchedAt > 0)
 
   // Why: if a cross-window mutation invalidates the open drawer's entry
   // (cachedEntry becomes undefined while workItem is still set), the main
@@ -3590,7 +4895,7 @@ export default function GitHubItemDialog({
       optimisticCommentsRef.current = []
     }
     prevItemIdRef.current = workItem.id
-    setTab('conversation')
+    setTab(normalizeItemDialogTab(workItem, initialTab))
 
     const cached = workItemDetailsCache.get(detailsCacheKey)
     const now = Date.now()
@@ -3668,7 +4973,7 @@ export default function GitHubItemDialog({
           error: message
         })
       })
-  }, [repoPath, effectiveRepoId, workItem, detailsCacheKey, refetchTick])
+  }, [repoPath, effectiveRepoId, workItem, detailsCacheKey, initialTab, refetchTick])
 
   const Icon = workItem?.type === 'pr' ? GitPullRequest : CircleDot
   const displayWorkItem = useMemo<GitHubWorkItem | null>(() => {
@@ -3805,7 +5110,15 @@ export default function GitHubItemDialog({
       <SheetContent
         side="right"
         showCloseButton={false}
-        className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-[640px] lg:max-w-[760px] xl:max-w-[900px]"
+        className={cn(
+          'flex w-full flex-col gap-0 overflow-hidden p-0 xl:max-w-[1120px] 2xl:max-w-[1240px]',
+          // Why: native macOS traffic lights are drawn above web content, so a
+          // nearly full-width right sheet must leave the titlebar's 80px
+          // traffic-light pad uncovered instead of relying on z-index.
+          IS_MAC
+            ? 'max-w-[calc(100vw-(80px/var(--ui-zoom-factor,1)))] sm:max-w-[calc(100vw-(80px/var(--ui-zoom-factor,1)))] lg:max-w-[calc(100vw-(80px/var(--ui-zoom-factor,1)))]'
+            : 'max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-1rem)] lg:max-w-[calc(100vw-2rem)]'
+        )}
         onOpenAutoFocus={(event) => {
           // Why: focusing the first actionable element inside the drawer
           // causes the "Start workspace" action to receive focus and
@@ -3822,7 +5135,7 @@ export default function GitHubItemDialog({
         </VisuallyHidden.Root>
         <VisuallyHidden.Root asChild>
           <SheetDescription>
-            Read-only preview of the selected GitHub issue or pull request.
+            Preview and edit the selected GitHub issue or pull request.
           </SheetDescription>
         </VisuallyHidden.Root>
 
@@ -3855,7 +5168,19 @@ export default function GitHubItemDialog({
                     <WorkItemIssueSourceIndicator url={workItem.url} repoId={effectiveRepoId} />
                   )}
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
+                <div className="flex shrink-0 items-center justify-end gap-1">
+                  {workItem.type === 'pr' && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => onUse(workItem)}
+                      className="gap-1.5 whitespace-nowrap"
+                      aria-label="Start workspace from PR"
+                    >
+                      Start workspace from PR
+                      <ArrowRight className="size-3.5" />
+                    </Button>
+                  )}
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -3958,15 +5283,26 @@ export default function GitHubItemDialog({
                       Conversation
                     </TabsTrigger>
                     {workItem.type === 'pr' && (
-                      <TabsTrigger value="files" className="px-2">
-                        <FileText className="size-3.5" />
-                        Files
-                        {files.length > 0 && (
-                          <span className="ml-1 text-[10px] text-muted-foreground">
-                            {files.length}
-                          </span>
-                        )}
-                      </TabsTrigger>
+                      <>
+                        <TabsTrigger value="checks" className="px-2">
+                          <ListChecks className="size-3.5" />
+                          Checks
+                          {checks.length > 0 && (
+                            <span className="ml-1 text-[10px] text-muted-foreground">
+                              {checks.length}
+                            </span>
+                          )}
+                        </TabsTrigger>
+                        <TabsTrigger value="files" className="px-2">
+                          <FileText className="size-3.5" />
+                          Files
+                          {files.length > 0 && (
+                            <span className="ml-1 text-[10px] text-muted-foreground">
+                              {files.length}
+                            </span>
+                          )}
+                        </TabsTrigger>
+                      </>
                     )}
                   </TabsList>
 
@@ -3982,12 +5318,12 @@ export default function GitHubItemDialog({
                         headSha={details?.headSha}
                         baseSha={details?.baseSha}
                         loading={loading}
+                        detailsLoaded={detailsLoaded}
                         checks={checks}
                         participants={details?.participants ?? []}
                         localState={localState}
                         onStateChange={setLocalState}
                         projectOrigin={projectOrigin}
-                        onUse={onUse}
                         onMutated={() => {
                           if (repoPath) {
                             invalidateWorkItemDetailsCacheByMatch({
@@ -4001,6 +5337,11 @@ export default function GitHubItemDialog({
                         onChecksUpdated={(nextChecks) => {
                           if (detailsCacheKey) {
                             patchCachedPRChecks(detailsCacheKey, nextChecks)
+                          }
+                        }}
+                        onBodyUpdated={(nextBody) => {
+                          if (detailsCacheKey) {
+                            patchCachedWorkItemBody(detailsCacheKey, nextBody)
                           }
                         }}
                         onCommentAdded={appendOptimisticComment}
@@ -4017,101 +5358,120 @@ export default function GitHubItemDialog({
                     </TabsContent>
 
                     {workItem.type === 'pr' && (
-                      <TabsContent value="files" className="mt-0">
-                        {loading && files.length === 0 ? (
-                          <div className="flex items-center justify-center py-10">
-                            <LoaderCircle className="size-5 animate-spin text-muted-foreground" />
-                          </div>
-                        ) : files.length === 0 ? (
-                          <div className="px-4 py-10 text-center text-[12px] text-muted-foreground">
-                            No files changed.
-                          </div>
-                        ) : (
-                          <div>
-                            {/* Files-tab toolbar: view-mode toggle */}
-                            <div className="flex items-center justify-between gap-3 border-b border-border/40 px-3 py-1.5">
-                              <span className="text-[11px] text-muted-foreground">
-                                {viewedFileCount} / {files.length} files viewed
-                              </span>
-                              <div className="flex items-center gap-1">
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      id="pr-files-flat-view"
-                                      type="button"
-                                      onClick={() => setDiffViewMode('flat')}
-                                      aria-label="Flat view"
-                                      aria-pressed={diffViewMode === 'flat'}
-                                      className={cn(
-                                        'flex size-6 items-center justify-center rounded transition hover:bg-muted',
-                                        diffViewMode === 'flat'
-                                          ? 'bg-muted text-foreground'
-                                          : 'text-muted-foreground'
-                                      )}
-                                    >
-                                      <AlignJustify className="size-3.5" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom" sideOffset={4}>
-                                    Flat view
-                                  </TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      id="pr-files-tree-view"
-                                      type="button"
-                                      onClick={() => setDiffViewMode('tree')}
-                                      aria-label="Tree view"
-                                      aria-pressed={diffViewMode === 'tree'}
-                                      className={cn(
-                                        'flex size-6 items-center justify-center rounded transition hover:bg-muted',
-                                        diffViewMode === 'tree'
-                                          ? 'bg-muted text-foreground'
-                                          : 'text-muted-foreground'
-                                      )}
-                                    >
-                                      <LayoutList className="size-3.5" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom" sideOffset={4}>
-                                    Tree view
-                                  </TooltipContent>
-                                </Tooltip>
-                              </div>
+                      <>
+                        <TabsContent value="checks" className="mt-0">
+                          <ChecksTab
+                            item={workItem}
+                            repoPath={repoPath}
+                            repoId={effectiveRepoId}
+                            headSha={details?.headSha}
+                            checks={checks}
+                            loading={loading || !detailsLoaded}
+                            variant="page"
+                            onChecksUpdated={(nextChecks) => {
+                              if (detailsCacheKey) {
+                                patchCachedPRChecks(detailsCacheKey, nextChecks)
+                              }
+                            }}
+                          />
+                        </TabsContent>
+
+                        <TabsContent value="files" className="mt-0">
+                          {loading && files.length === 0 ? (
+                            <div className="flex items-center justify-center py-10">
+                              <LoaderCircle className="size-5 animate-spin text-muted-foreground" />
                             </div>
-                            {diffViewMode === 'flat' ? (
-                              files.map((file) => (
-                                <PRFileRow
-                                  key={getPRFileRowKey(file)}
-                                  file={file}
+                          ) : files.length === 0 ? (
+                            <div className="px-4 py-10 text-center text-[12px] text-muted-foreground">
+                              No files changed.
+                            </div>
+                          ) : (
+                            <div>
+                              {/* Files-tab toolbar: view-mode toggle */}
+                              <div className="flex items-center justify-between gap-3 border-b border-border/40 px-3 py-1.5">
+                                <span className="text-[11px] text-muted-foreground">
+                                  {viewedFileCount} / {files.length} files viewed
+                                </span>
+                                <div className="flex items-center gap-1">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        id="pr-files-flat-view"
+                                        type="button"
+                                        onClick={() => setDiffViewMode('flat')}
+                                        aria-label="Flat view"
+                                        aria-pressed={diffViewMode === 'flat'}
+                                        className={cn(
+                                          'flex size-6 items-center justify-center rounded transition hover:bg-muted',
+                                          diffViewMode === 'flat'
+                                            ? 'bg-muted text-foreground'
+                                            : 'text-muted-foreground'
+                                        )}
+                                      >
+                                        <AlignJustify className="size-3.5" />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom" sideOffset={4}>
+                                      Flat view
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        id="pr-files-tree-view"
+                                        type="button"
+                                        onClick={() => setDiffViewMode('tree')}
+                                        aria-label="Tree view"
+                                        aria-pressed={diffViewMode === 'tree'}
+                                        className={cn(
+                                          'flex size-6 items-center justify-center rounded transition hover:bg-muted',
+                                          diffViewMode === 'tree'
+                                            ? 'bg-muted text-foreground'
+                                            : 'text-muted-foreground'
+                                        )}
+                                      >
+                                        <LayoutList className="size-3.5" />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom" sideOffset={4}>
+                                      Tree view
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
+                              </div>
+                              {diffViewMode === 'flat' ? (
+                                files.map((file) => (
+                                  <PRFileRow
+                                    key={getPRFileRowKey(file)}
+                                    file={file}
+                                    repoPath={repoPath ?? ''}
+                                    repoId={effectiveRepoId ?? ''}
+                                    prNumber={workItem.number}
+                                    headSha={details?.headSha}
+                                    baseSha={details?.baseSha}
+                                    viewed={isPRFileViewed(file)}
+                                    viewedPending={pendingViewedPaths.has(file.path)}
+                                    onCommentAdded={appendOptimisticComment}
+                                    onViewedChange={handlePRFileViewedChange}
+                                  />
+                                ))
+                              ) : (
+                                <PRDiffTreeView
+                                  files={files}
                                   repoPath={repoPath ?? ''}
                                   repoId={effectiveRepoId ?? ''}
                                   prNumber={workItem.number}
                                   headSha={details?.headSha}
                                   baseSha={details?.baseSha}
-                                  viewed={isPRFileViewed(file)}
-                                  viewedPending={pendingViewedPaths.has(file.path)}
+                                  pendingViewedPaths={pendingViewedPaths}
                                   onCommentAdded={appendOptimisticComment}
                                   onViewedChange={handlePRFileViewedChange}
                                 />
-                              ))
-                            ) : (
-                              <PRDiffTreeView
-                                files={files}
-                                repoPath={repoPath ?? ''}
-                                repoId={effectiveRepoId ?? ''}
-                                prNumber={workItem.number}
-                                headSha={details?.headSha}
-                                baseSha={details?.baseSha}
-                                pendingViewedPaths={pendingViewedPaths}
-                                onCommentAdded={appendOptimisticComment}
-                                onViewedChange={handlePRFileViewedChange}
-                              />
-                            )}
-                          </div>
-                        )}
-                      </TabsContent>
+                              )}
+                            </div>
+                          )}
+                        </TabsContent>
+                      </>
                     )}
                   </div>
                 </Tabs>

@@ -55,6 +55,12 @@ import type {
   WorkspaceSpaceAnalyzeResult,
   WorkspaceSpaceScanProgress
 } from '../shared/workspace-space-types'
+import type {
+  WorkspacePortKillRequest,
+  WorkspacePortKillResult,
+  WorkspacePortScanRequest,
+  WorkspacePortScanResult
+} from '../shared/workspace-ports'
 import type { GhAuthDiagnostic } from '../shared/github-auth-types'
 import type {
   AddIssueCommentBySlugArgs,
@@ -553,6 +559,13 @@ const api = {
     }
   },
 
+  workspacePorts: {
+    scan: (args: WorkspacePortScanRequest): Promise<WorkspacePortScanResult> =>
+      ipcRenderer.invoke('workspacePorts:scan', args),
+    kill: (args: WorkspacePortKillRequest): Promise<WorkspacePortKillResult> =>
+      ipcRenderer.invoke('workspacePorts:kill', args)
+  },
+
   pty: {
     spawn: (opts: {
       cols: number
@@ -826,6 +839,16 @@ const api = {
       noCache?: boolean
     }): Promise<unknown[]> => ipcRenderer.invoke('gh:prChecks', args),
 
+    prCheckDetails: (args: {
+      repoPath: string
+      repoId?: string
+      checkRunId?: number
+      workflowRunId?: number
+      checkName?: string
+      url?: string | null
+      prRepo?: { owner: string; repo: string } | null
+    }): Promise<unknown | null> => ipcRenderer.invoke('gh:prCheckDetails', args),
+
     rerunPRChecks: (args: {
       repoPath: string
       repoId?: string
@@ -891,6 +914,14 @@ const api = {
       reviewers: string[]
     }): Promise<{ ok: true } | { ok: false; error: string }> =>
       ipcRenderer.invoke('gh:requestPRReviewers', args),
+
+    removePRReviewers: (args: {
+      repoPath: string
+      repoId?: string
+      prNumber: number
+      reviewers: string[]
+    }): Promise<{ ok: true } | { ok: false; error: string }> =>
+      ipcRenderer.invoke('gh:removePRReviewers', args),
 
     updateIssue: (args: {
       repoPath: string
@@ -2029,6 +2060,11 @@ const api = {
       worktreePath: string
       connectionId?: string
     }): Promise<unknown> => ipcRenderer.invoke('git:generateCommitMessage', args),
+    discoverCommitMessageModels: (args: {
+      agentId: string
+      worktreePath?: string
+      connectionId?: string
+    }): Promise<unknown> => ipcRenderer.invoke('git:discoverCommitMessageModels', args),
     cancelGenerateCommitMessage: (args: {
       worktreePath: string
       connectionId?: string

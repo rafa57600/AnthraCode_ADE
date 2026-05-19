@@ -59,6 +59,17 @@ import {
   RUNTIME_PROTOCOL_VERSION
 } from '../../shared/protocol-version'
 import type {
+  WorkspacePortKillRequest,
+  WorkspacePortKillResult,
+  WorkspacePortProbe,
+  WorkspacePortScanResult
+} from '../../shared/workspace-ports'
+import {
+  filterWorkspacePortProbes,
+  killWorkspacePort,
+  scanWorkspacePortProbes
+} from '../ports/workspace-port-ownership'
+import type {
   RuntimeGraphStatus,
   RuntimeRepoSearchRefs,
   RuntimeTerminalRead,
@@ -113,6 +124,7 @@ import {
   listWorkItems,
   countWorkItems,
   getPRChecks,
+  getPRCheckDetails,
   rerunPRChecks,
   getPRComments,
   getIssue,
@@ -123,6 +135,7 @@ import {
   mergePR,
   updatePRState,
   requestPRReviewers,
+  removePRReviewers,
   createIssue,
   updateIssue,
   addIssueComment,
@@ -1694,6 +1707,8 @@ export class OrcaRuntimeService {
   )
   generateRuntimeCommitMessage: RuntimeGitCommands['generateRuntimeCommitMessage'] =
     this.gitCommands.generateRuntimeCommitMessage.bind(this.gitCommands)
+  discoverRuntimeCommitMessageModels: RuntimeGitCommands['discoverRuntimeCommitMessageModels'] =
+    this.gitCommands.discoverRuntimeCommitMessageModels.bind(this.gitCommands)
   cancelRuntimeGenerateCommitMessage: RuntimeGitCommands['cancelRuntimeGenerateCommitMessage'] =
     this.gitCommands.cancelRuntimeGenerateCommitMessage.bind(this.gitCommands)
   generateRuntimePullRequestFields: RuntimeGitCommands['generateRuntimePullRequestFields'] =
@@ -5182,6 +5197,21 @@ export class OrcaRuntimeService {
     return rerunPRChecks(repo.path, prNumber, options)
   }
 
+  async getRepoPRCheckDetails(
+    repoSelector: string,
+    args: {
+      checkRunId?: number
+      workflowRunId?: number
+      checkName?: string
+      url?: string | null
+      prRepo?: GitHubOwnerRepo | null
+    }
+  ): Promise<Awaited<ReturnType<typeof getPRCheckDetails>>> {
+    const repo = await this.resolveRepoSelector(repoSelector)
+    this.assertHostIntegrationRepoIsLocal(repo, 'repo_pr_check_details')
+    return getPRCheckDetails(repo.path, { ...args, prRepo: args.prRepo ?? null })
+  }
+
   async getRepoPRComments(
     repoSelector: string,
     prNumber: number,
@@ -5272,6 +5302,16 @@ export class OrcaRuntimeService {
     const repo = await this.resolveRepoSelector(repoSelector)
     this.assertHostIntegrationRepoIsLocal(repo, 'repo_pr_reviewers')
     return requestPRReviewers(repo.path, prNumber, reviewers)
+  }
+
+  async removeRepoPRReviewers(
+    repoSelector: string,
+    prNumber: number,
+    reviewers: string[]
+  ): Promise<Awaited<ReturnType<typeof removePRReviewers>>> {
+    const repo = await this.resolveRepoSelector(repoSelector)
+    this.assertHostIntegrationRepoIsLocal(repo, 'repo_pr_reviewers')
+    return removePRReviewers(repo.path, prNumber, reviewers)
   }
 
   async createRepoIssue(
@@ -5649,6 +5689,34 @@ export class OrcaRuntimeService {
 
   async showManagedWorktree(worktreeSelector: string) {
     return await this.resolveWorktreeSelector(worktreeSelector)
+  }
+
+  async scanWorkspacePorts(repoId?: string): Promise<WorkspacePortScanResult> {
+    return scanWorkspacePortProbes(await this.getWorkspacePortProbes(repoId))
+  }
+
+  async killWorkspacePort(args: WorkspacePortKillRequest): Promise<WorkspacePortKillResult> {
+    return killWorkspacePort(await this.getWorkspacePortProbes(args.repoId), args)
+  }
+
+  // Why: remote clients may invoke this over RPC, so the runtime derives
+  // allowed worktree paths from its own store instead of trusting client paths.
+  private async getWorkspacePortProbes(repoId?: string): Promise<WorkspacePortProbe[]> {
+    const reposById = new Map(
+      this.requireStore()
+        .getRepos()
+        .map((repo) => [repo.id, repo])
+    )
+    return filterWorkspacePortProbes(
+      (await this.listResolvedWorktrees()).map((worktree) => ({
+        id: worktree.id,
+        repoId: worktree.repoId,
+        displayName: worktree.displayName,
+        path: worktree.git.path,
+        connectionId: reposById.get(worktree.repoId)?.connectionId ?? null
+      })),
+      repoId
+    )
   }
 
   async sleepManagedWorktree(worktreeSelector: string): Promise<{ worktreeId: string }> {

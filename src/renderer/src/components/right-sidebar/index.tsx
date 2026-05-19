@@ -67,8 +67,6 @@ type ActivityBarItem = {
   shortcut: string
   /** When true, hidden for non-git (folder-mode) repos. */
   gitOnly?: boolean
-  /** When true, only shown when at least one SSH connection is active. */
-  sshOnly?: boolean
 }
 
 const isMac = navigator.userAgent.includes('Mac')
@@ -107,8 +105,7 @@ const ACTIVITY_ITEMS: ActivityBarItem[] = [
     title: 'Ports',
     // Why: Ctrl+Shift+I is the DevTools accelerator on Windows/Linux, so this
     // shortcut is macOS-only. On other platforms the tooltip omits it.
-    shortcut: isMac ? `\u21E7${mod}I` : '',
-    sshOnly: true
+    shortcut: isMac ? `\u21E7${mod}I` : ''
   }
 ]
 
@@ -128,84 +125,15 @@ function RightSidebarInner(): React.JSX.Element {
   const activeRepo = useRepoById(activeWorktree?.repoId ?? null)
   const isFolder = activeRepo ? isFolderRepo(activeRepo) : false
 
-  // Why: show the Ports tab only when the active worktree belongs to a
-  // remote (SSH) repo, not for any global SSH connection. Switching to a
-  // local worktree should hide the tab even if SSH sessions are alive.
-  const isRemoteWorktree = !!activeRepo?.connectionId
-  const hasActiveSshConnection = useAppStore((s) => {
-    if (!activeRepo?.connectionId) {
-      return false
-    }
-    const state = s.sshConnectionStates.get(activeRepo.connectionId)
-    return state?.status === 'connected'
-  })
-
-  // Why: when the SSH connection drops while the user is viewing the Ports
-  // panel, hiding the tab immediately would be jarring. Keep it visible
-  // during a 30-second grace period, then hide it.
-  const isPortsPanelActive = rightSidebarTab === 'ports'
-  // Why: graceActiveRef is set synchronously during render (not via useEffect)
-  // so that the very first render after disconnect already sees the grace flag,
-  // preventing a one-frame flicker to the Explorer tab.
-  const graceActiveRef = React.useRef(false)
-  const graceTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [, forceUpdate] = useState(0)
-
-  if (!hasActiveSshConnection && isPortsPanelActive && !graceActiveRef.current) {
-    graceActiveRef.current = true
-  } else if (graceActiveRef.current && (hasActiveSshConnection || !isPortsPanelActive)) {
-    // Why: clear grace when either (a) the SSH session reconnects, or (b) the
-    // user navigates away from the Ports tab — no reason to keep it visible
-    // once they've moved on.
-    graceActiveRef.current = false
-    if (graceTimerRef.current) {
-      clearTimeout(graceTimerRef.current)
-      graceTimerRef.current = null
-    }
-  }
-
-  const disconnectGraceActive = graceActiveRef.current
-
-  useEffect(() => {
-    if (disconnectGraceActive) {
-      graceTimerRef.current = setTimeout(() => {
-        graceActiveRef.current = false
-        graceTimerRef.current = null
-        // Why: only reset the tab if the user is still on Ports. If they
-        // already navigated to Search/Checks/etc during the grace period,
-        // forcing them back to Explorer would be disruptive.
-        if (useAppStore.getState().rightSidebarTab === 'ports') {
-          setRightSidebarTab('explorer')
-        }
-        forceUpdate((n) => n + 1)
-      }, 30_000)
-      return () => {
-        if (graceTimerRef.current) {
-          clearTimeout(graceTimerRef.current)
-          graceTimerRef.current = null
-        }
-      }
-    }
-    return undefined
-  }, [disconnectGraceActive, setRightSidebarTab])
-
   const visibleItems = useMemo(
     () =>
       ACTIVITY_ITEMS.filter((item) => {
         if (item.gitOnly && isFolder) {
           return false
         }
-        if (item.sshOnly) {
-          if (!isRemoteWorktree) {
-            return false
-          }
-          if (!hasActiveSshConnection && !disconnectGraceActive) {
-            return false
-          }
-        }
         return true
       }),
-    [isFolder, isRemoteWorktree, hasActiveSshConnection, disconnectGraceActive]
+    [isFolder]
   )
 
   // If the active tab is hidden (e.g. switched from a git repo to a folder),
@@ -244,7 +172,7 @@ function RightSidebarInner(): React.JSX.Element {
         {effectiveTab === 'search' && <SearchPanel />}
         {effectiveTab === 'source-control' && <SourceControl />}
         {effectiveTab === 'checks' && <ChecksPanel />}
-        {effectiveTab === 'ports' && <PortsPanel />}
+        {effectiveTab === 'ports' && <PortsPanel isVisible={rightSidebarOpen} />}
       </div>
     </div>
   )

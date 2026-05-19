@@ -625,6 +625,49 @@ export type PRCheckDetail = {
   workflowRunId?: number
 }
 
+export type PRCheckAnnotation = {
+  path: string | null
+  startLine: number | null
+  endLine: number | null
+  annotationLevel: string | null
+  title: string | null
+  message: string
+  rawDetails: string | null
+}
+
+export type PRCheckStep = {
+  name: string
+  status: string | null
+  conclusion: string | null
+  startedAt: string | null
+  completedAt: string | null
+}
+
+export type PRCheckJob = {
+  name: string
+  status: string | null
+  conclusion: string | null
+  startedAt: string | null
+  completedAt: string | null
+  url: string | null
+  steps: PRCheckStep[]
+}
+
+export type PRCheckRunDetails = {
+  name: string
+  status: PRCheckDetail['status'] | string | null
+  conclusion: PRCheckDetail['conclusion'] | string | null
+  url: string | null
+  detailsUrl: string | null
+  startedAt: string | null
+  completedAt: string | null
+  title: string | null
+  summary: string | null
+  text: string | null
+  annotations: PRCheckAnnotation[]
+  jobs: PRCheckJob[]
+}
+
 export type GitHubRerunPRChecksResult = { ok: true; count: number } | { ok: false; error: string }
 
 export type GitHubReactionContent =
@@ -873,10 +916,9 @@ export type LinearComment = {
 export type GitHubIssueUpdate = {
   state?: 'open' | 'closed'
   title?: string
-  // Why: body writes are driven by the Project-mode slug-addressed path
-  // (`updateIssueBySlug`) because `gh issue edit` does not consistently
-  // cover every body-edit case the dialog needs; the repoPath-based
-  // `updateIssue` flow keeps ignoring `body` for backward compatibility.
+  // Why: body writes use the REST issue endpoint instead of `gh issue edit`
+  // because that command does not consistently cover every body-edit case the
+  // dialog needs.
   body?: string
   addLabels?: string[]
   removeLabels?: string[]
@@ -1654,12 +1696,27 @@ export type GlobalSettings = {
   voice?: VoiceSettings
 }
 
+export type CommitMessageAiModelCapability = {
+  id: string
+  label: string
+  thinkingLevels?: { id: string; label: string }[]
+  defaultThinkingLevel?: string
+}
+
 export type CommitMessageAiSettings = {
   enabled: boolean
   /** A TuiAgent id, the literal `'custom'` for a user-supplied command, or null. */
   agentId: TuiAgent | 'custom' | null
   /** Per-agent: switching agents preserves the previously-picked model. */
   selectedModelByAgent: Partial<Record<TuiAgent, string>>
+  /** Host-scoped model selections; dynamic agents can expose different models per SSH target. */
+  selectedModelByAgentByHost?: Partial<Record<string, Partial<Record<TuiAgent, string>>>>
+  /** Per-agent dynamic models last discovered from the CLI, persisted so main can validate selections. */
+  discoveredModelsByAgent?: Partial<Record<TuiAgent, CommitMessageAiModelCapability[]>>
+  /** Host-scoped dynamic model discovery cache. */
+  discoveredModelsByAgentByHost?: Partial<
+    Record<string, Partial<Record<TuiAgent, CommitMessageAiModelCapability[]>>>
+  >
   /** Per-model: thinking effort depends on the model, not the agent. Keyed by model id. */
   selectedThinkingByModel: Record<string, string>
   /** Optional user-provided suffix appended to the base prompt (style overrides, etc.). */

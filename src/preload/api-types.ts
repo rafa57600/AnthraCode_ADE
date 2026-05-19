@@ -80,6 +80,7 @@ import type {
   PathSource,
   PersistedUIState,
   PRCheckDetail,
+  PRCheckRunDetails,
   PRComment,
   PRInfo,
   Repo,
@@ -167,6 +168,10 @@ import type {
   RuntimeSyncWindowGraph,
   RuntimeTerminalDriverState
 } from '../shared/runtime-types'
+import type {
+  CommitMessageAgentCapability,
+  CommitMessageModelCapability
+} from '../shared/commit-message-agent-spec'
 import type { ShellOpenLocalPathResult } from '../shared/shell-open-types'
 import type { SkillDiscoveryResult } from '../shared/skills'
 import type {
@@ -217,6 +222,12 @@ import type {
   WorkspaceSpaceAnalyzeResult,
   WorkspaceSpaceScanProgress
 } from '../shared/workspace-space-types'
+import type {
+  WorkspacePortKillRequest,
+  WorkspacePortKillResult,
+  WorkspacePortScanRequest,
+  WorkspacePortScanResult
+} from '../shared/workspace-ports'
 import type { GhAuthDiagnostic } from '../shared/github-auth-types'
 import type {
   SshConnectionState,
@@ -654,6 +665,10 @@ export type PreloadApi = {
     cancel: () => Promise<boolean>
     onProgress: (callback: (progress: WorkspaceSpaceScanProgress) => void) => () => void
   }
+  workspacePorts: {
+    scan: (args: WorkspacePortScanRequest) => Promise<WorkspacePortScanResult>
+    kill: (args: WorkspacePortKillRequest) => Promise<WorkspacePortKillResult>
+  }
   pty: {
     spawn: (opts: {
       cols: number
@@ -811,6 +826,15 @@ export type PreloadApi = {
       prRepo?: GitHubOwnerRepo | null
       noCache?: boolean
     }) => Promise<PRCheckDetail[]>
+    prCheckDetails: (args: {
+      repoPath: string
+      repoId?: string
+      checkRunId?: number
+      workflowRunId?: number
+      checkName?: string
+      url?: string | null
+      prRepo?: GitHubOwnerRepo | null
+    }) => Promise<PRCheckRunDetails | null>
     rerunPRChecks: (args: {
       repoPath: string
       repoId?: string
@@ -860,6 +884,12 @@ export type PreloadApi = {
       updates: { state: 'open' | 'closed' }
     }) => Promise<{ ok: true } | { ok: false; error: string }>
     requestPRReviewers: (args: {
+      repoPath: string
+      repoId?: string
+      prNumber: number
+      reviewers: string[]
+    }) => Promise<{ ok: true } | { ok: false; error: string }>
+    removePRReviewers: (args: {
       repoPath: string
       repoId?: string
       prNumber: number
@@ -1480,6 +1510,19 @@ export type PreloadApi = {
     }) => Promise<
       | { success: true; message: string; agentLabel?: string }
       | { success: false; error: string; canceled?: boolean }
+    >
+    discoverCommitMessageModels: (args: {
+      agentId: string
+      worktreePath?: string
+      connectionId?: string
+    }) => Promise<
+      | {
+          success: true
+          capability: CommitMessageAgentCapability
+          models: CommitMessageModelCapability[]
+          defaultModelId: string
+        }
+      | { success: false; error: string }
     >
     cancelGenerateCommitMessage: (args: {
       worktreePath: string

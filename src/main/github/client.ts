@@ -8,6 +8,7 @@ import type {
   PRInfo,
   PRMergeableState,
   PRCheckDetail,
+  PRCheckRunDetails,
   GitHubCommentResult,
   GitHubPRReviewCommentInput,
   PRComment,
@@ -1848,6 +1849,159 @@ export async function getPRChecks(
   }
 }
 
+function nullableString(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null
+}
+
+function nullableNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function mapCheckAnnotations(raw: unknown): PRCheckRunDetails['annotations'] {
+  if (!Array.isArray(raw)) {
+    return []
+  }
+  return raw
+    .filter((annotation): annotation is Record<string, unknown> => Boolean(annotation))
+    .map((annotation) => ({
+      path: nullableString(annotation.path),
+      startLine: nullableNumber(annotation.start_line),
+      endLine: nullableNumber(annotation.end_line),
+      annotationLevel: nullableString(annotation.annotation_level),
+      title: nullableString(annotation.title),
+      message: nullableString(annotation.message) ?? '',
+      rawDetails: nullableString(annotation.raw_details)
+    }))
+}
+
+function mapWorkflowJobs(raw: unknown, checkName?: string): PRCheckRunDetails['jobs'] {
+  if (!raw || typeof raw !== 'object' || !Array.isArray((raw as { jobs?: unknown }).jobs)) {
+    return []
+  }
+  const jobs = (raw as { jobs: unknown[] }).jobs
+    .filter((job): job is Record<string, unknown> => Boolean(job))
+    .map((job) => ({
+      name: nullableString(job.name) ?? 'Unnamed job',
+      status: nullableString(job.status),
+      conclusion: nullableString(job.conclusion),
+      startedAt: nullableString(job.started_at),
+      completedAt: nullableString(job.completed_at),
+      url: nullableString(job.html_url),
+      steps: Array.isArray(job.steps)
+        ? job.steps
+            .filter((step): step is Record<string, unknown> => Boolean(step))
+            .map((step) => ({
+              name: nullableString(step.name) ?? 'Unnamed step',
+              status: nullableString(step.status),
+              conclusion: nullableString(step.conclusion),
+              startedAt: nullableString(step.started_at),
+              completedAt: nullableString(step.completed_at)
+            }))
+        : []
+    }))
+  const exactMatches = checkName ? jobs.filter((job) => job.name === checkName) : []
+  return exactMatches.length > 0 ? exactMatches : jobs
+}
+
+function getWorkflowRunIdFromCheckRun(
+  checkRun: Record<string, unknown> | null
+): number | undefined {
+  const checkSuite = checkRun?.check_suite
+  if (!checkSuite || typeof checkSuite !== 'object') {
+    return undefined
+  }
+  const workflowRun = (checkSuite as { workflow_run?: unknown }).workflow_run
+  if (!workflowRun || typeof workflowRun !== 'object') {
+    return undefined
+  }
+  const id = (workflowRun as { id?: unknown }).id
+  return typeof id === 'number' && Number.isSafeInteger(id) ? id : undefined
+}
+
+export async function getPRCheckDetails(
+  repoPath: string,
+  args: {
+    checkRunId?: number
+    workflowRunId?: number
+    checkName?: string
+    url?: string | null
+    prRepo?: OwnerRepo | null
+  },
+  connectionId?: string | null
+): Promise<PRCheckRunDetails | null> {
+  const ghOptions = ghRepoExecOptions(githubRepoContext(repoPath, connectionId))
+  const ownerRepo = args.prRepo ?? (await getOwnerRepo(repoPath, connectionId))
+  if (!ownerRepo) {
+    return null
+  }
+
+  await acquire()
+  try {
+    let checkRun: Record<string, unknown> | null = null
+    let annotations: PRCheckRunDetails['annotations'] = []
+    if (args.checkRunId) {
+      const { stdout } = await ghExecFileAsync(
+        ['api', `repos/${ownerRepo.owner}/${ownerRepo.repo}/check-runs/${args.checkRunId}`],
+        ghOptions
+      )
+      checkRun = JSON.parse(stdout) as Record<string, unknown>
+      try {
+        const annotationsResult = await ghExecFileAsync(
+          [
+            'api',
+            `repos/${ownerRepo.owner}/${ownerRepo.repo}/check-runs/${args.checkRunId}/annotations?per_page=20`
+          ],
+          ghOptions
+        )
+        annotations = mapCheckAnnotations(JSON.parse(annotationsResult.stdout))
+      } catch (err) {
+        console.warn('getPRCheckDetails annotations fetch failed:', err)
+      }
+    }
+
+    const workflowRunId = args.workflowRunId ?? getWorkflowRunIdFromCheckRun(checkRun)
+    let jobs: PRCheckRunDetails['jobs'] = []
+    if (workflowRunId) {
+      try {
+        const { stdout } = await ghExecFileAsync(
+          [
+            'api',
+            `repos/${ownerRepo.owner}/${ownerRepo.repo}/actions/runs/${workflowRunId}/jobs?per_page=100`
+          ],
+          ghOptions
+        )
+        jobs = mapWorkflowJobs(JSON.parse(stdout), args.checkName)
+      } catch (err) {
+        console.warn('getPRCheckDetails workflow jobs fetch failed:', err)
+      }
+    }
+
+    const output =
+      checkRun?.output && typeof checkRun.output === 'object'
+        ? (checkRun.output as Record<string, unknown>)
+        : null
+    return {
+      name: nullableString(checkRun?.name) ?? args.checkName ?? 'Check',
+      status: nullableString(checkRun?.status),
+      conclusion: nullableString(checkRun?.conclusion),
+      url: nullableString(checkRun?.html_url) ?? args.url ?? null,
+      detailsUrl: nullableString(checkRun?.details_url) ?? args.url ?? null,
+      startedAt: nullableString(checkRun?.started_at),
+      completedAt: nullableString(checkRun?.completed_at),
+      title: nullableString(output?.title),
+      summary: nullableString(output?.summary),
+      text: nullableString(output?.text),
+      annotations,
+      jobs
+    }
+  } catch (err) {
+    console.warn('getPRCheckDetails failed:', err)
+    return null
+  } finally {
+    release()
+  }
+}
+
 function parseActionsRunId(url: string | null | undefined): number | undefined {
   if (!url) {
     return undefined
@@ -2517,6 +2671,38 @@ export async function requestPRReviewers(
   await acquire()
   try {
     const args = ['pr', 'edit', String(prNumber), '--add-reviewer', logins.join(',')]
+    if (ownerRepo) {
+      args.push('--repo', `${ownerRepo.owner}/${ownerRepo.repo}`)
+    }
+    await ghExecFileAsync(args, {
+      ...ghOptions,
+      env: { ...process.env, GH_PROMPT_DISABLED: '1' }
+    })
+    return { ok: true }
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : typeof err === 'string' ? err : 'Unknown error'
+    return { ok: false, error: message }
+  } finally {
+    release()
+  }
+}
+
+export async function removePRReviewers(
+  repoPath: string,
+  prNumber: number,
+  reviewers: string[],
+  connectionId?: string | null
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const logins = reviewers.map((reviewer) => reviewer.trim()).filter(Boolean)
+  if (logins.length === 0) {
+    return { ok: false, error: 'Enter at least one reviewer' }
+  }
+  const ghOptions = ghRepoExecOptions(githubRepoContext(repoPath, connectionId))
+  const ownerRepo = await getOwnerRepo(repoPath, connectionId)
+  await acquire()
+  try {
+    const args = ['pr', 'edit', String(prNumber), '--remove-reviewer', logins.join(',')]
     if (ownerRepo) {
       args.push('--repo', `${ownerRepo.owner}/${ownerRepo.repo}`)
     }

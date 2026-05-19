@@ -55,6 +55,12 @@ import type {
   WorkspaceSpaceAnalyzeResult,
   WorkspaceSpaceScanProgress
 } from '../shared/workspace-space-types'
+import type {
+  WorkspacePortKillRequest,
+  WorkspacePortKillResult,
+  WorkspacePortScanRequest,
+  WorkspacePortScanResult
+} from '../shared/workspace-ports'
 import type { GhAuthDiagnostic } from '../shared/github-auth-types'
 import type {
   AddIssueCommentBySlugArgs,
@@ -551,6 +557,13 @@ const api = {
       ipcRenderer.on('workspaceSpace:progress', listener)
       return () => ipcRenderer.removeListener('workspaceSpace:progress', listener)
     }
+  },
+
+  workspacePorts: {
+    scan: (args: WorkspacePortScanRequest): Promise<WorkspacePortScanResult> =>
+      ipcRenderer.invoke('workspacePorts:scan', args),
+    kill: (args: WorkspacePortKillRequest): Promise<WorkspacePortKillResult> =>
+      ipcRenderer.invoke('workspacePorts:kill', args)
   },
 
   pty: {

@@ -21,6 +21,7 @@ import { HOSTED_REVIEW_METHODS } from './hosted-review'
 import { LINEAR_METHODS } from './linear'
 import { SPEECH_METHODS } from './speech'
 import { CLIENT_UI_METHODS } from './client-ui'
+import { WORKSPACE_PORT_METHODS } from './workspace-ports'
 
 // Why: a flat manifest keeps registration order explicit and provides one
 // grep-point for "what methods does the RPC server expose?" — useful when
@@ -47,5 +48,6 @@ export const ALL_RPC_METHODS: readonly RpcAnyMethod[] = [
   ...HOSTED_REVIEW_METHODS,
   ...LINEAR_METHODS,
   ...SPEECH_METHODS,
+  ...WORKSPACE_PORT_METHODS,
   ...CLIENT_UI_METHODS
 ]

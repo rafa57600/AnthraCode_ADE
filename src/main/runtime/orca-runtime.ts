@@ -15,6 +15,13 @@ import { mkdir, readdir, rm, stat } from 'fs/promises'
 import { OrchestrationDb } from './orchestration/db'
 import { formatMessagesForInjection } from './orchestration/formatter'
 import type {
+  Automation,
+  AutomationCreateInput,
+  AutomationRun,
+  AutomationUpdateInput,
+  AutomationWorkspaceMode
+} from '../../shared/automations-types'
+import type {
   BaseRefSearchResult,
   CreateWorktreeResult,
   GitPushTarget,
@@ -91,6 +98,7 @@ import type {
   BrowserTabInfo,
   BrowserScreencastResult
 } from '../../shared/runtime-types'
+import type { AutomationService } from '../automations/service'
 import { RuntimeBrowserCommands } from './orca-runtime-browser'
 import { RuntimeFileCommands } from './orca-runtime-files'
 import { RuntimeGitCommands } from './orca-runtime-git'
@@ -323,6 +331,11 @@ type RuntimeStore = {
   getWorkspaceSession?: Store['getWorkspaceSession']
   getUI?: Store['getUI']
   updateUI?: Store['updateUI']
+  listAutomations?: Store['listAutomations']
+  listAutomationRuns?: Store['listAutomationRuns']
+  createAutomation?: Store['createAutomation']
+  updateAutomation?: Store['updateAutomation']
+  deleteAutomation?: Store['deleteAutomation']
   getSettings(): {
     workspaceDir: string
     nestWorkspaces: boolean
@@ -337,6 +350,31 @@ type RuntimeStore = {
   // a cast. The runtime never reads the return value — the persisted value
   // is read back via getSettings() on the next access.
   updateSettings?: (updates: Partial<GlobalSettings>) => unknown
+}
+
+export type RuntimeAutomationCreateInput = Omit<
+  AutomationCreateInput,
+  'projectId' | 'workspaceId' | 'workspaceMode' | 'timezone'
+> & {
+  repo?: string
+  workspace?: string
+  workspaceMode?: AutomationWorkspaceMode
+  timezone?: string
+}
+
+export type RuntimeAutomationUpdateInput = Omit<
+  AutomationUpdateInput,
+  'projectId' | 'workspaceId'
+> & {
+  repo?: string
+  workspace?: string
+}
+
+function hasRuntimeAutomationUpdateValue<K extends keyof RuntimeAutomationUpdateInput>(
+  updates: RuntimeAutomationUpdateInput,
+  key: K
+): boolean {
+  return Object.hasOwn(updates, key) && updates[key] !== undefined
 }
 
 type RuntimeLeafRecord = RuntimeSyncedLeaf & {
@@ -908,6 +946,7 @@ export class OrcaRuntimeService {
   private readonly getLocalProviderFn: (() => IPtyProvider) | null
   private accountServices: RuntimeAccountServices | null = null
   private commitMessageAgentEnv: CommitMessageAgentEnvironmentResolvers | null = null
+  private automationService: AutomationService | null = null
   private mobileDictation: {
     id: string
     owner: string
@@ -961,6 +1000,163 @@ export class OrcaRuntimeService {
     return this.store.getUI()
   }
 
+  listAutomations(): Automation[] {
+    if (!this.store?.listAutomations) {
+      throw new Error('runtime_unavailable')
+    }
+    return this.store.listAutomations()
+  }
+
+  listAutomationRuns(automationId?: string): AutomationRun[] {
+    if (!this.store?.listAutomationRuns) {
+      throw new Error('runtime_unavailable')
+    }
+    return this.store.listAutomationRuns(automationId)
+  }
+
+  showAutomation(id: string): Automation {
+    const automation = this.listAutomations().find((entry) => entry.id === id)
+    if (!automation) {
+      throw new Error('Automation not found.')
+    }
+    return automation
+  }
+
+  async createAutomation(input: RuntimeAutomationCreateInput): Promise<Automation> {
+    if (!this.store?.createAutomation) {
+      throw new Error('runtime_unavailable')
+    }
+    const target = await this.resolveAutomationTarget(input)
+    return this.store.createAutomation({
+      name: input.name,
+      prompt: input.prompt,
+      agentId: input.agentId,
+      projectId: target.projectId,
+      workspaceMode: target.workspaceMode,
+      workspaceId: target.workspaceId,
+      baseBranch: input.baseBranch,
+      timezone: input.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+      rrule: input.rrule,
+      dtstart: input.dtstart,
+      enabled: input.enabled,
+      missedRunGraceMinutes: input.missedRunGraceMinutes
+    })
+  }
+
+  async updateAutomation(id: string, updates: RuntimeAutomationUpdateInput): Promise<Automation> {
+    if (!this.store?.updateAutomation) {
+      throw new Error('runtime_unavailable')
+    }
+    const current = this.showAutomation(id)
+    const patch: AutomationUpdateInput = {}
+    if (hasRuntimeAutomationUpdateValue(updates, 'name')) {
+      patch.name = updates.name
+    }
+    if (hasRuntimeAutomationUpdateValue(updates, 'prompt')) {
+      patch.prompt = updates.prompt
+    }
+    if (hasRuntimeAutomationUpdateValue(updates, 'agentId')) {
+      patch.agentId = updates.agentId
+    }
+    if (hasRuntimeAutomationUpdateValue(updates, 'baseBranch')) {
+      patch.baseBranch = updates.baseBranch
+    }
+    if (hasRuntimeAutomationUpdateValue(updates, 'timezone')) {
+      patch.timezone = updates.timezone
+    }
+    if (hasRuntimeAutomationUpdateValue(updates, 'rrule')) {
+      patch.rrule = updates.rrule
+    }
+    if (hasRuntimeAutomationUpdateValue(updates, 'dtstart')) {
+      patch.dtstart = updates.dtstart
+    }
+    if (hasRuntimeAutomationUpdateValue(updates, 'enabled')) {
+      patch.enabled = updates.enabled
+    }
+    if (hasRuntimeAutomationUpdateValue(updates, 'missedRunGraceMinutes')) {
+      patch.missedRunGraceMinutes = updates.missedRunGraceMinutes
+    }
+    const targetChanged =
+      hasRuntimeAutomationUpdateValue(updates, 'repo') ||
+      hasRuntimeAutomationUpdateValue(updates, 'workspace') ||
+      hasRuntimeAutomationUpdateValue(updates, 'workspaceMode')
+    if (targetChanged) {
+      const target = await this.resolveAutomationTarget(updates, current)
+      patch.projectId = target.projectId
+      patch.workspaceMode = target.workspaceMode
+      patch.workspaceId = target.workspaceId
+    }
+    return this.store.updateAutomation(id, patch)
+  }
+
+  deleteAutomation(id: string): { removed: boolean; id: string } {
+    if (!this.store?.deleteAutomation) {
+      throw new Error('runtime_unavailable')
+    }
+    this.showAutomation(id)
+    this.store.deleteAutomation(id)
+    return { removed: true, id }
+  }
+
+  async runAutomationNow(id: string): Promise<AutomationRun> {
+    if (!this.automationService) {
+      throw new Error('runtime_unavailable')
+    }
+    return await this.automationService.runNow(id)
+  }
+
+  private async resolveAutomationTarget(
+    input: {
+      repo?: string
+      workspace?: string
+      workspaceMode?: AutomationWorkspaceMode
+      baseBranch?: string | null
+    },
+    current?: Automation
+  ): Promise<{
+    projectId: string
+    workspaceMode: AutomationWorkspaceMode
+    workspaceId?: string | null
+  }> {
+    const hasRepo = input.repo !== undefined
+    const hasWorkspace = input.workspace !== undefined
+    if (
+      current?.workspaceMode === 'existing' &&
+      hasRepo &&
+      !hasWorkspace &&
+      input.workspaceMode !== 'new_per_run'
+    ) {
+      throw new Error(
+        'Repo updates for existing-workspace automation require workspaceMode new_per_run.'
+      )
+    }
+    const workspace = input.workspace ? await this.showManagedWorktree(input.workspace) : null
+    const repo = input.repo ? await this.showRepo(input.repo) : null
+    const workspaceMode =
+      input.workspaceMode ??
+      (workspace
+        ? 'existing'
+        : input.repo && !current
+          ? 'new_per_run'
+          : (current?.workspaceMode ?? 'new_per_run'))
+    if (workspaceMode === 'existing') {
+      const workspaceId = workspace?.id ?? current?.workspaceId
+      const projectId = workspace?.repoId ?? current?.projectId
+      if (repo && repo.id !== projectId) {
+        throw new Error('Selected workspace belongs to a different repo.')
+      }
+      if (!workspaceId || !projectId) {
+        throw new Error('Existing-workspace automation requires --workspace.')
+      }
+      return { projectId, workspaceMode, workspaceId }
+    }
+    const projectId = repo?.id ?? workspace?.repoId ?? current?.projectId
+    if (!projectId) {
+      throw new Error('Automation requires --repo or --workspace.')
+    }
+    return { projectId, workspaceMode: 'new_per_run', workspaceId: null }
+  }
+
   // Why: lazy initialization — the DB path depends on Electron's userData
   // which may not be finalized until after app.ready. Also allows unit tests
   // to inject an in-memory DB without touching the filesystem.
@@ -975,6 +1171,10 @@ export class OrcaRuntimeService {
 
   setOrchestrationDb(db: OrchestrationDb): void {
     this._orchestrationDb = db
+  }
+
+  setAutomationService(service: AutomationService): void {
+    this.automationService = service
   }
 
   getRuntimeId(): string {

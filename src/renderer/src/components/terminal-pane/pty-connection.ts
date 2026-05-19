@@ -1,7 +1,11 @@
 /* oxlint-disable max-lines */
 import type { PaneManager, ManagedPane } from '@/lib/pane-manager/pane-manager'
 import type { IDisposable } from '@xterm/xterm'
-import { isGeminiTerminalTitle, isClaudeAgent } from '@/lib/agent-status'
+import {
+  detectAgentStatusFromTitle,
+  isGeminiTerminalTitle,
+  isClaudeAgent
+} from '@/lib/agent-status'
 import { scheduleRuntimeGraphSync } from '@/runtime/sync-runtime-graph'
 import { useAppStore } from '@/store'
 import type { PtyConnectResult } from './pty-transport'
@@ -24,7 +28,6 @@ import {
   waitForTerminalOutputParsed,
   writeTerminalOutput
 } from '@/lib/pane-manager/pane-terminal-output-scheduler'
-import { clearWorkingIndicators } from '../../../../shared/agent-detection'
 import { makePaneKey } from '../../../../shared/stable-pane-id'
 import { createTerminalCommandLifecycle } from './terminal-command-lifecycle'
 import { e2eConfig } from '@/lib/e2e-config'
@@ -44,6 +47,7 @@ const PTY_CONNECT_DIAG_LIMIT = 200
 const AGENT_TASK_COMPLETE_NOTIFICATION_GRACE_MS = 250
 const AGENT_TASK_COMPLETE_NOTIFICATION_MAX_WAIT_MS = 1000
 const AGENT_TASK_COMPLETE_NOTIFICATION_DETAIL_MAX_AGE_MS = 10_000
+const INFERRED_INTERRUPT_NEUTRAL_TITLE_DROP_MS = 750
 
 function isAgentTaskCompleteNotificationEnabled(): boolean {
   const notifications = useAppStore.getState().settings?.notifications
@@ -174,6 +178,7 @@ export function connectPanePty(
   let agentTaskCompleteNotificationGraceTimer: ReturnType<typeof setTimeout> | null = null
   let agentTaskCompleteNotificationMaxTimer: ReturnType<typeof setTimeout> | null = null
   let agentTaskCompleteStatusUnsubscribe: (() => void) | null = null
+  let inferredInterruptNeutralTitleDropTimer: ReturnType<typeof setTimeout> | null = null
   let terminalBellNotificationTimer: ReturnType<typeof setTimeout> | null = null
   let pendingTerminalBellNotification = false
   // Why: passphrase-gate waits register a teardown here so dispose() can
@@ -195,6 +200,43 @@ export function connectPanePty(
   // Use the stable layout leaf UUID, not the renderer-local numeric pane id.
   const cacheKey = makePaneKey(deps.tabId, pane.leafId)
   const pendingSpawnKey = cacheKey
+  const neutralTerminalTitle = (): string => {
+    const state = useAppStore.getState()
+    const tab = (state.tabsByWorktree[deps.worktreeId] ?? []).find(
+      (entry) => entry.id === deps.tabId
+    )
+    return tab?.defaultTitle?.trim() || 'Terminal'
+  }
+  const inferredInterruptTargetStillLooksAgent = (): boolean => {
+    const state = useAppStore.getState()
+    const currentTitle = state.runtimePaneTitlesByTabId?.[deps.tabId]?.[pane.id]
+    const tabTitle = (state.tabsByWorktree[deps.worktreeId] ?? []).find(
+      (entry) => entry.id === deps.tabId
+    )?.title
+    const statusTitle = state.agentStatusByPaneKey[cacheKey]?.terminalTitle
+    const title = currentTitle ?? tabTitle ?? statusTitle
+    return title ? detectAgentStatusFromTitle(title) !== null : true
+  }
+  const clearInferredInterruptNeutralTitleDropTimer = (): void => {
+    if (inferredInterruptNeutralTitleDropTimer !== null) {
+      clearTimeout(inferredInterruptNeutralTitleDropTimer)
+      inferredInterruptNeutralTitleDropTimer = null
+    }
+  }
+  const scheduleInferredInterruptNeutralTitleDrop = (): void => {
+    clearInferredInterruptNeutralTitleDropTimer()
+    inferredInterruptNeutralTitleDropTimer = setTimeout(() => {
+      inferredInterruptNeutralTitleDropTimer = null
+      const entry = useAppStore.getState().agentStatusByPaneKey[cacheKey]
+      if (
+        entry?.state === 'done' &&
+        entry.interrupted === true &&
+        !inferredInterruptTargetStillLooksAgent()
+      ) {
+        useAppStore.getState().dropAgentStatus(cacheKey)
+      }
+    }, INFERRED_INTERRUPT_NEUTRAL_TITLE_DROP_MS)
+  }
   const clearInferredInterruptWorkingTitle = (): void => {
     const state = useAppStore.getState()
     const currentTitle = state.runtimePaneTitlesByTabId?.[deps.tabId]?.[pane.id]
@@ -203,20 +245,30 @@ export function connectPanePty(
     if (!title) {
       return
     }
+    const neutralTitle = neutralTerminalTitle()
     // Why: inferred interrupts update the explicit hook row, but many CLIs leave
-    // their OSC title stuck on a working spinner. Clear that pane-local title so
-    // the sidebar/worktree status reflects the inferred done state users see.
-    deps.setRuntimePaneTitle(deps.tabId, pane.id, clearWorkingIndicators(title))
+    // their OSC title stuck on a working spinner. Replace only this fallback
+    // title signal with a neutral terminal label so the existing process tracker
+    // can still decide whether an agent TUI is truly alive.
+    deps.setRuntimePaneTitle(deps.tabId, pane.id, neutralTitle)
+    if (manager.getActivePane()?.id === pane.id) {
+      deps.updateTabTitle(deps.tabId, neutralTitle)
+    }
   }
   const interruptInference = createAgentInterruptInference({
     paneKey: cacheKey,
     getStatusEntry: () => useAppStore.getState().agentStatusByPaneKey[cacheKey],
     inferInterrupt: (request) => {
+      if (!inferredInterruptTargetStillLooksAgent()) {
+        useAppStore.getState().dropAgentStatus(cacheKey)
+        return false
+      }
       return window.api.agentStatus
         .inferInterrupt(request)
         .then((applied) => {
           if (applied) {
             clearInferredInterruptWorkingTitle()
+            scheduleInferredInterruptNeutralTitleDrop()
           }
           return applied
         })
@@ -264,6 +316,15 @@ export function connectPanePty(
     return (
       (intent === 'plain-escape' && data === '\x1b') || (intent === 'ctrl-c' && data === '\x03')
     )
+  }
+  const inferIntentFromExactTerminalInput = (data: string): AgentInterruptInputIntent | null => {
+    if (data === '\x03') {
+      return 'ctrl-c'
+    }
+    if (data === '\x1b') {
+      return 'plain-escape'
+    }
+    return null
   }
   const observeSentTerminalInputIntent = (
     data: string,
@@ -705,13 +766,18 @@ export function connectPanePty(
     deps.clearTerminalTabUnread(deps.tabId)
     deps.clearWorktreeUnread(deps.worktreeId)
     const intent = pendingTerminalInputIntent
-    if (intent && transport.sendInputAccepted) {
+    // Why: real xterm can deliver the terminal byte even when our DOM keydown
+    // listener missed the press. Exact Ctrl+C/Escape bytes are still safe to
+    // infer for local/remote acknowledged writes; SSH fire-and-forget remains
+    // excluded because those transports do not expose sendInputAccepted.
+    const acknowledgedIntent = intent ?? inferIntentFromExactTerminalInput(data)
+    if (acknowledgedIntent && transport.sendInputAccepted) {
       clearPendingTerminalInputIntent()
       const writePromise = transport
         .sendInputAccepted(data)
         .then((accepted) => {
           if (accepted) {
-            observeSentTerminalInputIntent(data, intent)
+            interruptInference.observeInputIntent(acknowledgedIntent)
           }
         })
         .catch((err) => {
@@ -1584,6 +1650,7 @@ export function connectPanePty(
       clearPendingTerminalInputIntent()
       pendingTerminalInputWrite = null
       interruptInference.dispose()
+      clearInferredInterruptNeutralTitleDropTimer()
       // Why: actively resolve any in-flight passphrase-gate waits so their
       // zustand subscribers + async IIFEs don't hang for the rest of the
       // session when the pane is torn down before SSH state changes.

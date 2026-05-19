@@ -62,6 +62,7 @@ type StoreState = {
   removeDeferredSshSessionId: ReturnType<typeof vi.fn>
   consumePendingColdRestore: ReturnType<typeof vi.fn>
   consumePendingSnapshot: ReturnType<typeof vi.fn>
+  runtimePaneTitlesByTabId: Record<string, Record<number, string>>
   agentStatusByPaneKey: Record<string, unknown>
   removeAgentStatus: ReturnType<typeof vi.fn>
   dropAgentStatus: ReturnType<typeof vi.fn>
@@ -360,6 +361,7 @@ describe('connectPanePty', () => {
       removeDeferredSshSessionId: vi.fn(),
       consumePendingColdRestore: vi.fn(() => null),
       consumePendingSnapshot: vi.fn(() => null),
+      runtimePaneTitlesByTabId: {},
       agentStatusByPaneKey: {},
       removeAgentStatus: vi.fn(),
       dropAgentStatus: vi.fn()
@@ -536,6 +538,130 @@ describe('connectPanePty', () => {
       baselineAgentType: 'codex',
       intent: 'ctrl-c'
     })
+  })
+
+  it('clears stale working pane title after inferred interrupt applies', async () => {
+    const { connectPanePty } = await import('./pty-connection')
+    const { resolveWorktreeStatus } = await import('@/lib/worktree-status')
+    vi.mocked(window.api.agentStatus.inferInterrupt).mockResolvedValue(true)
+    const transport = createMockTransport()
+    transportFactoryQueue.push(transport)
+    vi.useFakeTimers()
+    vi.setSystemTime(1_100)
+    const paneKey = makePaneKey('tab-1', LEAF_1)
+    mockStoreState.runtimePaneTitlesByTabId = {
+      'tab-1': {
+        1: 'Codex working'
+      }
+    }
+    mockStoreState.agentStatusByPaneKey[paneKey] = {
+      state: 'working',
+      prompt: 'stop visible spinner',
+      updatedAt: 1_000,
+      stateStartedAt: 900,
+      agentType: 'codex',
+      paneKey,
+      terminalTitle: 'Codex working',
+      stateHistory: []
+    }
+    const terminalTarget = createKeyboardEventTarget()
+    const pane = createPane(1)
+    ;(pane.terminal as { element?: unknown }).element = terminalTarget.target
+    let onDataHandler: ((data: string) => void) | null = null
+    pane.terminal.onData = vi.fn(((handler: (data: string) => void) => {
+      onDataHandler = handler
+      return { dispose: vi.fn() }
+    }) as typeof pane.terminal.onData)
+    const deps = createDeps({
+      setRuntimePaneTitle: vi.fn((tabId: string, paneId: number, title: string) => {
+        mockStoreState.runtimePaneTitlesByTabId = {
+          ...mockStoreState.runtimePaneTitlesByTabId,
+          [tabId]: {
+            ...mockStoreState.runtimePaneTitlesByTabId[tabId],
+            [paneId]: title
+          }
+        }
+      })
+    })
+
+    connectPanePty(pane as never, createManager(1) as never, deps as never)
+    if (!onDataHandler) {
+      throw new Error('expected onData handler to be registered')
+    }
+    terminalTarget.dispatch(keyEvent({ key: 'c', ctrlKey: true }))
+    ;(onDataHandler as unknown as (data: string) => void)('\x03')
+    await flushAsyncTicks()
+    vi.advanceTimersByTime(500)
+    await flushAsyncTicks()
+
+    expect(deps.setRuntimePaneTitle).toHaveBeenCalledWith('tab-1', 1, 'Codex')
+    expect(
+      resolveWorktreeStatus({
+        tabs: [{ id: 'tab-1', title: 'Codex working' }],
+        browserTabs: [],
+        ptyIdsByTabId: { 'tab-1': ['tab-pty'] },
+        runtimePaneTitlesByTabId: mockStoreState.runtimePaneTitlesByTabId,
+        hasPermission: false,
+        hasLiveWorking: false,
+        hasLiveDone: true,
+        hasRetainedDone: false
+      })
+    ).toBe('done')
+  })
+
+  it('removes agent status and pane title on PTY exit after inferred interrupt', async () => {
+    const { connectPanePty } = await import('./pty-connection')
+    vi.mocked(window.api.agentStatus.inferInterrupt).mockResolvedValue(true)
+    const transport = createMockTransport('tab-pty')
+    transportFactoryQueue.push(transport)
+    vi.useFakeTimers()
+    vi.setSystemTime(1_100)
+    const paneKey = makePaneKey('tab-1', LEAF_1)
+    mockStoreState.runtimePaneTitlesByTabId = {
+      'tab-1': {
+        1: 'Codex working'
+      }
+    }
+    mockStoreState.agentStatusByPaneKey[paneKey] = {
+      state: 'working',
+      prompt: 'stop then exit',
+      updatedAt: 1_000,
+      stateStartedAt: 900,
+      agentType: 'codex',
+      paneKey,
+      terminalTitle: 'Codex working',
+      stateHistory: []
+    }
+    const terminalTarget = createKeyboardEventTarget()
+    const pane = createPane(1)
+    ;(pane.terminal as { element?: unknown }).element = terminalTarget.target
+    let onDataHandler: ((data: string) => void) | null = null
+    pane.terminal.onData = vi.fn(((handler: (data: string) => void) => {
+      onDataHandler = handler
+      return { dispose: vi.fn() }
+    }) as typeof pane.terminal.onData)
+    const deps = createDeps()
+
+    connectPanePty(pane as never, createManager(1) as never, deps as never)
+    if (!onDataHandler) {
+      throw new Error('expected onData handler to be registered')
+    }
+    terminalTarget.dispatch(keyEvent({ key: 'c', ctrlKey: true }))
+    ;(onDataHandler as unknown as (data: string) => void)('\x03')
+    await flushAsyncTicks()
+    vi.advanceTimersByTime(500)
+    await flushAsyncTicks()
+    const onPtyExit = createdTransportOptions[0]?.onPtyExit as ((ptyId: string) => void) | undefined
+    if (!onPtyExit) {
+      throw new Error('expected onPtyExit callback to be registered')
+    }
+
+    onPtyExit('tab-pty')
+
+    expect(deps.clearRuntimePaneTitle).toHaveBeenCalledWith('tab-1', 1)
+    expect(deps.clearTabPtyId).toHaveBeenCalledWith('tab-1', 'tab-pty')
+    expect(deps.setCacheTimerStartedAt).toHaveBeenCalledWith(paneKey, null)
+    expect(mockStoreState.removeAgentStatus).toHaveBeenCalledWith(paneKey)
   })
 
   it('ignores repeated and modified terminal interrupt keydowns', async () => {

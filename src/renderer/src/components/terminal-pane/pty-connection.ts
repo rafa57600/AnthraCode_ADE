@@ -24,6 +24,7 @@ import {
   waitForTerminalOutputParsed,
   writeTerminalOutput
 } from '@/lib/pane-manager/pane-terminal-output-scheduler'
+import { clearWorkingIndicators } from '../../../../shared/agent-detection'
 import { makePaneKey } from '../../../../shared/stable-pane-id'
 import { createTerminalCommandLifecycle } from './terminal-command-lifecycle'
 import { e2eConfig } from '@/lib/e2e-config'
@@ -194,14 +195,35 @@ export function connectPanePty(
   // Use the stable layout leaf UUID, not the renderer-local numeric pane id.
   const cacheKey = makePaneKey(deps.tabId, pane.leafId)
   const pendingSpawnKey = cacheKey
+  const clearInferredInterruptWorkingTitle = (): void => {
+    const state = useAppStore.getState()
+    const currentTitle = state.runtimePaneTitlesByTabId?.[deps.tabId]?.[pane.id]
+    const statusTitle = state.agentStatusByPaneKey[cacheKey]?.terminalTitle
+    const title = currentTitle ?? statusTitle
+    if (!title) {
+      return
+    }
+    // Why: inferred interrupts update the explicit hook row, but many CLIs leave
+    // their OSC title stuck on a working spinner. Clear that pane-local title so
+    // the sidebar/worktree status reflects the inferred done state users see.
+    deps.setRuntimePaneTitle(deps.tabId, pane.id, clearWorkingIndicators(title))
+  }
   const interruptInference = createAgentInterruptInference({
     paneKey: cacheKey,
     getStatusEntry: () => useAppStore.getState().agentStatusByPaneKey[cacheKey],
     inferInterrupt: (request) => {
-      return window.api.agentStatus.inferInterrupt(request).catch((err) => {
-        console.warn('[agent-interrupt] inferInterrupt failed:', err)
-        return false
-      })
+      return window.api.agentStatus
+        .inferInterrupt(request)
+        .then((applied) => {
+          if (applied) {
+            clearInferredInterruptWorkingTitle()
+          }
+          return applied
+        })
+        .catch((err) => {
+          console.warn('[agent-interrupt] inferInterrupt failed:', err)
+          return false
+        })
     }
   })
   const dropCommandFinishedStatusIfUnchanged = (entry: AgentStatusEntry | undefined): void => {

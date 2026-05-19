@@ -133,6 +133,11 @@ export type AgentHookEventPayload = {
    *  HTTP path always sets null because it cannot know which mux a request
    *  came from. See docs/design/agent-status-over-ssh.md §5. */
   connectionId: string | null
+  /** True when this hook event carried prompt text directly, instead of using
+   *  the listener's cached prompt from an earlier event in the same pane. */
+  hasExplicitPrompt?: boolean
+  /** True when this event is a relay cache replay rather than a live hook. */
+  isReplay?: boolean
   payload: ParsedAgentStatusPayload
 }
 
@@ -1523,19 +1528,25 @@ function normalizeCursorEvent(
   paneKey: string,
   hookPayload: Record<string, unknown>
 ): ParsedAgentStatusPayload | null {
+  // Why: Cursor can emit the final response text after `stop`; that should
+  // enrich the completed row, not resurrect the agent as working.
+  const previousStatus = state.lastStatusByPaneKey.get(paneKey)?.payload
   const stateName =
     eventName === 'beforeSubmitPrompt' ||
     eventName === 'sessionStart' ||
     eventName === 'preToolUse' ||
     eventName === 'postToolUse' ||
-    eventName === 'postToolUseFailure' ||
-    eventName === 'afterAgentResponse'
+    eventName === 'postToolUseFailure'
       ? 'working'
-      : eventName === 'stop' || eventName === 'sessionEnd'
-        ? 'done'
-        : eventName === 'beforeShellExecution' || eventName === 'beforeMCPExecution'
-          ? 'waiting'
-          : null
+      : eventName === 'afterAgentResponse'
+        ? previousStatus?.state === 'done' && previousStatus.agentType === 'cursor'
+          ? 'done'
+          : 'working'
+        : eventName === 'stop' || eventName === 'sessionEnd'
+          ? 'done'
+          : eventName === 'beforeShellExecution' || eventName === 'beforeMCPExecution'
+            ? 'waiting'
+            : null
 
   if (!stateName) {
     return null
@@ -1973,7 +1984,16 @@ export function normalizeHookPayload(
   // it null; the relay forwards null on the wire and Orca's `ingestRemote`
   // stamps the real value from `mux` identity on receive. See
   // docs/design/agent-status-over-ssh.md §5.
-  return payload ? { paneKey, tabId, worktreeId, connectionId: null, payload } : null
+  return payload
+    ? {
+        paneKey,
+        tabId,
+        worktreeId,
+        connectionId: null,
+        hasExplicitPrompt: promptText.length > 0,
+        payload
+      }
+    : null
 }
 
 // ─── URL routing ────────────────────────────────────────────────────

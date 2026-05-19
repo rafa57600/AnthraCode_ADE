@@ -161,6 +161,7 @@ import type {
   AgentStatusIpcPayload,
   MigrationUnsupportedPtyEntry
 } from '../shared/agent-status-types'
+import type { AgentInterruptInferenceRequest } from '../shared/agent-interrupt-intent'
 import type {
   RuntimeBrowserDriverState,
   RuntimeMobileSessionTabMove,
@@ -708,6 +709,7 @@ export type PreloadApi = {
       coldRestore?: { scrollback: string; cwd: string }
     }>
     write: (id: string, data: string) => void
+    writeAccepted: (id: string, data: string) => Promise<boolean>
     resize: (id: string, cols: number, rows: number) => void
     reportGeometry: (id: string, cols: number, rows: number) => void
     signal: (id: string, signal: string) => void
@@ -1921,6 +1923,7 @@ export type PreloadApi = {
     onSet: (callback: (data: AgentStatusIpcPayload) => void) => () => void
     /** Return the current main-process hook cache after renderer hydration. */
     getSnapshot: () => Promise<AgentStatusIpcPayload[]>
+    inferInterrupt: (request: AgentInterruptInferenceRequest) => Promise<boolean>
     /** Listen for PTYs that still use a legacy numeric pane key but have
      *  registry-backed UUID pane proof. */
     onMigrationUnsupported: (callback: (entry: MigrationUnsupportedPtyEntry) => void) => () => void

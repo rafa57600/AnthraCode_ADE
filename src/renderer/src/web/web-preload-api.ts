@@ -191,6 +191,7 @@ function createWebPreloadApi(): Partial<PreloadApi> {
     agentStatus: {
       onSet: () => noopUnsubscribe,
       getSnapshot: () => Promise.resolve([]),
+      inferInterrupt: () => Promise.resolve(false),
       onMigrationUnsupported: () => noopUnsubscribe,
       onMigrationUnsupportedClear: () => noopUnsubscribe,
       getMigrationUnsupportedSnapshot: () => Promise.resolve([]),
@@ -1080,6 +1081,7 @@ function createPtyApi(): NonNullable<Partial<PreloadApi>['pty']> {
   return {
     spawn: () => Promise.reject(new Error('Local PTYs are unavailable in the web client.')),
     write: () => {},
+    writeAccepted: () => Promise.resolve(false),
     resize: () => {},
     reportGeometry: () => {},
     signal: () => {},

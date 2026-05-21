@@ -305,6 +305,8 @@ export type IpcPtyTransportOptions = {
   onTitleChange?: (title: string, rawTitle: string) => void
   onPtySpawn?: (ptyId: string) => void
   onBell?: () => void
+  /** Return true when bare BEL bytes should not reach xterm for audible playback. */
+  shouldSilenceTerminalBell?: () => boolean
   onAgentBecameIdle?: (title: string) => void
   onAgentBecameWorking?: () => void
   onAgentExited?: () => void

@@ -59,6 +59,11 @@ function isAgentTaskCompleteNotificationEnabled(): boolean {
   return notifications?.enabled !== false && notifications?.agentTaskComplete !== false
 }
 
+function shouldSilenceTerminalBell(): boolean {
+  const notifications = useAppStore.getState().settings?.notifications
+  return notifications?.enabled !== true || notifications.terminalBell !== true
+}
+
 function hasAgentNotificationDetail(entry: AgentStatusEntry | undefined): boolean {
   return Boolean(
     entry &&
@@ -794,6 +799,7 @@ export function connectPanePty(
     onTitleChange,
     onPtySpawn,
     onBell,
+    shouldSilenceTerminalBell,
     onAgentBecameIdle,
     onAgentBecameWorking,
     onAgentExited,

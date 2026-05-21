@@ -50,6 +50,7 @@ type PtyOutputProcessorOptions = Pick<
   IpcPtyTransportOptions,
   | 'onTitleChange'
   | 'onBell'
+  | 'shouldSilenceTerminalBell'
   | 'onAgentBecameIdle'
   | 'onAgentBecameWorking'
   | 'onAgentExited'
@@ -64,6 +65,7 @@ type ProcessPtyOutputOptions = {
 export function createPtyOutputProcessor({
   onTitleChange,
   onBell,
+  shouldSilenceTerminalBell,
   onAgentBecameIdle,
   onAgentBecameWorking,
   onAgentExited,
@@ -141,10 +143,18 @@ export function createPtyOutputProcessor({
         onAgentStatus(payload)
       }
     }
+    const bellResult = bellDetector.processChunk(data, {
+      // Why: a raw BEL can make xterm/Electron play a local ding before the
+      // native notification path sees user settings. Strip only audible BELs;
+      // OSC title terminators stay in the stream so title parsing remains intact.
+      stripBells: suppressAttentionEvents || shouldSilenceTerminalBell?.() === true
+    })
+    const terminalData = bellResult.data
+
     if (options.replayingBufferedData && callbacks.onReplayData) {
-      callbacks.onReplayData(data)
+      callbacks.onReplayData(terminalData)
     } else {
-      callbacks.onData?.(data)
+      callbacks.onData?.(terminalData)
     }
     if (onTitleChange) {
       // Why: feed EVERY OSC title in the chunk through the observer, not just
@@ -155,7 +165,7 @@ export function createPtyOutputProcessor({
       // dropped, so the worktree card never observed the working state.
       // Processing titles in order preserves the working→idle transition
       // that detectAgentStatusFromTitle and agentTracker both key off.
-      const titles = extractAllOscTitles(data)
+      const titles = extractAllOscTitles(terminalData)
       if (titles.length > 0) {
         clearStaleTitleTimer()
         for (const title of titles) {
@@ -179,7 +189,7 @@ export function createPtyOutputProcessor({
     // `\e]0;title\a`) is correctly ignored — only true terminal bells raise
     // attention. suppressAttentionEvents gates this during eager-buffer replay
     // so historical BELs do not produce fresh alerts on cold reattach.
-    if (onBell && bellDetector.chunkContainsBell(data) && !suppressAttentionEvents) {
+    if (onBell && bellResult.containsBell && !suppressAttentionEvents) {
       onBell()
     }
   }
@@ -213,6 +223,7 @@ export function createIpcPtyTransport(opts: IpcPtyTransportOptions = {}): PtyTra
     onTitleChange,
     onPtySpawn,
     onBell,
+    shouldSilenceTerminalBell,
     onAgentBecameIdle,
     onAgentBecameWorking,
     onAgentExited,
@@ -230,6 +241,7 @@ export function createIpcPtyTransport(opts: IpcPtyTransportOptions = {}): PtyTra
   const outputProcessor = createPtyOutputProcessor({
     onTitleChange,
     onBell,
+    shouldSilenceTerminalBell,
     onAgentBecameIdle: (title) => {
       if (!suppressAttentionEvents) {
         onAgentBecameIdle?.(title)

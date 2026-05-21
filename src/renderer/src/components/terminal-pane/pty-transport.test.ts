@@ -157,6 +157,86 @@ describe('createIpcPtyTransport', () => {
     expect(onBell).toHaveBeenCalledTimes(1)
   })
 
+  it('strips audible BELs before terminal output when terminal bells are silenced', async () => {
+    const { createIpcPtyTransport } = await import('./pty-transport')
+    const onBell = vi.fn()
+    const onTitleChange = vi.fn()
+    const onDataCallback = vi.fn()
+
+    const transport = createIpcPtyTransport({
+      onBell,
+      onTitleChange,
+      shouldSilenceTerminalBell: () => true
+    })
+    await transport.connect({ url: '', callbacks: { onData: onDataCallback } })
+
+    onData?.({ id: 'pty-1', data: ']0;Claude done' })
+
+    expect(onDataCallback).toHaveBeenCalledWith(']0;Claude done')
+    expect(onTitleChange).toHaveBeenCalledWith('Claude done', 'Claude done')
+    expect(onBell).toHaveBeenCalledTimes(1)
+  })
+
+  it('strips audible BELs when the OSC terminator and bell arrive in a later chunk', async () => {
+    const { createIpcPtyTransport } = await import('./pty-transport')
+    const onBell = vi.fn()
+    const onTitleChange = vi.fn()
+    const onDataCallback = vi.fn()
+
+    const transport = createIpcPtyTransport({
+      onBell,
+      onTitleChange,
+      shouldSilenceTerminalBell: () => true
+    })
+    await transport.connect({ url: '', callbacks: { onData: onDataCallback } })
+
+    onData?.({ id: 'pty-1', data: ']0;Claude done' })
+    onData?.({ id: 'pty-1', data: '' })
+
+    expect(onDataCallback).toHaveBeenNthCalledWith(1, ']0;Claude done')
+    expect(onDataCallback).toHaveBeenNthCalledWith(2, '')
+    expect(onTitleChange).not.toHaveBeenCalled()
+    expect(onBell).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps audible BELs in terminal output when terminal bells are enabled', async () => {
+    const { createIpcPtyTransport } = await import('./pty-transport')
+    const onBell = vi.fn()
+    const onDataCallback = vi.fn()
+
+    const transport = createIpcPtyTransport({
+      onBell,
+      shouldSilenceTerminalBell: () => false
+    })
+    await transport.connect({ url: '', callbacks: { onData: onDataCallback } })
+
+    onData?.({ id: 'pty-1', data: 'ready' })
+
+    expect(onDataCallback).toHaveBeenCalledWith('ready')
+    expect(onBell).toHaveBeenCalledTimes(1)
+  })
+
+  it('strips replayed BELs before terminal output even when terminal bells are enabled', async () => {
+    const { createIpcPtyTransport, registerEagerPtyBuffer } = await import('./pty-transport')
+    const onReplayData = vi.fn()
+    const onBell = vi.fn()
+
+    registerEagerPtyBuffer('pty-restored', vi.fn())
+    onData?.({ id: 'pty-restored', data: 'old output' })
+
+    const transport = createIpcPtyTransport({
+      onBell,
+      shouldSilenceTerminalBell: () => false
+    })
+    transport.attach({
+      existingPtyId: 'pty-restored',
+      callbacks: { onReplayData }
+    })
+
+    expect(onReplayData).toHaveBeenCalledWith('old output')
+    expect(onBell).not.toHaveBeenCalled()
+  })
+
   it('routes eager-buffered bytes through onReplayData so the renderer can engage the replay guard', async () => {
     const { createIpcPtyTransport, registerEagerPtyBuffer } = await import('./pty-transport')
 

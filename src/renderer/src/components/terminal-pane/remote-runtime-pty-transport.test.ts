@@ -525,6 +525,28 @@ describe('createRemoteRuntimePtyTransport', () => {
     expect(onBell).toHaveBeenCalledTimes(1)
   })
 
+  it('strips audible BELs from remote data when terminal bells are silenced', async () => {
+    const { createRemoteRuntimePtyTransport } = await import('./remote-runtime-pty-transport')
+    const onData = vi.fn()
+    const onTitleChange = vi.fn()
+    const onBell = vi.fn()
+    const transport = createRemoteRuntimePtyTransport('env-1', {
+      worktreeId: 'wt-1',
+      onTitleChange,
+      onBell,
+      shouldSilenceTerminalBell: () => true
+    })
+
+    await transport.connect({ url: '', callbacks: { onData } })
+    await vi.waitFor(() => expect(subscriptionSendBinary).toHaveBeenCalled())
+    const { streamId } = latestSubscribePayload()
+    emitOutput(streamId, 'before\x1b]0;Remote done\x07\x07after')
+
+    expect(onData).toHaveBeenCalledWith('before\x1b]0;Remote done\x07after')
+    expect(onTitleChange).toHaveBeenCalledWith('Remote done', 'Remote done')
+    expect(onBell).toHaveBeenCalledTimes(1)
+  })
+
   it('processes binary remote data chunks through the terminal parser', async () => {
     const { createRemoteRuntimePtyTransport } = await import('./remote-runtime-pty-transport')
     const onData = vi.fn()
@@ -851,7 +873,7 @@ describe('createRemoteRuntimePtyTransport', () => {
       'before\x1b]9999;{"state":"working","prompt":"old","agentType":"codex"}\x07after\x1b]0;Remote title\x07\x07'
     )
 
-    expect(onReplayData).toHaveBeenCalledWith('beforeafter\x1b]0;Remote title\x07\x07')
+    expect(onReplayData).toHaveBeenCalledWith('beforeafter\x1b]0;Remote title\x07')
     expect(onTitleChange).toHaveBeenCalledWith('Remote title', 'Remote title')
     expect(onAgentStatus).not.toHaveBeenCalled()
     expect(onBell).not.toHaveBeenCalled()

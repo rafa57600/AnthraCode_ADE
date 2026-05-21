@@ -55,6 +55,7 @@ export function createRemoteRuntimePtyTransport(
     onPtySpawn,
     onTitleChange,
     onBell,
+    shouldSilenceTerminalBell,
     onAgentBecameIdle,
     onAgentBecameWorking,
     onAgentExited,
@@ -76,6 +77,7 @@ export function createRemoteRuntimePtyTransport(
   const outputProcessor = createPtyOutputProcessor({
     onTitleChange,
     onBell,
+    shouldSilenceTerminalBell,
     onAgentBecameIdle,
     onAgentBecameWorking,
     onAgentExited,

@@ -2299,6 +2299,59 @@ describe('connectPanePty', () => {
     )
   })
 
+  it('passes a terminal bell silencing predicate based on notification settings', async () => {
+    const { connectPanePty } = await import('./pty-connection')
+    const transport = createMockTransport()
+    transportFactoryQueue.push(transport)
+
+    const pane = createPane(1)
+    const manager = createManager(1)
+    const deps = createDeps()
+
+    connectPanePty(pane as never, manager as never, deps as never)
+
+    const shouldSilenceTerminalBell = createdTransportOptions[0]?.shouldSilenceTerminalBell as
+      | (() => boolean)
+      | undefined
+    if (!shouldSilenceTerminalBell) {
+      throw new Error('Expected shouldSilenceTerminalBell to be registered')
+    }
+
+    expect(shouldSilenceTerminalBell()).toBe(true)
+
+    const enabledNotifications = {
+      enabled: true,
+      agentTaskComplete: true,
+      terminalBell: true,
+      suppressWhenFocused: true,
+      customSoundPath: null
+    }
+    mockStoreState.settings = {
+      ...mockStoreState.settings,
+      notifications: enabledNotifications
+    }
+    expect(shouldSilenceTerminalBell()).toBe(false)
+
+    mockStoreState.settings = {
+      ...mockStoreState.settings,
+      notifications: {
+        ...enabledNotifications,
+        terminalBell: false
+      }
+    }
+    expect(shouldSilenceTerminalBell()).toBe(true)
+
+    mockStoreState.settings = {
+      ...mockStoreState.settings,
+      notifications: {
+        ...enabledNotifications,
+        enabled: false,
+        terminalBell: true
+      }
+    }
+    expect(shouldSilenceTerminalBell()).toBe(true)
+  })
+
   it('lets concurrent agent-complete notifications win over terminal bell notifications', async () => {
     const { connectPanePty } = await import('./pty-connection')
     const { useNotificationDispatch } = await vi.importActual<typeof UseNotificationDispatchModule>(

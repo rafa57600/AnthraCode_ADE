@@ -26,6 +26,7 @@ import { randomUUID } from 'crypto'
 import os from 'os'
 import path from 'path'
 import { TEST_REPO_PATH_FILE } from '../global-setup'
+import { withElectronLaunchLock } from './electron-launch-lock'
 import { cleanupE2EDaemons, closeElectronAppForE2E } from './electron-process-shutdown'
 
 type OrcaTestFixtures = {
@@ -185,8 +186,13 @@ export const test = base.extend<OrcaTestFixtures, OrcaWorkerFixtures>({
     // Orca's own agent runtime) set it so Electron behaves as a plain Node
     // binary. Playwright's _electron.launch passes --remote-debugging-port,
     // which Node rejects with "bad option" and the process exits immediately.
-    const { ELECTRON_RUN_AS_NODE: _unused, ...cleanEnv } = process.env
+    const {
+      ELECTRON_RUN_AS_NODE: _unused,
+      ELECTRON_RENDERER_URL: _unusedRendererUrl,
+      ...cleanEnv
+    } = process.env
     void _unused
+    void _unusedRendererUrl
     // Why: ORCA_E2E_SLOWMO_MS adds a pause between every Playwright action so a
     // developer running with ORCA_E2E_FORCE_HEADFUL=1 can actually watch what
     // the test does. Defaults to 0 (no slowdown) for normal runs.
@@ -201,30 +207,42 @@ export const test = base.extend<OrcaTestFixtures, OrcaWorkerFixtures>({
     if (recordVideoDir) {
       mkdirSync(recordVideoDir, { recursive: true })
     }
-    const app = await electron.launch({
-      args: [mainPath],
-      ...(slowMo > 0 ? { slowMo } : {}),
-      ...(recordVideoDir ? { recordVideo: { dir: recordVideoDir } } : {}),
-      // Why: keep NODE_ENV=development so window.__store is exposed and
-      // dev-only helpers activate. ORCA_E2E_USER_DATA_DIR overrides the usual
-      // shared dev profile so every spec gets a clean persistence root.
-      // Why: ORCA_E2E_HEADLESS suppresses mainWindow.show() so the app
-      // window stays hidden during test runs, avoiding focus stealing and
-      // screen clutter. Playwright interacts via CDP regardless.
-      // Why: ORCA_E2E_HEADLESS suppresses mainWindow.show() for CI/headless
-      // runs. ORCA_E2E_HEADFUL overrides this for tests that need a visible
-      // window (e.g. pointer-capture drag tests).
-      // Why: local SSH E2E deploys the relay from the dev build output. The
-      // Electron app's getAppPath() points at the compiled main bundle in E2E,
-      // so pass the repo-root relay path explicitly for this opt-in suite.
-      env: {
-        ...cleanEnv,
-        NODE_ENV: 'development',
-        ORCA_E2E_USER_DATA_DIR: userDataDir,
-        ...(process.env.ORCA_E2E_SSH_LOCALHOST === '1' && !cleanEnv.ORCA_RELAY_PATH
-          ? { ORCA_RELAY_PATH: path.join(process.cwd(), 'out', 'relay') }
-          : {}),
-        ...(headful ? { ORCA_E2E_HEADFUL: '1' } : { ORCA_E2E_HEADLESS: '1' })
+    const app = await withElectronLaunchLock(async () => {
+      const launchedApp = await electron.launch({
+        args: [mainPath],
+        ...(slowMo > 0 ? { slowMo } : {}),
+        ...(recordVideoDir ? { recordVideo: { dir: recordVideoDir } } : {}),
+        // Why: keep NODE_ENV=development so window.__store is exposed and
+        // dev-only helpers activate. ORCA_E2E_USER_DATA_DIR overrides the usual
+        // shared dev profile so every spec gets a clean persistence root.
+        // Why: ORCA_E2E_HEADLESS suppresses mainWindow.show() so the app
+        // window stays hidden during test runs, avoiding focus stealing and
+        // screen clutter. Playwright interacts via CDP regardless.
+        // Why: ORCA_E2E_HEADLESS suppresses mainWindow.show() for CI/headless
+        // runs. ORCA_E2E_HEADFUL overrides this for tests that need a visible
+        // window (e.g. pointer-capture drag tests).
+        // Why: local SSH E2E deploys the relay from the dev build output. The
+        // Electron app's getAppPath() points at the compiled main bundle in E2E,
+        // so pass the repo-root relay path explicitly for this opt-in suite.
+        env: {
+          ...cleanEnv,
+          NODE_ENV: 'development',
+          ORCA_E2E_USER_DATA_DIR: userDataDir,
+          ...(process.env.ORCA_E2E_SSH_LOCALHOST === '1' && !cleanEnv.ORCA_RELAY_PATH
+            ? { ORCA_RELAY_PATH: path.join(process.cwd(), 'out', 'relay') }
+            : {}),
+          ...(headful ? { ORCA_E2E_HEADFUL: '1' } : { ORCA_E2E_HEADLESS: '1' })
+        }
+      })
+      try {
+        // Why: the terminal-heavy shard starts several Electron apps together
+        // in CI. Serializing only launch-to-first-window avoids cache/startup
+        // contention without forcing the whole E2E suite into one worker.
+        await launchedApp.firstWindow({ timeout: 120_000 })
+        return launchedApp
+      } catch (error) {
+        await closeElectronAppForE2E(launchedApp)
+        throw error
       }
     })
     await provideFixture(app)

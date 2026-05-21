@@ -19,6 +19,7 @@ import { execSync } from 'child_process'
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
 import os from 'os'
 import path from 'path'
+import { withElectronLaunchLock } from './electron-launch-lock'
 import { cleanupE2EDaemons, closeElectronAppForE2E } from './electron-process-shutdown'
 
 type LaunchedOrca = {
@@ -40,8 +41,13 @@ function shouldLaunchHeadful(testInfo: TestInfo): boolean {
 }
 
 function launchEnv(userDataDir: string, headful: boolean): NodeJS.ProcessEnv {
-  const { ELECTRON_RUN_AS_NODE: _unused, ...cleanEnv } = process.env
+  const {
+    ELECTRON_RUN_AS_NODE: _unused,
+    ELECTRON_RENDERER_URL: _unusedRendererUrl,
+    ...cleanEnv
+  } = process.env
   void _unused
+  void _unusedRendererUrl
   return {
     ...cleanEnv,
     NODE_ENV: 'development',
@@ -88,11 +94,22 @@ export function createRestartSession(testInfo: TestInfo): RestartSession {
   )
 
   const launch = async (): Promise<LaunchedOrca> => {
-    const app = await electron.launch({
-      args: [mainPath],
-      env: launchEnv(userDataDir, headful)
+    const { app, page } = await withElectronLaunchLock(async () => {
+      const launchedApp = await electron.launch({
+        args: [mainPath],
+        env: launchEnv(userDataDir, headful)
+      })
+      try {
+        // Why: restart-persistence runs in the same shard as other terminal
+        // suites. Avoid overlapping Electron cold starts, which can starve CI
+        // before the app creates its first BrowserWindow.
+        const launchedPage = await launchedApp.firstWindow({ timeout: 120_000 })
+        return { app: launchedApp, page: launchedPage }
+      } catch (error) {
+        await closeElectronAppForE2E(launchedApp)
+        throw error
+      }
     })
-    const page = await app.firstWindow({ timeout: 120_000 })
     await page.waitForLoadState('domcontentloaded')
     await page.waitForFunction(() => Boolean(window.__store), null, { timeout: 30_000 })
     return { app, page }

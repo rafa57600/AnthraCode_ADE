@@ -320,6 +320,20 @@ export class SshGitProvider implements IGitProvider {
     await this.mux.request('git.fetch', { worktreePath })
   }
 
+  async fetchRemoteTrackingRef(
+    worktreePath: string,
+    remote: string,
+    branch: string,
+    ref: string
+  ): Promise<void> {
+    await this.mux.request('git.fetchRemoteTrackingRef', {
+      worktreePath,
+      remote,
+      branch,
+      ref
+    })
+  }
+
   async getBranchDiff(
     worktreePath: string,
     baseRef: string,

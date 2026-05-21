@@ -878,6 +878,7 @@ function App(): React.JSX.Element {
         groupBy,
         sortBy,
         showActiveOnly: false,
+        hideSleepingWorkspaces: !showSleepingWorkspaces,
         showSleepingWorkspaces,
         hideDefaultBranchWorkspace,
         filterRepoIds,

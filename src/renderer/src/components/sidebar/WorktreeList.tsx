@@ -34,6 +34,7 @@ import type {
   WorkspaceStatus,
   WorkspaceStatusDefinition
 } from '../../../../shared/types'
+import { DEFAULT_SHOW_SLEEPING_WORKSPACES } from '../../../../shared/constants'
 import { buildWorktreeComparator } from './smart-sort'
 import {
   buildAttentionByWorktree,
@@ -2842,7 +2843,7 @@ const WorktreeList = React.memo(function WorktreeList({
   const clearFilters = useCallback(() => {
     const actions = computeClearFilterActions(filterState)
     if (actions.resetShowSleepingWorkspaces) {
-      setShowSleepingWorkspaces(false)
+      setShowSleepingWorkspaces(DEFAULT_SHOW_SLEEPING_WORKSPACES)
     }
     if (actions.resetFilterRepoIds) {
       setFilterRepoIds([])

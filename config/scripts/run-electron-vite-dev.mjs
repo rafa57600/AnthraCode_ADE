@@ -4,11 +4,14 @@ import {
   chmodSync,
   cpSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
+  readlinkSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync
 } from 'node:fs'
 import net from 'node:net'
@@ -136,7 +139,7 @@ function prepareMacDevElectronApp() {
 
   const title = process.env.ORCA_DEV_DOCK_TITLE || 'Orca: dev'
   const identityKey = process.env.ORCA_DEV_INSTANCE_KEY || repoRoot
-  const bundleLayoutVersion = 'dock-title-app-preserve-framework-symlinks-v3'
+  const bundleLayoutVersion = 'dock-title-app-preserve-framework-symlinks-v4'
   const hash = createHash('sha1')
     .update(
       `${sourceAppPath}\0${electronVersion ?? ''}\0${title}\0${identityKey}\0${bundleLayoutVersion}`
@@ -197,6 +200,7 @@ function prepareMacDevElectronApp() {
   // Why: Electron.framework uses relative symlinks for its bundle resources;
   // resolving them to pnpm-store absolutes breaks Chromium's bundle lookup.
   cpSync(sourceAppPath, appPath, { recursive: true, verbatimSymlinks: true })
+  restoreElectronFrameworkSymlinks(appPath)
 
   const plistPath = path.join(appPath, 'Contents', 'Info.plist')
   setPlistValue(plistPath, 'CFBundleName', title)
@@ -208,6 +212,53 @@ function prepareMacDevElectronApp() {
   // an already-built distribution. Avoid blocking `pn dev` on local signing.
   writeFileSync(markerPath, expectedMarker, 'utf8')
   process.env.ELECTRON_EXEC_PATH = executablePath
+}
+
+function isSymlink(filePath) {
+  try {
+    return lstatSync(filePath).isSymbolicLink()
+  } catch {
+    return false
+  }
+}
+
+function ensureRelativeSymlink(linkPath, target) {
+  if (isSymlink(linkPath)) {
+    try {
+      if (readlinkSync(linkPath) === target) {
+        return
+      }
+    } catch {}
+  }
+
+  const targetPath = path.join(path.dirname(linkPath), target)
+  if (!existsSync(targetPath)) {
+    return
+  }
+
+  rmSync(linkPath, { recursive: true, force: true })
+  symlinkSync(target, linkPath)
+}
+
+function restoreElectronFrameworkSymlinks(appPath) {
+  const frameworkPath = path.join(
+    appPath,
+    'Contents',
+    'Frameworks',
+    'Electron Framework.framework'
+  )
+  const versionsPath = path.join(frameworkPath, 'Versions')
+  if (!existsSync(path.join(versionsPath, 'A'))) {
+    return
+  }
+
+  // Why: some Electron installs have framework symlinks flattened into
+  // duplicate directories. Recreate the relative bundle links after copying so
+  // Chromium resolves resources through the canonical macOS framework layout.
+  ensureRelativeSymlink(path.join(versionsPath, 'Current'), 'A')
+  for (const entry of ['Electron Framework', 'Resources', 'Libraries', 'Helpers']) {
+    ensureRelativeSymlink(path.join(frameworkPath, entry), `Versions/Current/${entry}`)
+  }
 }
 
 function getDevUserDataPath() {

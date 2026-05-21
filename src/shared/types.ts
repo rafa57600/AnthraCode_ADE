@@ -1996,9 +1996,11 @@ export type PersistedUIState = {
   sortBy: 'name' | 'smart' | 'recent' | 'repo' | 'manual'
   /** Deprecated; the Active only filter is retired and ignored on hydration. */
   showActiveOnly: boolean
-  /** Off by default: sleeping/inactive workspaces stay hidden until shown. */
+  /** Hide sleeping/inactive workspaces from workspace navigation. Off by default. */
+  hideSleepingWorkspaces?: boolean
+  /** Deprecated legacy positive-form setting. Ignored on hydration. */
   showSleepingWorkspaces?: boolean
-  /** Legacy name for the same setting used by a short-lived build. */
+  /** Deprecated legacy name used by a short-lived build. Ignored on hydration. */
   showInactiveWorkspaces?: boolean
   /** Hide the repo's original checked-out branch from workspace navigation
    *  (sidebar and Cmd+J jump palette). Folder-mode repos are unaffected —

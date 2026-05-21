@@ -34,6 +34,8 @@ import {
   resolveVisibleTaskProvider
 } from '../../../../shared/task-providers'
 import {
+  DEFAULT_HIDE_SLEEPING_WORKSPACES,
+  DEFAULT_SHOW_SLEEPING_WORKSPACES,
   DEFAULT_STATUS_BAR_ITEMS,
   DEFAULT_WORKTREE_CARD_PROPERTIES,
   normalizeWorktreeCardProperties
@@ -885,7 +887,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
   showActiveOnly: false,
   setShowActiveOnly: (v) => set({ showActiveOnly: v }),
 
-  showSleepingWorkspaces: false,
+  showSleepingWorkspaces: DEFAULT_SHOW_SLEEPING_WORKSPACES,
   setShowSleepingWorkspaces: (v) => set({ showSleepingWorkspaces: v }),
 
   hideDefaultBranchWorkspace: false,
@@ -1099,12 +1101,10 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
         // Why: Active-only was retired. Force the old persisted flag off so an
         // old profile cannot invisibly keep narrowing the workspace list.
         showActiveOnly: false,
-        // Why: a short-lived build called this "inactive"; keep that key as a
-        // fallback so the renamed sleeping filter preserves user intent.
-        showSleepingWorkspaces:
-          ui.showSleepingWorkspaces ??
-          (ui as PersistedUIState & { showInactiveWorkspaces?: boolean }).showInactiveWorkspaces ??
-          false,
+        // Why: `hideSleepingWorkspaces` is the canonical negative-form filter.
+        // Older positive-form keys are intentionally ignored so old profiles
+        // start from the new default: sleeping workspaces visible.
+        showSleepingWorkspaces: !(ui.hideSleepingWorkspaces ?? DEFAULT_HIDE_SLEEPING_WORKSPACES),
         hideDefaultBranchWorkspace: ui.hideDefaultBranchWorkspace ?? false,
         filterRepoIds: (ui.filterRepoIds ?? []).filter((repoId) => validRepoIds.has(repoId)),
         collapsedGroups: new Set(ui.collapsedGroups ?? []),

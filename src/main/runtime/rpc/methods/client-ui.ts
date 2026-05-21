@@ -55,6 +55,7 @@ const UiUpdate = z
     showWorkspaceLineage: z.boolean().optional(),
     sortBy: z.enum(['name', 'smart', 'recent', 'repo', 'manual']).optional(),
     showActiveOnly: z.boolean().optional(),
+    hideSleepingWorkspaces: z.boolean().optional(),
     showSleepingWorkspaces: z.boolean().optional(),
     showInactiveWorkspaces: z.boolean().optional(),
     hideDefaultBranchWorkspace: z.boolean().optional(),

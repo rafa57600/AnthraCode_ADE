@@ -54,6 +54,12 @@ function makePersistedUI(overrides: Partial<PersistedUIState> = {}): PersistedUI
 }
 
 describe('createUISlice hydratePersistedUI', () => {
+  it('defaults to showing sleeping workspaces', () => {
+    const store = createUIStore()
+
+    expect(store.getState().showSleepingWorkspaces).toBe(true)
+  })
+
   it('preserves the current right sidebar width when older persisted UI omits it', () => {
     const store = createUIStore()
 
@@ -125,25 +131,37 @@ describe('createUISlice hydratePersistedUI', () => {
     expect(store.getState().showActiveOnly).toBe(false)
   })
 
-  it('restores the show-sleeping filter from persisted UI state', () => {
+  it('restores the new hide-sleeping filter from persisted UI state', () => {
     const store = createUIStore()
 
     store.getState().hydratePersistedUI(
       makePersistedUI({
-        showSleepingWorkspaces: true
+        hideSleepingWorkspaces: true
+      })
+    )
+
+    expect(store.getState().showSleepingWorkspaces).toBe(false)
+  })
+
+  it('ignores legacy hidden-sleeping preference so existing users start with sleeping visible', () => {
+    const store = createUIStore()
+
+    store.getState().hydratePersistedUI(
+      makePersistedUI({
+        showSleepingWorkspaces: false
       })
     )
 
     expect(store.getState().showSleepingWorkspaces).toBe(true)
   })
 
-  it('restores the legacy show-inactive filter as show-sleeping', () => {
+  it('ignores the legacy show-inactive filter so existing users start with sleeping visible', () => {
     const store = createUIStore()
 
     store.getState().hydratePersistedUI(
       makePersistedUI({
         showSleepingWorkspaces: undefined,
-        showInactiveWorkspaces: true
+        showInactiveWorkspaces: false
       })
     )
 

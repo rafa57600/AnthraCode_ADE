@@ -51,6 +51,7 @@ describe('GitHandler', () => {
     expect(methods).toContain('git.branchCompare')
     expect(methods).toContain('git.upstreamStatus')
     expect(methods).toContain('git.fetch')
+    expect(methods).toContain('git.fetchRemoteTrackingRef')
     expect(methods).toContain('git.push')
     expect(methods).toContain('git.pull')
     expect(methods).toContain('git.branchDiff')
@@ -628,6 +629,78 @@ describe('GitHandler', () => {
       } finally {
         await fs.rm(bareDir, { recursive: true, force: true })
       }
+    })
+
+    it('refreshes one remote-tracking ref from a configured remote', async () => {
+      const bareDir = mkdtempSync(path.join(tmpdir(), 'relay-git-bare-'))
+      const producerParent = mkdtempSync(path.join(tmpdir(), 'relay-git-producer-'))
+      const producerDir = path.join(producerParent, 'repo')
+      try {
+        execFileSync('git', ['init', '--bare'], { cwd: bareDir, stdio: 'pipe' })
+
+        gitInit(tmpDir)
+        writeFileSync(path.join(tmpDir, 'base.txt'), 'base')
+        gitCommit(tmpDir, 'initial')
+        const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+          cwd: tmpDir,
+          encoding: 'utf-8'
+        }).trim()
+        execFileSync('git', ['remote', 'add', 'origin', bareDir], {
+          cwd: tmpDir,
+          stdio: 'pipe'
+        })
+        execFileSync('git', ['push', '--set-upstream', 'origin', branch], {
+          cwd: tmpDir,
+          stdio: 'pipe'
+        })
+
+        execFileSync('git', ['clone', bareDir, producerDir], { stdio: 'pipe' })
+        execFileSync('git', ['config', 'user.email', 'test@test.com'], {
+          cwd: producerDir,
+          stdio: 'pipe'
+        })
+        execFileSync('git', ['config', 'user.name', 'Test'], {
+          cwd: producerDir,
+          stdio: 'pipe'
+        })
+        writeFileSync(path.join(producerDir, 'base.txt'), 'updated')
+        gitCommit(producerDir, 'remote update')
+        execFileSync('git', ['push', 'origin', branch], { cwd: producerDir, stdio: 'pipe' })
+        const expected = execFileSync('git', ['rev-parse', 'HEAD'], {
+          cwd: producerDir,
+          encoding: 'utf-8'
+        }).trim()
+
+        await dispatcher.callRequest('git.fetchRemoteTrackingRef', {
+          worktreePath: tmpDir,
+          remote: 'origin',
+          branch,
+          ref: `refs/remotes/origin/${branch}`
+        })
+
+        const actual = execFileSync('git', ['rev-parse', `refs/remotes/origin/${branch}`], {
+          cwd: tmpDir,
+          encoding: 'utf-8'
+        }).trim()
+        expect(actual).toBe(expected)
+      } finally {
+        await fs.rm(bareDir, { recursive: true, force: true })
+        await fs.rm(producerParent, { recursive: true, force: true })
+      }
+    })
+
+    it('rejects remote-tracking refreshes that target a different ref', async () => {
+      gitInit(tmpDir)
+      execFileSync('git', ['remote', 'add', 'origin', tmpDir], { cwd: tmpDir, stdio: 'pipe' })
+
+      await expect(
+        dispatcher.callRequest('git.fetchRemoteTrackingRef', {
+          worktreePath: tmpDir,
+          remote: 'origin',
+          branch: 'main',
+          ref: 'refs/remotes/origin/other'
+        })
+      ).rejects.toThrow('Remote-tracking ref does not match the requested remote and branch.')
     })
 
     it('rethrows upstreamStatus failures that are not "no upstream configured"', async () => {

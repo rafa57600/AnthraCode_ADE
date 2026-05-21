@@ -26,6 +26,8 @@ export {
 
 export const SCHEMA_VERSION = 1
 export const DEFAULT_APP_FONT_FAMILY = 'Geist'
+export const DEFAULT_SHOW_SLEEPING_WORKSPACES = true
+export const DEFAULT_HIDE_SLEEPING_WORKSPACES = false
 
 // Why: the onboarding wizard's last step index. Centralized so backfill,
 // clamps, and UI step references all agree on the same upper bound.
@@ -344,7 +346,8 @@ export function getDefaultUIState(): PersistedUIState {
     groupBy: 'workspace-status',
     sortBy: 'recent',
     showActiveOnly: false,
-    showSleepingWorkspaces: false,
+    hideSleepingWorkspaces: DEFAULT_HIDE_SLEEPING_WORKSPACES,
+    showSleepingWorkspaces: DEFAULT_SHOW_SLEEPING_WORKSPACES,
     hideDefaultBranchWorkspace: false,
     filterRepoIds: [],
     collapsedGroups: [],

@@ -870,6 +870,7 @@ describe('registerWorktreeHandlers', () => {
         }
         return { stdout: '', stderr: '' }
       }),
+      fetchRemoteTrackingRef: vi.fn().mockResolvedValue(undefined),
       addWorktree: vi.fn().mockResolvedValue(undefined),
       listWorktrees: vi.fn().mockResolvedValue([
         {
@@ -945,6 +946,7 @@ describe('registerWorktreeHandlers', () => {
         }
         return { stdout: '', stderr: '' }
       }),
+      fetchRemoteTrackingRef: vi.fn().mockResolvedValue(undefined),
       addWorktree: vi.fn().mockResolvedValue(undefined),
       listWorktrees: vi.fn().mockResolvedValue([
         {
@@ -1030,6 +1032,7 @@ describe('registerWorktreeHandlers', () => {
         }
         return { stdout: '', stderr: '' }
       }),
+      fetchRemoteTrackingRef: vi.fn().mockRejectedValue(new Error('network unavailable')),
       addWorktree: vi.fn(),
       listWorktrees: vi.fn()
     }
@@ -1052,6 +1055,12 @@ describe('registerWorktreeHandlers', () => {
     )
 
     expect(provider.addWorktree).not.toHaveBeenCalled()
+    expect(provider.fetchRemoteTrackingRef).toHaveBeenCalledWith(
+      '/remote/repo',
+      'origin',
+      'main',
+      'refs/remotes/origin/main'
+    )
   })
 
   it('prunes stale child lineage after a successful SSH worktree scan proves the child is missing', async () => {

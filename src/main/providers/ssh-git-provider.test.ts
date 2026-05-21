@@ -496,6 +496,22 @@ describe('SshGitProvider', () => {
     })
   })
 
+  it('fetchRemoteTrackingRef sends git.fetchRemoteTrackingRef request', async () => {
+    await provider.fetchRemoteTrackingRef(
+      '/home/user/repo',
+      'origin',
+      'main',
+      'refs/remotes/origin/main'
+    )
+
+    expect(mux.request).toHaveBeenCalledWith('git.fetchRemoteTrackingRef', {
+      worktreePath: '/home/user/repo',
+      remote: 'origin',
+      branch: 'main',
+      ref: 'refs/remotes/origin/main'
+    })
+  })
+
   it('getBranchDiff sends git.branchDiff request', async () => {
     const diffs = [{ kind: 'text', originalContent: '', modifiedContent: 'new' }]
     mux.request.mockResolvedValue(diffs)

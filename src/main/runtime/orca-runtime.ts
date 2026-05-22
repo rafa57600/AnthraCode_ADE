@@ -133,6 +133,7 @@ import {
   getPRForBranch,
   getRepoSlug,
   getWorkItem,
+  listIssues as listGitHubIssues,
   listWorkItems,
   countWorkItems,
   getPRChecks,
@@ -5302,6 +5303,20 @@ export class OrcaRuntimeService {
       repo.issueSourcePreference,
       repo.connectionId ?? null
     )
+  }
+
+  async listRepoIssues(
+    repoSelector: string,
+    limit?: number
+  ): Promise<Awaited<ReturnType<typeof listGitHubIssues>>['items']> {
+    const repo = await this.resolveRepoSelector(repoSelector)
+    const result = await listGitHubIssues(
+      repo.path,
+      limit,
+      repo.issueSourcePreference,
+      repo.connectionId ?? null
+    )
+    return result.items
   }
 
   async getRepoWorkItem(

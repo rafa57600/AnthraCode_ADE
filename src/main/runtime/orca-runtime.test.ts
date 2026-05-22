@@ -47,6 +47,7 @@ const {
   createHostedReviewMock,
   getHostedReviewCreationEligibilityMock,
   getPRForBranchMock,
+  listGitHubIssuesMock,
   detectInstalledAgentsMock,
   detectRemoteAgentsMock,
   listGitLabMergeRequestsMock,
@@ -98,6 +99,7 @@ const {
     createHostedReviewMock: vi.fn(),
     getHostedReviewCreationEligibilityMock: vi.fn(),
     getPRForBranchMock: vi.fn().mockResolvedValue(null),
+    listGitHubIssuesMock: vi.fn(),
     detectInstalledAgentsMock: vi.fn(),
     detectRemoteAgentsMock: vi.fn(),
     listGitLabMergeRequestsMock: vi.fn(),
@@ -196,7 +198,8 @@ vi.mock('../github/client', async (importOriginal) => {
   const actual = (await importOriginal()) as Record<string, unknown>
   return {
     ...actual,
-    getPRForBranch: getPRForBranchMock
+    getPRForBranch: getPRForBranchMock,
+    listIssues: listGitHubIssuesMock
   }
 })
 
@@ -320,6 +323,8 @@ afterEach(() => {
   })
   getPRForBranchMock.mockReset()
   getPRForBranchMock.mockResolvedValue(null)
+  listGitHubIssuesMock.mockReset()
+  listGitHubIssuesMock.mockResolvedValue({ items: [] })
   detectInstalledAgentsMock.mockReset()
   detectInstalledAgentsMock.mockResolvedValue([])
   detectRemoteAgentsMock.mockReset()
@@ -1604,6 +1609,9 @@ describe('OrcaRuntimeService', () => {
 
   it('allows host integration slug helpers for SSH repos through provider-aware GitHub clients', async () => {
     getIssueMock.mockResolvedValueOnce({ number: 12, title: 'Remote issue' })
+    listGitHubIssuesMock.mockResolvedValueOnce({
+      items: [{ number: 7, title: 'Remote issue list item' }]
+    })
     const remoteStore = {
       ...store,
       getRepos: () => [
@@ -1624,7 +1632,11 @@ describe('OrcaRuntimeService', () => {
       number: 12,
       title: 'Remote issue'
     })
+    await expect(runtime.listRepoIssues('id:repo-1', 10)).resolves.toEqual([
+      { number: 7, title: 'Remote issue list item' }
+    ])
     expect(getIssueMock).toHaveBeenCalledWith('/remote/repo', 12, 'ssh-1')
+    expect(listGitHubIssuesMock).toHaveBeenCalledWith('/remote/repo', 10, undefined, 'ssh-1')
   })
 
   it('rejects hosted review worktree selectors outside the selected repo', async () => {

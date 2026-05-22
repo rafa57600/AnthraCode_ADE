@@ -28,7 +28,6 @@ import {
 import { SearchableSetting } from './SearchableSetting'
 import { matchesSettingsSearch } from './settings-search'
 import { markLiveCodexSessionsForRestart } from '@/lib/codex-session-restart'
-import { getLocalPreflightContext } from '@/lib/local-preflight-context'
 import {
   Dialog,
   DialogContent,
@@ -43,6 +42,9 @@ export { ACCOUNTS_PANE_SEARCH_ENTRIES }
 type AccountsPaneProps = {
   settings: GlobalSettings
   updateSettings: (updates: Partial<GlobalSettings>) => void
+  wslAvailable?: boolean
+  wslDistros?: string[]
+  wslCapabilitiesLoading?: boolean
 }
 
 function getCodexAccountLabel(
@@ -63,6 +65,24 @@ function getClaudeAccountLabel(
     return 'System default'
   }
   return state.accounts.find((account) => account.id === accountId)?.email ?? 'Claude account'
+}
+
+function getCodexAccountRuntimeLabel(
+  account: CodexRateLimitAccountsState['accounts'][number]
+): string {
+  if (account.managedHomeRuntime === 'wsl') {
+    return account.wslDistro ? `WSL ${account.wslDistro}` : 'WSL'
+  }
+  return 'Windows'
+}
+
+function getClaudeAccountRuntimeLabel(
+  account: ClaudeRateLimitAccountsState['accounts'][number]
+): string {
+  if (account.managedAuthRuntime === 'wsl') {
+    return account.wslDistro ? `WSL ${account.wslDistro}` : 'WSL'
+  }
+  return 'Windows'
 }
 
 function getCodexAccountErrorDescription(error: unknown): string {
@@ -109,11 +129,37 @@ function getClaudeAccountErrorDescription(error: unknown): string {
   )
 }
 
-export function AccountsPane({ settings, updateSettings }: AccountsPaneProps): React.JSX.Element {
+type LocalAccountRuntime = {
+  runtime: 'host' | 'wsl'
+  wslDistro?: string | null
+  label: string
+}
+
+function getTerminalAccountRuntime(
+  settings: GlobalSettings,
+  wslAvailable: boolean
+): LocalAccountRuntime {
+  if (wslAvailable && settings.terminalWindowsShell === 'wsl.exe') {
+    return {
+      runtime: 'wsl',
+      wslDistro: settings.terminalWindowsWslDistro ?? null,
+      label: settings.terminalWindowsWslDistro
+        ? `WSL ${settings.terminalWindowsWslDistro}`
+        : 'WSL default'
+    }
+  }
+  return { runtime: 'host', label: 'Windows' }
+}
+
+export function AccountsPane({
+  settings,
+  updateSettings,
+  wslAvailable = false,
+  wslCapabilitiesLoading = false
+}: AccountsPaneProps): React.JSX.Element {
   const searchQuery = useAppStore((s) => s.settingsSearchQuery)
   const fetchSettings = useAppStore((s) => s.fetchSettings)
-  const localPreflightContext = useAppStore(getLocalPreflightContext)
-  const activeWslDistro = localPreflightContext?.wslDistro?.trim() || null
+  const accountRuntime = getTerminalAccountRuntime(settings, wslAvailable)
 
   const [codexAccounts, setCodexAccounts] = useState<CodexRateLimitAccountsState>({
     accounts: [],
@@ -270,16 +316,21 @@ export function AccountsPane({ settings, updateSettings }: AccountsPaneProps): R
             <div className="space-y-0.5">
               <Label>Accounts</Label>
               <p className="text-xs text-muted-foreground">
-                Orca swaps Claude auth only; config and chat history stay in the shared Claude root.
+                New accounts use the Terminal runtime: {accountRuntime.label}.
               </p>
             </div>
             <Button
               variant="outline"
               size="xs"
               onClick={() =>
-                void runClaudeAccountAction('adding', () => window.api.claudeAccounts.add())
+                void runClaudeAccountAction('adding', () =>
+                  window.api.claudeAccounts.add({
+                    runtime: accountRuntime.runtime,
+                    wslDistro: accountRuntime.wslDistro
+                  })
+                )
               }
-              disabled={claudeAction !== 'idle'}
+              disabled={claudeAction !== 'idle' || wslCapabilitiesLoading}
               className="gap-1.5"
             >
               {claudeAction === 'adding' ? (
@@ -356,6 +407,12 @@ export function AccountsPane({ settings, updateSettings }: AccountsPaneProps): R
                       >
                         <div className="flex min-w-0 items-center gap-2">
                           <span className="truncate text-sm font-medium">{account.email}</span>
+                          <Badge
+                            variant="outline"
+                            className="h-4 shrink-0 rounded px-1.5 text-[10px] font-medium leading-none text-foreground/70"
+                          >
+                            {getClaudeAccountRuntimeLabel(account)}
+                          </Badge>
                           {isActive ? (
                             <Badge
                               variant="outline"
@@ -425,12 +482,6 @@ export function AccountsPane({ settings, updateSettings }: AccountsPaneProps): R
             Optional. Orca can use your normal Codex login; add accounts only if you want quick
             switching in Orca.
           </p>
-          {activeWslDistro ? (
-            <p className="text-xs text-muted-foreground">
-              WSL terminals use the Codex login inside {activeWslDistro}. Managed Codex account
-              switching applies to host terminals.
-            </p>
-          ) : null}
           <p className="text-xs text-muted-foreground">
             Each account keeps its own local sign-in context in Orca. Account auth stays on this
             device.
@@ -460,18 +511,21 @@ export function AccountsPane({ settings, updateSettings }: AccountsPaneProps): R
             <div className="space-y-0.5">
               <Label>Accounts</Label>
               <p className="text-xs text-muted-foreground">
-                {activeWslDistro
-                  ? `Use codex login in ${activeWslDistro} to change the WSL Codex account.`
-                  : 'Add a Codex account to use it in Orca.'}
+                New accounts use the Terminal runtime: {accountRuntime.label}.
               </p>
             </div>
             <Button
               variant="outline"
               size="xs"
               onClick={() =>
-                void runCodexAccountAction('adding', () => window.api.codexAccounts.add())
+                void runCodexAccountAction('adding', () =>
+                  window.api.codexAccounts.add({
+                    runtime: accountRuntime.runtime,
+                    wslDistro: accountRuntime.wslDistro
+                  })
+                )
               }
-              disabled={codexAction !== 'idle'}
+              disabled={codexAction !== 'idle' || wslCapabilitiesLoading}
               className="gap-1.5"
             >
               {codexAction === 'adding' ? (
@@ -485,9 +539,8 @@ export function AccountsPane({ settings, updateSettings }: AccountsPaneProps): R
 
           {codexAccounts.accounts.length === 0 ? (
             <div className="rounded-md border border-dashed border-border/70 px-3 py-4 text-xs text-muted-foreground">
-              {activeWslDistro
-                ? `No managed host Codex accounts yet. WSL terminals will use the Codex login in ${activeWslDistro}.`
-                : 'No managed Codex accounts yet. Orca will use your system default Codex login until you add one here.'}
+              No managed Codex accounts yet. Orca will use your system default Codex login until you
+              add one here.
             </div>
           ) : (
             <div className="space-y-2">
@@ -550,6 +603,12 @@ export function AccountsPane({ settings, updateSettings }: AccountsPaneProps): R
                       >
                         <div className="flex min-w-0 items-center gap-2">
                           <span className="truncate text-sm font-medium">{account.email}</span>
+                          <Badge
+                            variant="outline"
+                            className="h-4 shrink-0 rounded px-1.5 text-[10px] font-medium leading-none text-foreground/70"
+                          >
+                            {getCodexAccountRuntimeLabel(account)}
+                          </Badge>
                           {isActive ? (
                             <Badge
                               variant="outline"
@@ -650,8 +709,9 @@ export function AccountsPane({ settings, updateSettings }: AccountsPaneProps): R
             <Label>Use Gemini CLI credentials (experimental)</Label>
             <p className="text-xs text-muted-foreground">
               Extracts OAuth credentials from your local Gemini CLI installation to authenticate
-              with Google. This uses credentials issued to the Gemini CLI app, not Orca. May break
-              if Google updates the CLI. Use at your own risk.
+              with Google for the current Terminal runtime ({accountRuntime.label}). This uses
+              credentials issued to the Gemini CLI app, not Orca. May break if Google updates the
+              CLI. Use at your own risk.
             </p>
           </div>
           <button
@@ -716,6 +776,7 @@ export function AccountsPane({ settings, updateSettings }: AccountsPaneProps): R
             Paste either the raw token value (e.g. <code className="text-xs">Fe26.2**…</code>) or
             the full cookie header (e.g. <code className="text-xs">auth=Fe26.2**…</code>). Find it
             in your browser&apos;s DevTools → Network → any opencode.ai request → Cookie header.
+            OpenCode Go auth is web-based and shared across Windows and WSL terminals.
           </p>
         </SearchableSetting>
 

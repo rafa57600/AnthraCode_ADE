@@ -23,6 +23,7 @@ type RepoUpdate = Partial<
     | 'kind'
     | 'symlinkPaths'
     | 'issueSourcePreference'
+    | 'sourceControlAi'
   >
 >
 

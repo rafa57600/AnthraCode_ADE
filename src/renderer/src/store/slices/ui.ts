@@ -399,6 +399,7 @@ export type UISlice = {
   settingsNavigationTarget: {
     pane:
       | 'general'
+      | 'git'
       | 'browser'
       | 'appearance'
       | 'input'

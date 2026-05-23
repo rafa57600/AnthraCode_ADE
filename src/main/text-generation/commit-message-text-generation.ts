@@ -2,7 +2,7 @@
    spawn failure handling, and output normalization; keeping them together
    prevents those paths from drifting. */
 import { exec, spawn, type ChildProcess } from 'child_process'
-import type { GlobalSettings, TuiAgent } from '../../shared/types'
+import type { GlobalSettings, Repo, TuiAgent } from '../../shared/types'
 import {
   buildCommitMessagePrompt,
   splitGeneratedCommitMessage,
@@ -20,11 +20,7 @@ import {
   extractAgentErrorMessage
 } from '../../shared/commit-message-prompt'
 import {
-  CUSTOM_AGENT_ID,
   getCommitMessageAgentSpec,
-  getCommitMessageModel,
-  isCustomAgentId,
-  resolveCommitMessageAgentChoice,
   type CommitMessageAgentCapability,
   type CommitMessageModelCapability
 } from '../../shared/commit-message-agent-spec'
@@ -34,6 +30,11 @@ import {
   type CommitMessagePlan
 } from '../../shared/commit-message-plan'
 import { LOCAL_COMMIT_MESSAGE_HOST_KEY } from '../../shared/commit-message-host-key'
+import {
+  resolveSourceControlAiForOperation,
+  type ResolvedSourceControlAiGenerationParams
+} from '../../shared/source-control-ai'
+import type { SourceControlAiOperation } from '../../shared/source-control-ai-types'
 import { resolveCliCommand } from '../codex-cli/command'
 import {
   getSpawnArgsForWindows,
@@ -44,14 +45,7 @@ import {
 const GENERATION_TIMEOUT_MS = 60_000
 const MAX_AGENT_OUTPUT_BYTES = 4 * 1024 * 1024
 
-export type GenerateCommitMessageParams = {
-  agentId: TuiAgent | 'custom'
-  model: string
-  thinkingLevel?: string
-  customPrompt?: string
-  customAgentCommand?: string
-  agentCommandOverride?: string
-}
+export type GenerateCommitMessageParams = ResolvedSourceControlAiGenerationParams
 
 export type GenerateCommitMessageResult =
   | { success: true; message: string; agentLabel?: string }
@@ -111,82 +105,17 @@ export function trimGeneratedCommitMessage(message: string): string {
 
 export function resolveCommitMessageSettings(
   settings: GlobalSettings,
-  discoveryHostKey = LOCAL_COMMIT_MESSAGE_HOST_KEY
+  discoveryHostKey = LOCAL_COMMIT_MESSAGE_HOST_KEY,
+  operation: SourceControlAiOperation = 'commitMessage',
+  repo?: Pick<Repo, 'sourceControlAi'> | null
 ): ResolveCommitMessageSettingsResult {
-  const config = settings.commitMessageAi
-  if (!config?.enabled) {
-    return { ok: false, error: 'Enable AI commit messages in Settings -> Git.' }
-  }
-
-  const agentChoice = resolveCommitMessageAgentChoice(config.agentId, settings.defaultTuiAgent)
-  if (!agentChoice) {
-    return {
-      ok: false,
-      error:
-        `Default agent "${settings.defaultTuiAgent}" does not support AI commit messages. ` +
-        'Choose Claude or Codex in Settings -> Git -> AI Commit Messages.'
-    }
-  }
-
-  if (isCustomAgentId(agentChoice)) {
-    const customAgentCommand = config.customAgentCommand.trim()
-    if (!customAgentCommand) {
-      return {
-        ok: false,
-        error: 'Custom command is empty. Add one in Settings -> Git -> AI Commit Messages.'
-      }
-    }
-    return {
-      ok: true,
-      params: {
-        agentId: CUSTOM_AGENT_ID,
-        model: '',
-        customPrompt: config.customPrompt,
-        customAgentCommand
-      }
-    }
-  }
-
-  const agentId = agentChoice
-  const spec = getCommitMessageAgentSpec(agentId)
-  if (!spec) {
-    return { ok: false, error: `Agent "${agentId}" does not support AI commit messages.` }
-  }
-
-  const hostSelectedModels = config.selectedModelByAgentByHost?.[discoveryHostKey]
-  const legacySelectedModels =
-    discoveryHostKey === LOCAL_COMMIT_MESSAGE_HOST_KEY ? config.selectedModelByAgent : undefined
-  const persistedModelId =
-    hostSelectedModels?.[agentId] ?? legacySelectedModels?.[agentId] ?? spec.defaultModelId
-  const discoveredModels =
-    config.discoveredModelsByAgentByHost?.[discoveryHostKey]?.[agentId] ??
-    (discoveryHostKey === LOCAL_COMMIT_MESSAGE_HOST_KEY
-      ? (config.discoveredModelsByAgent?.[agentId] ?? [])
-      : [])
-  const model =
-    spec.models.find((candidate) => candidate.id === persistedModelId) ??
-    discoveredModels.find((candidate) => candidate.id === persistedModelId) ??
-    getCommitMessageModel(agentId, spec.defaultModelId)
-  if (!model) {
-    return { ok: false, error: `No model is available for ${spec.label}.` }
-  }
-
-  const persistedThinking = config.selectedThinkingByModel[model.id]
-  const thinkingLevel = model.thinkingLevels?.some((level) => level.id === persistedThinking)
-    ? persistedThinking
-    : model.defaultThinkingLevel
-
-  const agentCommandOverride = settings.agentCmdOverrides?.[agentId]?.trim()
-  return {
-    ok: true,
-    params: {
-      agentId,
-      model: model.id,
-      thinkingLevel,
-      customPrompt: config.customPrompt,
-      ...(agentCommandOverride ? { agentCommandOverride } : {})
-    }
-  }
+  const resolved = resolveSourceControlAiForOperation({
+    settings,
+    repo,
+    operation,
+    discoveryHostKey
+  })
+  return resolved.ok ? { ok: true, params: resolved.value.params } : resolved
 }
 
 function sanitizeAgentFailureDetail(detail: string | null): string | null {

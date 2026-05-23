@@ -463,6 +463,7 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
             | 'kind'
             | 'symlinkPaths'
             | 'issueSourcePreference'
+            | 'sourceControlAi'
           >
         >
       }

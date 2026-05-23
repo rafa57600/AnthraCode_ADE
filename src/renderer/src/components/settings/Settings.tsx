@@ -481,9 +481,9 @@ function Settings(): React.JSX.Element {
       {
         id: 'git',
         title: 'Git & Source Control',
-        description: 'Branch naming, base refs, attribution, and AI commit messages.',
+        description: 'Branch naming, base refs, attribution, and Source Control AI.',
         icon: GitBranch,
-        // Why: the AI commit messages pane is rendered inside the Git section,
+        // Why: the Source Control AI pane is rendered inside the Git section,
         // so its search entries belong to Git too — that way a query like
         // "claude" or "thinking" still surfaces the section.
         searchEntries: [...GIT_PANE_SEARCH_ENTRIES, ...COMMIT_MESSAGE_AI_PANE_SEARCH_ENTRIES],
@@ -1038,7 +1038,7 @@ function Settings(): React.JSX.Element {
                 <SettingsSection
                   id="git"
                   title="Git & Source Control"
-                  description="Branch naming, base refs, attribution, and AI commit messages."
+                  description="Branch naming, base refs, attribution, and Source Control AI."
                   searchEntries={[
                     ...GIT_PANE_SEARCH_ENTRIES,
                     ...COMMIT_MESSAGE_AI_PANE_SEARCH_ENTRIES

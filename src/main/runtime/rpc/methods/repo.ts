@@ -35,7 +35,8 @@ const RepoUpdate = RepoSelector.extend({
     worktreeBaseRef: OptionalString,
     kind: z.enum(['git', 'folder']).optional(),
     symlinkPaths: z.array(z.string()).optional(),
-    issueSourcePreference: z.enum(['auto', 'upstream', 'origin']).optional()
+    issueSourcePreference: z.enum(['auto', 'upstream', 'origin']).optional(),
+    sourceControlAi: z.unknown().optional()
   })
 })
 

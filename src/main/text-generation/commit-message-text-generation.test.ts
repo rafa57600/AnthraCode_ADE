@@ -52,6 +52,7 @@ describe('resolveCommitMessageSettings', () => {
       customPrompt: 'Use Conventional Commits.',
       customAgentCommand: ''
     }
+    settings.sourceControlAi = undefined
 
     const result = resolveCommitMessageSettings(settings)
 
@@ -246,7 +247,7 @@ describe('resolveCommitMessageSettings', () => {
 
     expect(resolveCommitMessageSettings(settings)).toEqual({
       ok: false,
-      error: 'Custom command is empty. Add one in Settings -> Git -> AI Commit Messages.'
+      error: 'Custom command is empty. Add one in Settings -> Git -> Source Control AI.'
     })
   })
 })

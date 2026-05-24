@@ -584,22 +584,24 @@ export function useOnboardingFlow(
       return
     }
     const durationMs = consumeStepDurationMs()
-    // Why: theme tiles save immediately for a stable preview, but skip still
-    // means "do not keep this step's choice."
-    if (currentStep.id === 'theme') {
-      const themeBeforePreview = themeStepEntryThemeRef.current ?? settings?.theme
-      if (themeBeforePreview) {
-        setTheme(themeBeforePreview)
-        applyDocumentTheme(themeBeforePreview)
-        await updateSettings({ theme: themeBeforePreview })
-      }
-    }
-    // Why: the repo step seeds folder terminals from saved settings. Preserve
-    // the visible agent choice when optional preferences are skipped.
-    if (currentStep.id === 'agent' && selectedAgent) {
-      await updateSettings({ defaultTuiAgent: selectedAgent })
-    }
     try {
+      // Why: theme tiles save immediately for a stable preview, but skip still
+      // means "do not keep this step's choice." Wrapped in try/catch so an
+      // updateSettings rejection surfaces a toast instead of leaking as an
+      // unhandled rejection that strands the user on the theme step.
+      if (currentStep.id === 'theme') {
+        const themeBeforePreview = themeStepEntryThemeRef.current ?? settings?.theme
+        if (themeBeforePreview) {
+          setTheme(themeBeforePreview)
+          applyDocumentTheme(themeBeforePreview)
+          await updateSettings({ theme: themeBeforePreview })
+        }
+      }
+      // Why: the repo step seeds folder terminals from saved settings. Preserve
+      // the visible agent choice when optional preferences are skipped.
+      if (currentStep.id === 'agent' && selectedAgent) {
+        await updateSettings({ defaultTuiAgent: selectedAgent })
+      }
       const nextState = await persistStep(repoStep.stepNumber - 1)
       onOnboardingChange(nextState)
       // Why: users can skip optional preferences, but onboarding remains open

@@ -9,9 +9,9 @@ import { usePrefersReducedMotion } from '../feature-wall/feature-wall-modal-help
 
 const TOUR_LEARNING_POINTS: readonly string[] = [
   'Run agents in isolated workspaces.',
-  'Coordinate larger tasks with Agent orchestration.',
-  'Start from GitHub or Linear.',
-  'Let AI review diffs, check your app in Orca browser, and draft PRs.'
+  'Orchestrate agents to finish larger tasks.',
+  'Start tasks from GitHub or Linear.',
+  'In-app browser.'
 ]
 
 type OnboardingTourStepProps = {

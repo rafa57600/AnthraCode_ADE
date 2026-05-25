@@ -6,6 +6,7 @@ import { buildAgentStartupPlan } from './tui-agent-startup'
 import { CLIENT_PLATFORM } from './new-workspace'
 import { tuiAgentToAgentKind } from './telemetry'
 import { useAppStore } from '@/store'
+import { shouldAutoCreateInitialTerminalForWorktreePath } from './passive-macos-app-data-access'
 import {
   activateWebRuntimeSessionWorktree,
   isWebRuntimeSessionActive
@@ -207,6 +208,10 @@ export function ensureWorktreeHasInitialTerminal(
   // reconciled tab-group model. Creating a terminal just because the legacy
   // terminal slice is empty would reopen worktrees with an unexpected extra tab.
   if (!shouldAutoCreateInitialTerminal(renderableTabCount)) {
+    return null
+  }
+  const worktreePath = useAppStore.getState().getKnownWorktreeById(worktreeId)?.path ?? null
+  if (!shouldAutoCreateInitialTerminalForWorktreePath(worktreePath)) {
     return null
   }
   // Why: remote web clients mirror the runtime server's session tabs. A local

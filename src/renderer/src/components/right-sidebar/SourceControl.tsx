@@ -1267,7 +1267,7 @@ function SourceControlInner(): React.JSX.Element {
   )
 
   useEffect(() => {
-    if (!activeRepo || isFolder) {
+    if (!isBranchVisible || !activeRepo || isFolder) {
       return
     }
 
@@ -1301,7 +1301,7 @@ function SourceControlInner(): React.JSX.Element {
     return () => {
       stale = true
     }
-  }, [activeRepo, isFolder])
+  }, [activeRepo, isBranchVisible, isFolder])
 
   const effectiveBaseRef = activeRepo?.worktreeBaseRef ?? defaultBaseRef
   const hasUncommittedEntries = entries.length > 0

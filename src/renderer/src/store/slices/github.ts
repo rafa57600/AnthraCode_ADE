@@ -38,6 +38,7 @@ import { callRuntimeRpc, getActiveRuntimeTarget } from '../../runtime/runtime-rp
 import { hostedReviewInfoFromGitHubPRInfo } from '../../../../shared/hosted-review-github'
 import { getHostedReviewCacheKey, linkedReviewHintKey } from './hosted-review-cache-identity'
 import { getGitHubPRCacheKey, getGitHubRepoCacheKey } from './github-cache-key'
+import { isMacAppDataPath } from '@/lib/passive-macos-app-data-access'
 
 // ─── ProjectV2 cache types ────────────────────────────────────────────
 // Why: declared separately from CacheEntry<T> (not a generified E parameter)
@@ -510,6 +511,9 @@ function buildPRRefreshCandidate(
 ): GitHubPRRefreshCandidate | null {
   const repo = state.repos.find((r) => r.id === worktree.repoId)
   if (!repo) {
+    return null
+  }
+  if (isMacAppDataPath(repoPath ?? repo.path)) {
     return null
   }
   const branch = worktree.branch.replace(/^refs\/heads\//, '')

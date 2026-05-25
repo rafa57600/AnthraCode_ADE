@@ -56,6 +56,7 @@ import {
   anyMountedWorktreeHasLayout as computeAnyMountedWorktreeHasLayout
 } from './terminal/split-group-mount'
 import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
+import { shouldAutoCreateInitialTerminalForWorktreePath } from '@/lib/passive-macos-app-data-access'
 import { appendUniqueOpenFileIds } from './terminal/unsaved-close-queue'
 import CodexRestartChip from './CodexRestartChip'
 import {
@@ -149,6 +150,10 @@ function Terminal(): React.JSX.Element | null {
   const setTabBarOrder = useAppStore((s) => s.setTabBarOrder)
   const tabBarOrderByWorktree = useAppStore((s) => s.tabBarOrderByWorktree)
   const tabBarOrder = activeWorktreeId ? tabBarOrderByWorktree[activeWorktreeId] : undefined
+  const activeWorktreePath = useMemo(
+    () => allWorktrees.find((worktree) => worktree.id === activeWorktreeId)?.path ?? null,
+    [activeWorktreeId, allWorktrees]
+  )
   // Why (anchored to selected thread, not active tab): the activity page
   // publishes the full {target, worktreeId, tabId} descriptor sourced from
   // its selectedThread. Deriving worktreeId/tabId from activeWorktreeId/
@@ -620,6 +625,9 @@ function Terminal(): React.JSX.Element | null {
     if (isWebRuntimeSessionActive(activeRuntimeEnvironmentId)) {
       return
     }
+    if (!shouldAutoCreateInitialTerminalForWorktreePath(activeWorktreePath)) {
+      return
+    }
 
     // Why: this fallback exists to give a newly activated/restored worktree a
     // focusable surface when the reconciled tab model has nothing renderable.
@@ -637,6 +645,7 @@ function Terminal(): React.JSX.Element | null {
   }, [
     workspaceSessionReady,
     activeWorktreeId,
+    activeWorktreePath,
     activeRuntimeEnvironmentId,
     createTab,
     reconcileWorktreeTabModel

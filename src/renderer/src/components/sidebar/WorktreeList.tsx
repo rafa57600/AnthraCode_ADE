@@ -1,7 +1,6 @@
 /* eslint-disable max-lines */
 import React, { useMemo, useCallback, useRef, useState, useEffect, useLayoutEffect } from 'react'
 import {
-  defaultRangeExtractor,
   measureElement as measureVirtualElementSize,
   useVirtualizer
 } from '@tanstack/react-virtual'
@@ -68,9 +67,8 @@ import {
 } from './worktree-list-groups'
 import {
   estimateRenderRowSize,
-  getActiveStickyHeaderIndex,
+  extractWorktreeVirtualRowIndexes,
   getActiveStickyHeaderIndexForScroll,
-  getPreviousStickyHeaderIndex,
   getStickyHeaderIndexes,
   getVirtualRowTransform,
   shouldUseHeaderTopSpacing,
@@ -817,30 +815,16 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
         activeStickyHeaderIndexRef.current
       ),
     measureElement: measureCurrentVirtualRowElement,
-    rangeExtractor: useCallback((range: Range) => {
-      stickyRangeStartIndexRef.current = range.startIndex
-      const activeStickyHeaderIndex = getActiveStickyHeaderIndex(
-        stickyHeaderIndexesRef.current,
-        range.startIndex
-      )
-      if (activeStickyHeaderIndex === null) {
-        return defaultRangeExtractor(range)
-      }
-
-      // Why: this mirrors TanStack Virtual's sticky example — the active
-      // section header remains a real virtual row even after it scrolls out.
-      const previousStickyHeaderIndex = getPreviousStickyHeaderIndex(
-        stickyHeaderIndexesRef.current,
-        activeStickyHeaderIndex
-      )
-      return Array.from(
-        new Set([
-          activeStickyHeaderIndex,
-          ...(previousStickyHeaderIndex === null ? [] : [previousStickyHeaderIndex]),
-          ...defaultRangeExtractor(range)
-        ])
-      ).sort((a, b) => a - b)
-    }, []),
+    // Why: TanStack memoizes range extraction by function identity. Header
+    // indexes must be deps so grouping/filtering cannot leave stale sticky
+    // slots rendering ordinary worktree rows.
+    rangeExtractor: useCallback(
+      (range: Range) => {
+        stickyRangeStartIndexRef.current = range.startIndex
+        return extractWorktreeVirtualRowIndexes({ range, stickyHeaderIndexes })
+      },
+      [stickyHeaderIndexes]
+    ),
     overscan: 10,
     gap: 6,
     isScrollingResetDelay: USER_SCROLL_MEASUREMENT_ADJUSTMENT_SUPPRESS_MS,

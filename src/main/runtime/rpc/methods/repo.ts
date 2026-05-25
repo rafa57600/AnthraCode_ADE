@@ -91,12 +91,22 @@ const RepoGroupScanNested = z.object({
   path: requiredString('Missing folder path')
 })
 
-const RepoGroupImportNested = z.object({
-  parentPath: requiredString('Missing parent path'),
-  groupName: requiredString('Missing group name'),
-  repoPaths: z.array(z.string()),
-  mode: z.enum(['group', 'separate'])
-})
+const RepoGroupImportNested = z.discriminatedUnion('mode', [
+  z.object({
+    parentPath: requiredString('Missing parent path'),
+    groupName: requiredString('Missing group name'),
+    repoPaths: z.array(z.string()),
+    mode: z.literal('group')
+  }),
+  z.object({
+    parentPath: requiredString('Missing parent path'),
+    // Why: "Import separately" does not create a group, so SSH must accept the
+    // same empty group-name state that the local dialog allows.
+    groupName: z.string().optional().default(''),
+    repoPaths: z.array(z.string()),
+    mode: z.literal('separate')
+  })
+])
 
 const RepoIssueCommandWrite = RepoSelector.extend({
   content: z.string()

@@ -1,7 +1,14 @@
-import { randomUUID } from 'node:crypto'
 import type { Repo, RepoGroup, RepoGroupCreatedFrom } from './types'
 
 export const UNGROUPED_REPO_GROUP_KEY = 'repo-group:ungrouped'
+
+function createRepoGroupId(): string {
+  const randomUUID = globalThis.crypto?.randomUUID
+  if (randomUUID) {
+    return randomUUID.call(globalThis.crypto)
+  }
+  return `repo-group-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
 
 export function normalizeRepoGroupName(name: string, fallback = 'Untitled group'): string {
   const trimmed = name.trim()
@@ -17,7 +24,7 @@ export function createRepoGroup(input: {
 }): RepoGroup {
   const now = input.now ?? Date.now()
   return {
-    id: randomUUID(),
+    id: createRepoGroupId(),
     name: normalizeRepoGroupName(input.name),
     parentPath: input.parentPath ?? null,
     createdFrom: input.createdFrom,

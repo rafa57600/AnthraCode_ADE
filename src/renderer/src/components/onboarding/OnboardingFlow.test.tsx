@@ -43,4 +43,23 @@ describe('OnboardingFlow', () => {
     expect(html).toContain('Skip to project setup')
     expect(html).not.toContain('Skip the tour')
   })
+
+  it('keeps agent setup actions out of the footer', () => {
+    const html = renderToStaticMarkup(
+      <OnboardingFlow
+        onboarding={{
+          ...getDefaultOnboardingState(),
+          lastCompletedStep: 3
+        }}
+        onOnboardingChange={vi.fn()}
+      />
+    )
+
+    expect(html).toContain('Set up Orca for agents')
+    expect(html).toContain('Set up selected features')
+    expect(html).toContain('Before opening setup, Orca may show a system prompt')
+    expect(html).toContain('Continue')
+    expect(html).toContain('Skip to project setup')
+    expect(html).not.toContain('>Skip</button>')
+  })
 })

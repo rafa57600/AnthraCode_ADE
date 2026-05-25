@@ -72,18 +72,15 @@ export default function OnboardingFlow({
   const continueShortcutModifierLabel = getScreenSubmitModifierLabel()
   const { currentStep, stepIndex, busyLabel } = flow
   const copy = stepCopy[currentStep.id]
-  const shouldShowSetupAction =
-    currentStep.id === 'agentSetup' &&
-    flow.hasSelectedFeatureSetup &&
-    !flow.featureSetupTerminalCommand
-  const primaryActionLabel = busyLabel ?? (shouldShowSetupAction ? 'Set up' : 'Continue')
   const isTourStep = currentStep.id === 'tour'
   const tourStarted = flow.tourStarted
   const isInlineTourRunning = isTourStep && tourStarted
   const shouldShowFooter = !isInlineTourRunning
   const shouldShowSkipToProjectSetup = currentStep.id !== 'repo'
   const shouldShowStepHeading = !isInlineTourRunning
-  const footerPrimaryLabel = primaryActionLabel
+  const shouldShowFooterBusy = Boolean(busyLabel) && currentStep.id !== 'agentSetup'
+  const footerPrimaryLabel =
+    currentStep.id === 'agentSetup' ? 'Continue' : (busyLabel ?? 'Continue')
   const {
     next: flowNext,
     openFolder: flowOpenFolder,
@@ -270,6 +267,8 @@ export default function OnboardingFlow({
               onFeatureSetupChange={flow.setFeatureSetupSelection}
               featureSetupCommand={flow.featureSetupTerminalCommand}
               featureSetupCommandSelection={flow.featureSetupTerminalSelection}
+              setupBusyLabel={currentStep.id === 'agentSetup' ? busyLabel : null}
+              onStartFeatureSetup={() => void flow.startFeatureSetup()}
             />
           )}
           {currentStep.id === 'integrations' && <IntegrationsStep />}
@@ -327,19 +326,10 @@ export default function OnboardingFlow({
                   Back
                 </button>
               )}
-              {shouldShowSetupAction && (
-                <button
-                  className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-muted-foreground"
-                  disabled={Boolean(busyLabel)}
-                  onClick={() => void flow.skipAgentSetup()}
-                >
-                  Skip
-                </button>
-              )}
               {(currentStep.id !== 'repo' || flow.hasExistingProject) && (
                 <button
                   className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-                  aria-busy={Boolean(busyLabel)}
+                  aria-busy={shouldShowFooterBusy}
                   disabled={Boolean(busyLabel)}
                   onClick={() => {
                     if (isTourStep) {
@@ -353,7 +343,7 @@ export default function OnboardingFlow({
                     void flow.next()
                   }}
                 >
-                  {busyLabel ? <Loader2 className="size-4 animate-spin" /> : null}
+                  {shouldShowFooterBusy ? <Loader2 className="size-4 animate-spin" /> : null}
                   {footerPrimaryLabel}
                   <span className="ml-1 inline-flex items-center gap-0.5 rounded border border-primary-foreground/20 px-1.5 py-0.5 text-[10px] font-medium leading-none text-current/80">
                     <span>{continueShortcutModifierLabel}</span>

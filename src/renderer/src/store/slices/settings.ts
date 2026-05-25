@@ -309,6 +309,7 @@ export const createSettingsSlice: StateCreator<AppState, [], [], SettingsSlice> 
       // terminal, browser, and issue IDs cannot be used against the new server
       // while the new environment is loading.
       await get().fetchRepos()
+      await get().fetchRepoGroups()
       await get().fetchAllWorktrees()
       await get().fetchWorktreeLineage()
       await get().fetchBrowserSessionProfiles()

@@ -1,7 +1,7 @@
 /* eslint-disable max-lines -- Why: the add-project dialog centralizes step routing, clone/remote/create state, and reset semantics across five steps so the modal flow stays in one place. */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { FolderOpen, ArrowLeft, Globe, Monitor } from 'lucide-react'
+import { FolderOpen, ArrowLeft, Globe, Monitor, FolderTree } from 'lucide-react'
 import { useAppStore } from '@/store'
 import {
   Dialog,
@@ -24,7 +24,7 @@ import type {
   AddRepoExistingWorkspaceSource,
   AddRepoSetupStepAction
 } from '../../../../shared/telemetry-events'
-import type { Repo } from '../../../../shared/types'
+import type { NestedRepoScanResult, Repo } from '../../../../shared/types'
 import { finalizeImportedRepoAfterSkip } from './add-repo-skip-finalization'
 import {
   buildAddRepoExistingWorkspacesTelemetry,
@@ -35,11 +35,22 @@ import {
   isLegacyRepoForExternalWorktreeVisibility
 } from '../../../../shared/worktree-ownership'
 
+function defaultRepoGroupNameForPath(path: string): string {
+  return (
+    path
+      .replace(/[\\/]+$/g, '')
+      .split(/[\\/]/)
+      .filter(Boolean)
+      .at(-1) ?? path
+  )
+}
+
 const AddRepoDialog = React.memo(function AddRepoDialog() {
   const activeModal = useAppStore((s) => s.activeModal)
   const closeModal = useAppStore((s) => s.closeModal)
-  const addRepo = useAppStore((s) => s.addRepo)
   const addRepoPath = useAppStore((s) => s.addRepoPath)
+  const scanNestedRepos = useAppStore((s) => s.scanNestedRepos)
+  const importNestedRepos = useAppStore((s) => s.importNestedRepos)
   const updateRepo = useAppStore((s) => s.updateRepo)
   const repos = useAppStore((s) => s.repos)
   const worktreesByRepo = useAppStore((s) => s.worktreesByRepo)
@@ -51,7 +62,9 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
   const setHideDefaultBranchWorkspace = useAppStore((s) => s.setHideDefaultBranchWorkspace)
   const settings = useAppStore((s) => s.settings)
 
-  const [step, setStep] = useState<'add' | 'clone' | 'remote' | 'create' | 'setup'>('add')
+  const [step, setStep] = useState<'add' | 'clone' | 'remote' | 'create' | 'nested' | 'setup'>(
+    'add'
+  )
   const [addedRepo, setAddedRepo] = useState<Repo | null>(null)
   const [existingWorkspaceSource, setExistingWorkspaceSource] =
     useState<AddRepoExistingWorkspaceSource | null>(null)
@@ -65,6 +78,9 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
   const [cloneProgress, setCloneProgress] = useState<{ phase: string; percent: number } | null>(
     null
   )
+  const [nestedScan, setNestedScan] = useState<NestedRepoScanResult | null>(null)
+  const [nestedSelectedPaths, setNestedSelectedPaths] = useState<Set<string>>(new Set())
+  const [nestedGroupName, setNestedGroupName] = useState('')
 
   // Why: monotonic ID so stale clone callbacks can detect they were superseded.
   const cloneGenRef = useRef(0)
@@ -181,6 +197,9 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
     setIsCloning(false)
     setCloneError(null)
     setCloneProgress(null)
+    setNestedScan(null)
+    setNestedSelectedPaths(new Set())
+    setNestedGroupName('')
     resetCreateState()
     resetRemoteState()
   }, [resetRemoteState, resetCreateState])
@@ -192,12 +211,29 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
     }
   }, [isOpen, resetState])
 
-  const isInputStep = step === 'add' || step === 'clone' || step === 'remote' || step === 'create'
+  const isInputStep =
+    step === 'add' ||
+    step === 'clone' ||
+    step === 'remote' ||
+    step === 'create' ||
+    step === 'nested'
 
   const handleBrowse = useCallback(async () => {
     setIsAdding(true)
     try {
-      const repo = await addRepo()
+      const path = await window.api.repos.pickFolder()
+      if (!path) {
+        return
+      }
+      const scan = await scanNestedRepos(path)
+      if (scan?.selectedPathKind === 'non_git_folder' && scan.repos.length > 0) {
+        setNestedScan(scan)
+        setNestedSelectedPaths(new Set(scan.repos.map((repo) => repo.path)))
+        setNestedGroupName(defaultRepoGroupNameForPath(path))
+        setStep('nested')
+        return
+      }
+      const repo = await addRepoPath(path)
       if (repo && isGitRepoKind(repo)) {
         setAddedRepo(repo)
         setExistingWorkspaceSource('local_folder_picker')
@@ -211,7 +247,58 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
     } finally {
       setIsAdding(false)
     }
-  }, [addRepo, fetchWorktrees, closeModal])
+  }, [addRepoPath, closeModal, fetchWorktrees, scanNestedRepos])
+
+  const handleImportNestedRepos = useCallback(
+    async (mode: 'group' | 'separate') => {
+      if (!nestedScan || nestedSelectedPaths.size === 0) {
+        return
+      }
+      setIsAdding(true)
+      try {
+        const result = await importNestedRepos({
+          parentPath: nestedScan.selectedPath,
+          groupName: nestedGroupName,
+          repoPaths: [...nestedSelectedPaths],
+          mode
+        })
+        if (!result) {
+          return
+        }
+        const firstRepoId = result.repos.find((entry) => entry.repoId)?.repoId
+        if (!firstRepoId) {
+          toast.error('No repositories imported')
+          return
+        }
+        await fetchWorktrees(firstRepoId)
+        const repo = useAppStore.getState().repos.find((entry) => entry.id === firstRepoId)
+        if (repo) {
+          setAddedRepo(repo)
+          setExistingWorkspaceSource(
+            settings?.activeRuntimeEnvironmentId?.trim()
+              ? 'runtime_server_path'
+              : 'local_folder_picker'
+          )
+          setStep('setup')
+        }
+        if (result.failedCount > 0) {
+          toast.warning('Some repositories could not be imported', {
+            description: `${result.failedCount} failed`
+          })
+        }
+      } finally {
+        setIsAdding(false)
+      }
+    },
+    [
+      fetchWorktrees,
+      importNestedRepos,
+      nestedGroupName,
+      nestedScan,
+      nestedSelectedPaths,
+      settings?.activeRuntimeEnvironmentId
+    ]
+  )
 
   const handleAddServerPath = useCallback(
     async (kind: 'git' | 'folder') => {
@@ -221,6 +308,16 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
       }
       setIsAddingServerPath(true)
       try {
+        if (kind === 'git') {
+          const scan = await scanNestedRepos(path)
+          if (scan?.selectedPathKind === 'non_git_folder' && scan.repos.length > 0) {
+            setNestedScan(scan)
+            setNestedSelectedPaths(new Set(scan.repos.map((repo) => repo.path)))
+            setNestedGroupName(defaultRepoGroupNameForPath(path))
+            setStep('nested')
+            return
+          }
+        }
         const repo = await addRepoPath(path, kind)
         if (repo && isGitRepoKind(repo)) {
           setAddedRepo(repo)
@@ -236,7 +333,7 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
         setIsAddingServerPath(false)
       }
     },
-    [addRepoPath, closeModal, fetchWorktrees, serverPath]
+    [addRepoPath, closeModal, fetchWorktrees, scanNestedRepos, serverPath]
   )
 
   const handlePickDestination = useCallback(async () => {
@@ -468,6 +565,15 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
               Back
             </button>
           )}
+          {step === 'nested' && (
+            <button
+              className="absolute left-6 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              onClick={handleBack}
+            >
+              <ArrowLeft className="size-3" />
+              Back
+            </button>
+          )}
           {step === 'setup' && (
             <button
               className="absolute left-6 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
@@ -669,6 +775,96 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
             onPickDestination={handlePickDestination}
             onClone={handleClone}
           />
+        ) : step === 'nested' && nestedScan ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>Import repositories</DialogTitle>
+              <DialogDescription>
+                Orca found Git repositories inside the selected folder.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 pt-1">
+              <div className="flex items-center gap-3 rounded-md border border-border bg-muted/30 p-3">
+                <div className="grid size-9 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
+                  <FolderTree className="size-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium text-foreground">
+                    Group under {nestedGroupName}
+                  </div>
+                  <div className="truncate text-[11px] text-muted-foreground">
+                    {nestedScan.selectedPath}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-muted-foreground">Group name</label>
+                <Input
+                  value={nestedGroupName}
+                  onChange={(event) => setNestedGroupName(event.target.value)}
+                  className="h-9"
+                />
+              </div>
+
+              <div className="scrollbar-sleek max-h-64 space-y-1 overflow-y-auto rounded-md border border-border p-1">
+                {nestedScan.repos.map((repo) => {
+                  const checked = nestedSelectedPaths.has(repo.path)
+                  return (
+                    <label
+                      key={repo.path}
+                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(event) => {
+                          setNestedSelectedPaths((previous) => {
+                            const next = new Set(previous)
+                            if (event.target.checked) {
+                              next.add(repo.path)
+                            } else {
+                              next.delete(repo.path)
+                            }
+                            return next
+                          })
+                        }}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium text-foreground">
+                          {repo.displayName}
+                        </span>
+                        <span className="block truncate text-[11px] text-muted-foreground">
+                          {repo.path}
+                        </span>
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+              {nestedScan.truncated || nestedScan.timedOut ? (
+                <div className="text-[11px] text-muted-foreground">
+                  Showing partial results from a bounded scan.
+                </div>
+              ) : null}
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  onClick={() => void handleImportNestedRepos('group')}
+                  disabled={isAdding || nestedSelectedPaths.size === 0 || !nestedGroupName.trim()}
+                >
+                  Group selected
+                </Button>
+                <Button
+                  onClick={() => void handleImportNestedRepos('separate')}
+                  disabled={isAdding || nestedSelectedPaths.size === 0}
+                  variant="outline"
+                >
+                  Import separately
+                </Button>
+              </div>
+            </div>
+          </>
         ) : step === 'create' ? (
           <CreateStep
             createName={createName}

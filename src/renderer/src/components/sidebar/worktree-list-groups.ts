@@ -3,6 +3,7 @@ import { CircleX, Folder, List, Pin } from 'lucide-react'
 import type React from 'react'
 import type {
   Repo,
+  RepoGroup,
   Worktree,
   WorktreeLineage,
   WorkspaceStatusDefinition
@@ -23,6 +24,7 @@ import { cloneDefaultWorkspaceStatuses } from '../../../../shared/workspace-stat
 import type { SortBy } from './smart-sort'
 import type { AppState } from '@/store/types'
 import { getGitHubPRCacheKey, getLegacyGitHubPRCacheKey } from '@/store/slices/github-cache-key'
+import { UNGROUPED_REPO_GROUP_KEY } from '../../../../shared/repo-groups'
 
 export { branchName }
 
@@ -43,6 +45,7 @@ export type GroupHeaderRow = {
   tone: string
   icon?: React.ComponentType<{ className?: string }>
   repo?: Repo
+  repoGroup?: RepoGroup | { id: null; name: 'Ungrouped'; tabOrder: number }
 }
 
 export type WorktreeRow = {
@@ -96,6 +99,10 @@ export const REPO_GROUP_META = {
   tone: 'text-foreground',
   icon: Folder
 } as const
+
+export function getRepoGroupHeaderKey(groupId: string | null): string {
+  return groupId ? `repo-group:${groupId}` : UNGROUPED_REPO_GROUP_KEY
+}
 
 export const PINNED_GROUP_KEY = 'pinned'
 
@@ -351,7 +358,8 @@ export function buildRows(
     worktrees.map((worktree) => [worktree.id, worktree])
   ),
   nestLineage = false,
-  settings?: AppState['settings']
+  settings?: AppState['settings'],
+  repoGroups: readonly RepoGroup[] = []
 ): Row[] {
   const result: Row[] = []
 
@@ -452,56 +460,136 @@ export function buildRows(
     orderedGroups.push(...entries)
   }
 
-  for (const [key, group] of orderedGroups) {
-    const isCollapsed = collapsedGroups.has(key)
-    const repo = group.repo
-    const header =
-      groupBy === 'repo'
-        ? {
-            type: 'header' as const,
-            key,
-            label: group.label,
-            count: group.items.length,
-            tone: REPO_GROUP_META.tone,
-            icon: REPO_GROUP_META.icon,
-            repo
-          }
-        : groupBy === 'workspace-status'
-          ? (() => {
-              const workspaceStatus =
-                getWorkspaceStatusFromGroupKey(key, workspaceStatuses) ??
-                workspaceStatuses[0]?.id ??
-                'in-progress'
-              const definition = workspaceStatuses.find((status) => status.id === workspaceStatus)
-              const meta = getWorkspaceStatusVisualMeta(definition ?? workspaceStatus)
-              return {
-                type: 'header' as const,
-                key,
-                label: definition?.label ?? workspaceStatus,
-                count: group.items.length,
-                tone: meta.tone,
-                icon: meta.icon
-              }
-            })()
-          : (() => {
-              const prGroup = key.replace(/^pr:/, '') as PRGroupKey
-              const meta = PR_GROUP_META[prGroup]
-              return {
-                type: 'header' as const,
-                key,
-                label: meta.label,
-                count: group.items.length,
-                tone: meta.tone,
-                icon: meta.icon
-              }
-            })()
+  const appendOrderedGroups = (
+    groupsToAppend: [string, { label: string; items: Worktree[]; repo?: Repo }][]
+  ): void => {
+    for (const [key, group] of groupsToAppend) {
+      const isCollapsed = collapsedGroups.has(key)
+      const repo = group.repo
+      const header =
+        groupBy === 'repo'
+          ? {
+              type: 'header' as const,
+              key,
+              label: group.label,
+              count: group.items.length,
+              tone: REPO_GROUP_META.tone,
+              icon: REPO_GROUP_META.icon,
+              repo
+            }
+          : groupBy === 'workspace-status'
+            ? (() => {
+                const workspaceStatus =
+                  getWorkspaceStatusFromGroupKey(key, workspaceStatuses) ??
+                  workspaceStatuses[0]?.id ??
+                  'in-progress'
+                const definition = workspaceStatuses.find((status) => status.id === workspaceStatus)
+                const meta = getWorkspaceStatusVisualMeta(definition ?? workspaceStatus)
+                return {
+                  type: 'header' as const,
+                  key,
+                  label: definition?.label ?? workspaceStatus,
+                  count: group.items.length,
+                  tone: meta.tone,
+                  icon: meta.icon
+                }
+              })()
+            : (() => {
+                const prGroup = key.replace(/^pr:/, '') as PRGroupKey
+                const meta = PR_GROUP_META[prGroup]
+                return {
+                  type: 'header' as const,
+                  key,
+                  label: meta.label,
+                  count: group.items.length,
+                  tone: meta.tone,
+                  icon: meta.icon
+                }
+              })()
 
-    result.push(header)
-    if (!isCollapsed) {
-      appendWorktreeRows(result, group.items, repoMap, lineageById, worktreeMap, {
-        nestLineage,
-        collapsedGroups
-      })
+      result.push(header)
+      if (!isCollapsed) {
+        appendWorktreeRows(result, group.items, repoMap, lineageById, worktreeMap, {
+          nestLineage,
+          collapsedGroups
+        })
+      }
+    }
+  }
+
+  if (groupBy !== 'repo' || repoGroups.length === 0) {
+    appendOrderedGroups(orderedGroups)
+    return result
+  }
+
+  const groupByRepoGroupId = new Map<
+    string | null,
+    [string, { label: string; items: Worktree[]; repo?: Repo }][]
+  >()
+  for (const entry of orderedGroups) {
+    const repo = entry[1].repo
+    const repoGroupId = repo?.repoGroupId ?? null
+    const list = groupByRepoGroupId.get(repoGroupId) ?? []
+    list.push(entry)
+    groupByRepoGroupId.set(repoGroupId, list)
+  }
+
+  const sortRepoEntriesWithinGroup = (
+    entries: [string, { label: string; items: Worktree[]; repo?: Repo }][]
+  ): [string, { label: string; items: Worktree[]; repo?: Repo }][] => {
+    if (repoGroupOrdering !== 'manual') {
+      return entries
+    }
+    return [...entries].sort((left, right) => {
+      const leftOrder = left[1].repo?.repoGroupOrder
+      const rightOrder = right[1].repo?.repoGroupOrder
+      const leftRank =
+        typeof leftOrder === 'number' && Number.isFinite(leftOrder)
+          ? leftOrder
+          : Number.POSITIVE_INFINITY
+      const rightRank =
+        typeof rightOrder === 'number' && Number.isFinite(rightOrder)
+          ? rightOrder
+          : Number.POSITIVE_INFINITY
+      return leftRank - rightRank
+    })
+  }
+
+  const sortedRepoGroups = [...repoGroups].sort(
+    (left, right) => left.tabOrder - right.tabOrder || left.name.localeCompare(right.name)
+  )
+  for (const repoGroup of sortedRepoGroups) {
+    const repoEntries = sortRepoEntriesWithinGroup(groupByRepoGroupId.get(repoGroup.id) ?? [])
+    const key = getRepoGroupHeaderKey(repoGroup.id)
+    result.push({
+      type: 'header',
+      key,
+      label: repoGroup.name,
+      count: repoEntries.length,
+      tone: REPO_GROUP_META.tone,
+      icon: REPO_GROUP_META.icon,
+      repoGroup
+    })
+    if (!collapsedGroups.has(key) && repoEntries.length > 0) {
+      appendOrderedGroups(repoEntries)
+    }
+    groupByRepoGroupId.delete(repoGroup.id)
+  }
+
+  const ungrouped = sortRepoEntriesWithinGroup(groupByRepoGroupId.get(null) ?? [])
+  if (ungrouped.length > 0) {
+    const key = getRepoGroupHeaderKey(null)
+    result.push({
+      type: 'header',
+      key,
+      label: 'Ungrouped',
+      count: ungrouped.length,
+      tone: REPO_GROUP_META.tone,
+      icon: REPO_GROUP_META.icon,
+      repoGroup: { id: null, name: 'Ungrouped', tabOrder: Number.MAX_SAFE_INTEGER }
+    })
+    if (!collapsedGroups.has(key)) {
+      appendOrderedGroups(ungrouped)
     }
   }
 
@@ -526,4 +614,30 @@ export function getGroupKeyForWorktree(
     return `repo:${worktree.repoId}`
   }
   return `pr:${getPRGroupKey(worktree, repoMap, prCache, settings)}`
+}
+
+export function getGroupKeysForWorktree(
+  groupBy: WorktreeGroupBy,
+  worktree: Worktree,
+  repoMap: Map<string, Repo>,
+  prCache: Record<string, unknown> | null,
+  workspaceStatuses: readonly WorkspaceStatusDefinition[] = cloneDefaultWorkspaceStatuses(),
+  settings?: AppState['settings']
+): string[] {
+  const groupKey = getGroupKeyForWorktree(
+    groupBy,
+    worktree,
+    repoMap,
+    prCache,
+    workspaceStatuses,
+    settings
+  )
+  if (!groupKey) {
+    return []
+  }
+  if (groupBy !== 'repo') {
+    return [groupKey]
+  }
+  const repo = repoMap.get(worktree.repoId)
+  return [getRepoGroupHeaderKey(repo?.repoGroupId ?? null), groupKey]
 }

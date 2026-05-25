@@ -8,6 +8,10 @@ import type { Store } from '../persistence'
 import type {
   BaseRefSearchResult,
   Repo,
+  RepoGroup,
+  RepoGroupImportMode,
+  RepoGroupImportResult,
+  NestedRepoScanResult,
   BaseRefDefaultResult,
   SparsePreset
 } from '../../shared/types'
@@ -19,6 +23,9 @@ import type { ChildProcess } from 'child_process'
 import { access, mkdir, readdir, rm } from 'fs/promises'
 import { gitExecFileAsync, gitSpawn } from '../git/runner'
 import { basename, isAbsolute, join } from 'path'
+import { normalizeRuntimePathForComparison } from '../../shared/cross-platform-path'
+import { getNextRepoGroupOrder } from '../../shared/repo-groups'
+import { scanNestedRepos } from '../repo-groups/nested-repo-discovery'
 import {
   isGitRepo,
   getGitUsername,
@@ -75,6 +82,13 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
   ipcMain.removeHandler('repos:remove')
   ipcMain.removeHandler('repos:reorder')
   ipcMain.removeHandler('repos:update')
+  ipcMain.removeHandler('repoGroups:list')
+  ipcMain.removeHandler('repoGroups:create')
+  ipcMain.removeHandler('repoGroups:update')
+  ipcMain.removeHandler('repoGroups:delete')
+  ipcMain.removeHandler('repoGroups:moveRepo')
+  ipcMain.removeHandler('repoGroups:scanNested')
+  ipcMain.removeHandler('repoGroups:importNested')
   ipcMain.removeHandler('repos:pickFolder')
   ipcMain.removeHandler('repos:pickDirectory')
   ipcMain.removeHandler('repos:clone')
@@ -92,6 +106,161 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
   ipcMain.handle('repos:list', () => {
     return store.getRepos()
   })
+
+  ipcMain.handle('repoGroups:list', () => store.getRepoGroups())
+
+  ipcMain.handle(
+    'repoGroups:create',
+    (
+      _event,
+      args: { name: string; parentPath?: string | null; createdFrom?: RepoGroup['createdFrom'] }
+    ): RepoGroup => {
+      const group = store.createRepoGroup({
+        name: args.name,
+        parentPath: args.parentPath ?? null,
+        createdFrom: args.createdFrom ?? 'manual'
+      })
+      notifyReposChanged(mainWindow)
+      return group
+    }
+  )
+
+  ipcMain.handle(
+    'repoGroups:update',
+    (
+      _event,
+      args: {
+        groupId: string
+        updates: Partial<Pick<RepoGroup, 'name' | 'isCollapsed' | 'tabOrder' | 'color'>>
+      }
+    ): RepoGroup | null => {
+      const updated = store.updateRepoGroup(args.groupId, args.updates)
+      if (updated) {
+        notifyReposChanged(mainWindow)
+      }
+      return updated
+    }
+  )
+
+  ipcMain.handle('repoGroups:delete', (_event, args: { groupId: string }): boolean => {
+    const deleted = store.deleteRepoGroup(args.groupId)
+    if (deleted) {
+      notifyReposChanged(mainWindow)
+    }
+    return deleted
+  })
+
+  ipcMain.handle(
+    'repoGroups:moveRepo',
+    (_event, args: { repoId: string; groupId: string | null; order?: number }): Repo | null => {
+      const moved = store.moveRepoToGroup(args.repoId, args.groupId, args.order)
+      if (moved) {
+        notifyReposChanged(mainWindow)
+      }
+      return moved
+    }
+  )
+
+  ipcMain.handle(
+    'repoGroups:scanNested',
+    async (_event, args: { path: string; options?: unknown }): Promise<NestedRepoScanResult> =>
+      scanNestedRepos({ path: args.path, options: args.options })
+  )
+
+  ipcMain.handle(
+    'repoGroups:importNested',
+    async (
+      _event,
+      args: {
+        parentPath: string
+        groupName: string
+        repoPaths: string[]
+        mode: RepoGroupImportMode
+      }
+    ): Promise<RepoGroupImportResult> => {
+      const selectedPaths = Array.isArray(args.repoPaths) ? args.repoPaths : []
+      const normalizedSelected = new Set(
+        selectedPaths.map((entry) => normalizeRuntimePathForComparison(entry))
+      )
+      const group =
+        args.mode === 'group'
+          ? store.createRepoGroup({
+              name: args.groupName,
+              parentPath: args.parentPath,
+              createdFrom: 'folder-scan'
+            })
+          : undefined
+      const results: RepoGroupImportResult['repos'] = []
+
+      for (const repoPath of selectedPaths) {
+        try {
+          if (!normalizedSelected.has(normalizeRuntimePathForComparison(repoPath))) {
+            continue
+          }
+          if (!isGitRepo(repoPath)) {
+            results.push({ path: repoPath, status: 'failed', error: 'Not a valid git repository' })
+            continue
+          }
+          const existing = store
+            .getRepos()
+            .find(
+              (repo) =>
+                !repo.connectionId &&
+                normalizeRuntimePathForComparison(repo.path) ===
+                  normalizeRuntimePathForComparison(repoPath)
+            )
+          if (existing) {
+            if (group) {
+              store.moveRepoToGroup(existing.id, group.id)
+            }
+            results.push({ path: repoPath, repoId: existing.id, status: 'already-known' })
+            continue
+          }
+          const repo: Repo = {
+            id: randomUUID(),
+            path: repoPath,
+            displayName: getRepoName(repoPath),
+            badgeColor: DEFAULT_REPO_BADGE_COLOR,
+            addedAt: Date.now(),
+            kind: 'git',
+            externalWorktreeVisibility: 'hide',
+            externalWorktreeVisibilityLegacy: false,
+            ...(group
+              ? {
+                  repoGroupId: group.id,
+                  repoGroupOrder: getNextRepoGroupOrder(store.getRepos(), group.id)
+                }
+              : {})
+          }
+          store.addRepo(repo)
+          results.push({ path: repoPath, repoId: repo.id, status: 'imported' })
+          emitRepoAdded('folder_picker', false)
+        } catch (error) {
+          results.push({
+            path: repoPath,
+            status: 'failed',
+            error: error instanceof Error ? error.message : String(error)
+          })
+        }
+      }
+
+      const importedCount = results.filter((entry) => entry.status === 'imported').length
+      const alreadyKnownCount = results.filter((entry) => entry.status === 'already-known').length
+      const failedCount = results.filter((entry) => entry.status === 'failed').length
+      if (group && importedCount + alreadyKnownCount === 0) {
+        store.deleteRepoGroup(group.id)
+      }
+      invalidateAuthorizedRootsCache()
+      notifyReposChanged(mainWindow)
+      return {
+        ...(group && importedCount + alreadyKnownCount > 0 ? { group } : {}),
+        repos: results,
+        importedCount,
+        alreadyKnownCount,
+        failedCount
+      }
+    }
+  )
 
   ipcMain.handle(
     'repos:add',
@@ -485,6 +654,8 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
             | 'issueSourcePreference'
             | 'externalWorktreeVisibility'
             | 'externalWorktreeVisibilityPromptDismissedAt'
+            | 'repoGroupId'
+            | 'repoGroupOrder'
           >
         >
       }

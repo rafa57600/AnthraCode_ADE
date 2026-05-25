@@ -455,6 +455,32 @@ const api = {
     }
   },
 
+  repoGroups: {
+    list: (): Promise<unknown[]> => ipcRenderer.invoke('repoGroups:list'),
+    create: (args: {
+      name: string
+      parentPath?: string | null
+      createdFrom?: 'manual' | 'folder-scan' | 'migration'
+    }): Promise<unknown> => ipcRenderer.invoke('repoGroups:create', args),
+    update: (args: { groupId: string; updates: Record<string, unknown> }): Promise<unknown> =>
+      ipcRenderer.invoke('repoGroups:update', args),
+    delete: (args: { groupId: string }): Promise<boolean> =>
+      ipcRenderer.invoke('repoGroups:delete', args),
+    moveRepo: (args: {
+      repoId: string
+      groupId: string | null
+      order?: number
+    }): Promise<unknown> => ipcRenderer.invoke('repoGroups:moveRepo', args),
+    scanNested: (args: { path: string; options?: Record<string, unknown> }): Promise<unknown> =>
+      ipcRenderer.invoke('repoGroups:scanNested', args),
+    importNested: (args: {
+      parentPath: string
+      groupName: string
+      repoPaths: string[]
+      mode: 'group' | 'separate'
+    }): Promise<unknown> => ipcRenderer.invoke('repoGroups:importNested', args)
+  },
+
   sparsePresets: {
     list: (args: { repoId: string }): Promise<unknown[]> =>
       ipcRenderer.invoke('sparsePresets:list', args),

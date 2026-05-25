@@ -100,6 +100,63 @@ export type Repo = {
    *  "what to link", the global flag is the "whether to link at all" switch.
    *  Undefined/empty means no symlinks are created for this repo. */
   symlinkPaths?: string[]
+  /** Durable sidebar-only repo organization. Execution remains repo-scoped. */
+  repoGroupId?: string | null
+  /** User-authored ordering inside the repo group or ungrouped bucket. */
+  repoGroupOrder?: number
+}
+
+export type RepoGroupCreatedFrom = 'manual' | 'folder-scan' | 'migration'
+
+export type RepoGroup = {
+  id: string
+  name: string
+  parentPath: string | null
+  createdFrom: RepoGroupCreatedFrom
+  tabOrder: number
+  isCollapsed: boolean
+  color: string | null
+  createdAt: number
+  updatedAt: number
+}
+
+export type NestedRepoScanOptions = {
+  maxDepth?: number
+  maxRepos?: number
+  timeoutMs?: number
+}
+
+export type NestedRepoCandidate = {
+  path: string
+  displayName: string
+  depth: number
+}
+
+export type NestedRepoScanResult = {
+  selectedPath: string
+  selectedPathKind: 'git_repo' | 'non_git_folder'
+  repos: NestedRepoCandidate[]
+  truncated: boolean
+  timedOut: boolean
+  durationMs: number
+  maxDepth: number
+}
+
+export type RepoGroupImportMode = 'group' | 'separate'
+
+export type RepoGroupImportRepoResult = {
+  path: string
+  repoId?: string
+  status: 'imported' | 'already-known' | 'failed'
+  error?: string
+}
+
+export type RepoGroupImportResult = {
+  group?: RepoGroup
+  repos: RepoGroupImportRepoResult[]
+  importedCount: number
+  alreadyKnownCount: number
+  failedCount: number
 }
 
 export type SetupRunPolicy = 'ask' | 'run-by-default' | 'skip-by-default'
@@ -2292,6 +2349,7 @@ export type LegacyPaneKeyAliasEntry = {
 export type PersistedState = {
   schemaVersion: number
   repos: Repo[]
+  repoGroups: RepoGroup[]
   /** Sparse-checkout presets keyed by repoId. Empty record on first launch;
    *  presets are managed from the new-workspace composer and repo settings. */
   sparsePresetsByRepo: Record<string, SparsePreset[]>

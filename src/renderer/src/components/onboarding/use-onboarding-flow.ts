@@ -11,7 +11,13 @@ import { ONBOARDING_FINAL_STEP } from '../../../../shared/constants'
 import type { FeatureWallTourDepthSummary } from '../../../../shared/feature-wall-tour-depth'
 import { isGitRepoKind } from '../../../../shared/repo-kind'
 import type { EventProps } from '../../../../shared/telemetry-events'
-import type { GlobalSettings, OnboardingState, Repo, TuiAgent } from '../../../../shared/types'
+import type {
+  GlobalSettings,
+  NestedRepoScanResult,
+  OnboardingState,
+  Repo,
+  TuiAgent
+} from '../../../../shared/types'
 import {
   DEFAULT_ONBOARDING_FEATURE_SETUP_SELECTION,
   ONBOARDING_FEATURE_SETUP_IDS,
@@ -41,6 +47,16 @@ type TaskSourcesSnapshotProps = EventProps<'onboarding_task_sources_snapshot'>
 type TaskSourcesGithubStatus = TaskSourcesSnapshotProps['github_status']
 type TaskSourcesLinearStatus = TaskSourcesSnapshotProps['linear_status']
 type TaskSourcesExitAction = TaskSourcesSnapshotProps['exit_action']
+
+function defaultRepoGroupNameForPath(path: string): string {
+  return (
+    path
+      .replace(/[\\/]+$/g, '')
+      .split(/[\\/]/)
+      .filter(Boolean)
+      .at(-1) ?? path
+  )
+}
 
 function getGitHubTaskSourceStatus(
   status: ReturnType<typeof useAppStore.getState>['preflightStatus'],
@@ -81,6 +97,8 @@ export function useOnboardingFlow(
   const fetchRepos = useAppStore((s) => s.fetchRepos)
   const fetchWorktrees = useAppStore((s) => s.fetchWorktrees)
   const addRepoPath = useAppStore((s) => s.addRepoPath)
+  const scanNestedRepos = useAppStore((s) => s.scanNestedRepos)
+  const importNestedRepos = useAppStore((s) => s.importNestedRepos)
   const openModal = useAppStore((s) => s.openModal)
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
@@ -114,6 +132,9 @@ export function useOnboardingFlow(
   const [cloneUrl, setCloneUrl] = useState('')
   const [serverPath, setServerPath] = useState('')
   const [cloneDestination, setCloneDestination] = useState('')
+  const [nestedScan, setNestedScan] = useState<NestedRepoScanResult | null>(null)
+  const [nestedSelectedPaths, setNestedSelectedPaths] = useState<Set<string>>(new Set())
+  const [nestedGroupName, setNestedGroupName] = useState('')
   const [tourStarted, setTourStarted] = useState(false)
   const [busyLabel, setBusyLabel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -534,6 +555,12 @@ export function useOnboardingFlow(
     ]
   )
 
+  const showNestedRepoReview = useCallback((scan: NestedRepoScanResult, selectedPath: string) => {
+    setNestedScan(scan)
+    setNestedSelectedPaths(new Set(scan.repos.map((repo) => repo.path)))
+    setNestedGroupName(defaultRepoGroupNameForPath(selectedPath))
+  }, [])
+
   const openFolder = useCallback(
     async (kind: 'git' | 'folder' = 'git') => {
       // Why: re-entry guard — rapid Cmd+Enter must not launch duplicate pickers.
@@ -549,8 +576,16 @@ export function useOnboardingFlow(
           return
         }
         track('onboarding_step4_path_clicked', { path: 'open_folder' })
-        setBusyLabel(kind === 'git' ? 'Opening project…' : 'Opening folder…')
+        setBusyLabel(kind === 'git' ? 'Scanning for repositories…' : 'Opening folder…')
         try {
+          if (kind === 'git') {
+            const scan = await scanNestedRepos(path)
+            if (scan?.selectedPathKind === 'non_git_folder' && scan.repos.length > 0) {
+              showNestedRepoReview(scan, path)
+              return
+            }
+          }
+          setBusyLabel(kind === 'git' ? 'Opening project…' : 'Opening folder…')
           const repo = await addRepoPath(path, kind)
           if (!repo) {
             track('onboarding_step4_path_failed', { path: 'open_folder', reason: 'invalid_path' })
@@ -575,6 +610,11 @@ export function useOnboardingFlow(
       try {
         let result = await window.api.repos.add({ path })
         if ('error' in result && result.error.includes('Not a valid git repository')) {
+          const scan = await scanNestedRepos(path)
+          if (scan?.selectedPathKind === 'non_git_folder' && scan.repos.length > 0) {
+            showNestedRepoReview(scan, path)
+            return
+          }
           result = await window.api.repos.add({ path, kind: 'folder' })
         }
         if ('error' in result) {
@@ -588,7 +628,44 @@ export function useOnboardingFlow(
         setBusyLabel(null)
       }
     },
-    [addRepoPath, busyLabel, completeRepo, serverPath, settings?.activeRuntimeEnvironmentId]
+    [
+      addRepoPath,
+      busyLabel,
+      completeRepo,
+      scanNestedRepos,
+      serverPath,
+      showNestedRepoReview,
+      settings?.activeRuntimeEnvironmentId
+    ]
+  )
+
+  const importNested = useCallback(
+    async (mode: 'group' | 'separate') => {
+      if (!nestedScan || nestedSelectedPaths.size === 0 || busyLabel !== null) {
+        return
+      }
+      setError(null)
+      setBusyLabel('Importing repositories…')
+      try {
+        const result = await importNestedRepos({
+          parentPath: nestedScan.selectedPath,
+          groupName: nestedGroupName,
+          repoPaths: [...nestedSelectedPaths],
+          mode
+        })
+        const repoId = result?.repos.find((entry) => entry.repoId)?.repoId
+        if (!repoId) {
+          throw new Error('No repositories imported')
+        }
+        await completeRepo(repoId, true, 'open_folder')
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+        track('onboarding_step4_path_failed', { path: 'open_folder', reason: 'invalid_path' })
+      } finally {
+        setBusyLabel(null)
+      }
+    },
+    [busyLabel, completeRepo, importNestedRepos, nestedGroupName, nestedScan, nestedSelectedPaths]
   )
 
   const clone = useCallback(async () => {
@@ -934,6 +1011,12 @@ export function useOnboardingFlow(
     hasSelectedFeatureSetup,
     cloneUrl,
     setCloneUrl,
+    nestedScan,
+    nestedSelectedPaths,
+    setNestedSelectedPaths,
+    nestedGroupName,
+    setNestedGroupName,
+    importNested,
     hasExistingProject,
     serverPath,
     setServerPath,

@@ -11,6 +11,8 @@ import {
   CircleX,
   Ellipsis,
   Eye,
+  FolderInput,
+  FolderPlus,
   Plus,
   Shapes,
   SlidersHorizontal,
@@ -35,12 +37,16 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import type {
   Worktree,
   Repo,
+  RepoGroup,
   WorktreeLineage,
   WorkspaceStatus,
   WorkspaceStatusDefinition
@@ -62,7 +68,7 @@ import {
   ALL_GROUP_KEY,
   PINNED_GROUP_KEY,
   buildRows,
-  getGroupKeyForWorktree,
+  getGroupKeysForWorktree,
   getRepoGroupOrdering,
   getLineageGroupKey
 } from './worktree-list-groups'
@@ -238,6 +244,11 @@ type VirtualizedWorktreeViewportProps = {
   handleOpenRepoSettings: (repoId: string, sectionId?: string) => void
   handleOpenWorktreeVisibility: (repoId: string) => void
   handleRemoveRepo: (repo: Repo) => void
+  handleCreateGroupFromRepo: (repo: Repo) => void
+  handleMoveRepoToGroup: (repo: Repo, groupId: string) => void
+  handleRemoveRepoFromGroup: (repo: Repo) => void
+  handleRenameRepoGroup: (groupId: string, currentName: string) => void
+  handleDeleteRepoGroup: (groupId: string) => void
   activeModal: string
   pendingRevealWorktree: PendingSidebarWorktreeReveal | null
   clearPendingRevealWorktreeId: () => void
@@ -261,6 +272,7 @@ type VirtualizedWorktreeViewportProps = {
   reorderRepos: (orderedIds: string[]) => void
   prCache: Record<string, unknown> | null
   workspaceStatuses: readonly WorkspaceStatusDefinition[]
+  repoGroups: readonly RepoGroup[]
   onMoveWorktreeToStatus: (worktreeId: string, status: WorkspaceStatus) => void
   onMoveWorktreesToStatus: (worktreeIds: readonly string[], status: WorkspaceStatus) => void
   onPinWorktree: (worktreeId: string) => void
@@ -531,6 +543,11 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
   handleOpenRepoSettings,
   handleOpenWorktreeVisibility,
   handleRemoveRepo,
+  handleCreateGroupFromRepo,
+  handleMoveRepoToGroup,
+  handleRemoveRepoFromGroup,
+  handleRenameRepoGroup,
+  handleDeleteRepoGroup,
   activeModal,
   pendingRevealWorktree,
   clearPendingRevealWorktreeId,
@@ -547,6 +564,7 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
   reorderRepos,
   prCache,
   workspaceStatuses,
+  repoGroups,
   onMoveWorktreeToStatus,
   onMoveWorktreesToStatus,
   onPinWorktree,
@@ -906,7 +924,7 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
           toggleGroup(PINNED_GROUP_KEY)
         }
       } else if (targetWorktree) {
-        const groupKey = getGroupKeyForWorktree(
+        const groupKeys = getGroupKeysForWorktree(
           groupBy,
           targetWorktree,
           repoMap,
@@ -914,8 +932,10 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
           workspaceStatuses,
           settings
         )
-        if (groupKey && collapsedGroups.has(groupKey)) {
-          toggleGroup(groupKey)
+        for (const groupKey of groupKeys) {
+          if (collapsedGroups.has(groupKey)) {
+            toggleGroup(groupKey)
+          }
         }
       }
     }
@@ -1057,7 +1077,8 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
         worktreeLineageById,
         worktreeMap,
         true,
-        settings
+        settings,
+        repoGroups
       ).filter((r): r is Extract<Row, { type: 'item' }> => r.type === 'item')
       if (worktreeRows.length === 0) {
         return
@@ -1103,7 +1124,8 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
       workspaceStatuses,
       worktreeLineageById,
       worktreeMap,
-      settings
+      settings,
+      repoGroups
     ]
   )
 
@@ -1811,6 +1833,7 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
                 firstHeaderIndex
               })
               const isRepoHeader = groupBy === 'repo' && row.repo !== undefined
+              const isRepoGroupHeader = groupBy === 'repo' && row.repoGroup !== undefined
               const repoIdForHeader = isRepoHeader ? row.repo!.id : undefined
               const isDraggingThis =
                 canReorderRepoHeaders &&
@@ -1953,6 +1976,51 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
                       />
                     </div>
 
+                    {isRepoGroupHeader && !row.repo && row.repoGroup?.id ? (
+                      <DropdownMenu modal={false}>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            className="size-5 shrink-0 rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-accent/70 hover:text-foreground focus:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
+                            aria-label={`Group actions for ${row.label}`}
+                            onClick={(event) => event.stopPropagation()}
+                            onKeyDown={stopRepoHeaderKeyboardToggle}
+                            onPointerDown={(event) => event.stopPropagation()}
+                          >
+                            <Ellipsis className="size-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          side="bottom"
+                          sideOffset={6}
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              if (row.repoGroup?.id) {
+                                handleRenameRepoGroup(row.repoGroup.id, row.label)
+                              }
+                            }}
+                          >
+                            Rename group
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onSelect={() => {
+                              if (row.repoGroup?.id) {
+                                handleDeleteRepoGroup(row.repoGroup.id)
+                              }
+                            }}
+                          >
+                            Delete group
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : null}
+
                     {row.repo && groupBy === 'repo' ? (
                       <DropdownMenu modal={false}>
                         <Tooltip>
@@ -2015,6 +2083,51 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
                             >
                               <Eye className="size-3.5" />
                               {getWorktreeVisibilityMenuLabel(row.repo)}
+                            </DropdownMenuItem>
+                          ) : null}
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              if (row.repo) {
+                                handleCreateGroupFromRepo(row.repo)
+                              }
+                            }}
+                          >
+                            <FolderPlus className="size-3.5" />
+                            New group from repo
+                          </DropdownMenuItem>
+                          {repoGroups.length > 0 ? (
+                            <DropdownMenuSub>
+                              <DropdownMenuSubTrigger>
+                                <FolderInput className="size-3.5" />
+                                Move to group
+                              </DropdownMenuSubTrigger>
+                              <DropdownMenuSubContent>
+                                {repoGroups.map((group) => (
+                                  <DropdownMenuItem
+                                    key={group.id}
+                                    disabled={row.repo?.repoGroupId === group.id}
+                                    onSelect={() => {
+                                      if (row.repo) {
+                                        handleMoveRepoToGroup(row.repo, group.id)
+                                      }
+                                    }}
+                                  >
+                                    <span className="max-w-48 truncate">{group.name}</span>
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuSubContent>
+                            </DropdownMenuSub>
+                          ) : null}
+                          {row.repo.repoGroupId ? (
+                            <DropdownMenuItem
+                              onSelect={() => {
+                                if (row.repo) {
+                                  handleRemoveRepoFromGroup(row.repo)
+                                }
+                              }}
+                            >
+                              <CircleX className="size-3.5" />
+                              Remove from group
                             </DropdownMenuItem>
                           ) : null}
                           <DropdownMenuSeparator />
@@ -2712,6 +2825,7 @@ const WorktreeList = React.memo(function WorktreeList({
   // Why: manual repo header order is bound to state.repos. Recent/Smart derive
   // header order from the sorted visible worktree stream instead.
   const repos = useAppStore((s) => s.repos)
+  const repoGroups = useAppStore((s) => s.repoGroups)
   const repoOrder = useMemo(() => {
     const map = new Map<string, number>()
     repos.forEach((r, i) => map.set(r.id, i))
@@ -2736,7 +2850,8 @@ const WorktreeList = React.memo(function WorktreeList({
         worktreeLineageById,
         worktreeMap,
         true,
-        settings
+        settings,
+        repoGroups
       ),
     [
       groupBy,
@@ -2749,7 +2864,8 @@ const WorktreeList = React.memo(function WorktreeList({
       repoGroupOrdering,
       worktreeLineageById,
       worktreeMap,
-      settings
+      settings,
+      repoGroups
     ]
   )
   // Why: header/mode changes can shift entire groups, so remount the
@@ -2900,6 +3016,59 @@ const WorktreeList = React.memo(function WorktreeList({
       })
     },
     [openModal]
+  )
+
+  const moveRepoToGroup = useAppStore((s) => s.moveRepoToGroup)
+  const createRepoGroup = useAppStore((s) => s.createRepoGroup)
+  const updateRepoGroup = useAppStore((s) => s.updateRepoGroup)
+  const deleteRepoGroup = useAppStore((s) => s.deleteRepoGroup)
+
+  const handleCreateGroupFromRepo = useCallback(
+    async (repo: Repo) => {
+      const nextName = window.prompt('New group from repo', `${repo.displayName} group`)
+      if (nextName === null) {
+        return
+      }
+      const group = await createRepoGroup(nextName)
+      if (group) {
+        await moveRepoToGroup(repo.id, group.id)
+      }
+    },
+    [createRepoGroup, moveRepoToGroup]
+  )
+
+  const handleMoveRepoToGroup = useCallback(
+    (repo: Repo, groupId: string) => {
+      if (repo.repoGroupId === groupId) {
+        return
+      }
+      void moveRepoToGroup(repo.id, groupId)
+    },
+    [moveRepoToGroup]
+  )
+
+  const handleRemoveRepoFromGroup = useCallback(
+    (repo: Repo) => {
+      void moveRepoToGroup(repo.id, null)
+    },
+    [moveRepoToGroup]
+  )
+
+  const handleRenameRepoGroup = useCallback(
+    (groupId: string, currentName: string) => {
+      const nextName = window.prompt('Rename group', currentName)
+      if (nextName !== null) {
+        void updateRepoGroup(groupId, { name: nextName })
+      }
+    },
+    [updateRepoGroup]
+  )
+
+  const handleDeleteRepoGroup = useCallback(
+    (groupId: string) => {
+      void deleteRepoGroup(groupId)
+    },
+    [deleteRepoGroup]
   )
 
   const moveWorktreeToStatus = useCallback(
@@ -3053,6 +3222,11 @@ const WorktreeList = React.memo(function WorktreeList({
       handleOpenRepoSettings={handleOpenRepoSettings}
       handleOpenWorktreeVisibility={handleOpenWorktreeVisibility}
       handleRemoveRepo={handleRemoveRepo}
+      handleCreateGroupFromRepo={handleCreateGroupFromRepo}
+      handleMoveRepoToGroup={handleMoveRepoToGroup}
+      handleRemoveRepoFromGroup={handleRemoveRepoFromGroup}
+      handleRenameRepoGroup={handleRenameRepoGroup}
+      handleDeleteRepoGroup={handleDeleteRepoGroup}
       activeModal={activeModal}
       pendingRevealWorktree={pendingRevealWorktree}
       clearPendingRevealWorktreeId={clearPendingRevealWorktreeId}
@@ -3071,6 +3245,7 @@ const WorktreeList = React.memo(function WorktreeList({
       }}
       prCache={prCache}
       workspaceStatuses={workspaceStatuses}
+      repoGroups={repoGroups}
       onMoveWorktreeToStatus={moveWorktreeToStatus}
       onMoveWorktreesToStatus={moveWorktreesToStatus}
       onPinWorktree={pinWorktree}

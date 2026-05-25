@@ -90,9 +90,13 @@ import type {
   PRInfo,
   PRRefreshOutcome,
   Repo,
+  RepoGroup,
+  RepoGroupImportResult,
+  RepoGroupImportMode,
   ShellHydrationFailureReason,
   SparsePreset,
   SearchOptions,
+  NestedRepoScanResult,
   SearchResult,
   StatsSummary,
   MemorySnapshot,
@@ -628,6 +632,8 @@ export type PreloadApi = {
           | 'issueSourcePreference'
           | 'externalWorktreeVisibility'
           | 'externalWorktreeVisibilityPromptDismissedAt'
+          | 'repoGroupId'
+          | 'repoGroupOrder'
         >
       >
     }) => Promise<Repo>
@@ -658,6 +664,30 @@ export type PreloadApi = {
       limit?: number
     }) => Promise<BaseRefSearchResult[]>
     onChanged: (callback: () => void) => () => void
+  }
+  repoGroups: {
+    list: () => Promise<RepoGroup[]>
+    create: (args: {
+      name: string
+      parentPath?: string | null
+      createdFrom?: RepoGroup['createdFrom']
+    }) => Promise<RepoGroup>
+    update: (args: {
+      groupId: string
+      updates: Partial<Pick<RepoGroup, 'name' | 'isCollapsed' | 'tabOrder' | 'color'>>
+    }) => Promise<RepoGroup | null>
+    delete: (args: { groupId: string }) => Promise<boolean>
+    moveRepo: (args: { repoId: string; groupId: string | null; order?: number }) => Promise<Repo>
+    scanNested: (args: {
+      path: string
+      options?: Record<string, unknown>
+    }) => Promise<NestedRepoScanResult>
+    importNested: (args: {
+      parentPath: string
+      groupName: string
+      repoPaths: string[]
+      mode: RepoGroupImportMode
+    }) => Promise<RepoGroupImportResult>
   }
   sparsePresets: {
     list: (args: { repoId: string }) => Promise<SparsePreset[]>

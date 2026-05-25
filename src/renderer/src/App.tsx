@@ -265,6 +265,7 @@ function App(): React.JSX.Element {
     useShallow((s) => ({
       toggleSidebar: s.toggleSidebar,
       fetchRepos: s.fetchRepos,
+      fetchRepoGroups: s.fetchRepoGroups,
       fetchAllWorktrees: s.fetchAllWorktrees,
       fetchWorktreeLineage: s.fetchWorktreeLineage,
       fetchSettings: s.fetchSettings,
@@ -528,6 +529,7 @@ function App(): React.JSX.Element {
         // the local filesystem and then hydrate stale local workspace state.
         await actions.fetchSettings()
         await actions.fetchRepos()
+        await actions.fetchRepoGroups()
         await actions.fetchAllWorktrees()
         await actions.fetchWorktreeLineage()
         const persistedUI = await window.api.ui.get()

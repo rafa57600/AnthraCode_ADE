@@ -42,7 +42,9 @@ const RepoUpdate = RepoSelector.extend({
     symlinkPaths: z.array(z.string()).optional(),
     issueSourcePreference: z.enum(['auto', 'upstream', 'origin']).optional(),
     externalWorktreeVisibility: z.enum(['hide', 'show']).optional(),
-    externalWorktreeVisibilityPromptDismissedAt: z.number().finite().optional()
+    externalWorktreeVisibilityPromptDismissedAt: z.number().finite().optional(),
+    repoGroupId: OptionalString.nullable().optional(),
+    repoGroupOrder: OptionalFiniteNumber
   })
 })
 
@@ -57,6 +59,43 @@ const RepoSearchRefs = z.object({
 
 const RepoReorder = z.object({
   orderedIds: z.array(z.string())
+})
+
+const RepoGroupCreate = z.object({
+  name: requiredString('Missing group name'),
+  parentPath: OptionalString,
+  createdFrom: z.enum(['manual', 'folder-scan', 'migration']).optional()
+})
+
+const RepoGroupUpdate = z.object({
+  groupId: requiredString('Missing group id'),
+  updates: z.object({
+    name: OptionalString,
+    isCollapsed: z.boolean().optional(),
+    tabOrder: OptionalFiniteNumber,
+    color: OptionalString.nullable().optional()
+  })
+})
+
+const RepoGroupSelector = z.object({
+  groupId: requiredString('Missing group id')
+})
+
+const RepoGroupMoveRepo = z.object({
+  repo: requiredString('Missing repo selector'),
+  groupId: OptionalString.nullable(),
+  order: OptionalFiniteNumber
+})
+
+const RepoGroupScanNested = z.object({
+  path: requiredString('Missing folder path')
+})
+
+const RepoGroupImportNested = z.object({
+  parentPath: requiredString('Missing parent path'),
+  groupName: requiredString('Missing group name'),
+  repoPaths: z.array(z.string()),
+  mode: z.enum(['group', 'separate'])
 })
 
 const RepoIssueCommandWrite = RepoSelector.extend({
@@ -74,6 +113,47 @@ export const REPO_METHODS: RpcMethod[] = [
     name: 'repo.list',
     params: null,
     handler: (_params, { runtime }) => ({ repos: runtime.listRepos() })
+  }),
+  defineMethod({
+    name: 'repoGroup.list',
+    params: null,
+    handler: (_params, { runtime }) => ({ groups: runtime.listRepoGroups() })
+  }),
+  defineMethod({
+    name: 'repoGroup.create',
+    params: RepoGroupCreate,
+    handler: async (params, { runtime }) => ({
+      group: await runtime.createRepoGroup(params)
+    })
+  }),
+  defineMethod({
+    name: 'repoGroup.update',
+    params: RepoGroupUpdate,
+    handler: async (params, { runtime }) => ({
+      group: await runtime.updateRepoGroup(params.groupId, params.updates)
+    })
+  }),
+  defineMethod({
+    name: 'repoGroup.delete',
+    params: RepoGroupSelector,
+    handler: async (params, { runtime }) => runtime.deleteRepoGroup(params.groupId)
+  }),
+  defineMethod({
+    name: 'repoGroup.moveRepo',
+    params: RepoGroupMoveRepo,
+    handler: async (params, { runtime }) => ({
+      repo: await runtime.moveRepoToGroup(params.repo, params.groupId ?? null, params.order)
+    })
+  }),
+  defineMethod({
+    name: 'repoGroup.scanNested',
+    params: RepoGroupScanNested,
+    handler: async (params, { runtime }) => runtime.scanNestedRepos(params.path)
+  }),
+  defineMethod({
+    name: 'repoGroup.importNested',
+    params: RepoGroupImportNested,
+    handler: async (params, { runtime }) => runtime.importNestedRepos(params)
   }),
   defineMethod({
     name: 'repo.sparsePresets',

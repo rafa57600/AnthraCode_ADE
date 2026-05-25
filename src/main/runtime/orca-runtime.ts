@@ -43,11 +43,16 @@ import type {
   WorktreeStartupLaunch,
   LinearIssueUpdate,
   LinearWorkspaceSelection,
+  NestedRepoScanResult,
+  RepoGroup,
+  RepoGroupImportMode,
+  RepoGroupImportResult,
   TabGroupLayoutNode,
   TuiAgent
 } from '../../shared/types'
 import { FOLDER_WORKSPACE_INSTANCE_SEPARATOR, splitWorktreeId } from '../../shared/worktree-id'
 import { isFolderRepo } from '../../shared/repo-kind'
+import { getNextRepoGroupOrder } from '../../shared/repo-groups'
 import { DEFAULT_WORKSPACE_STATUS_ID } from '../../shared/workspace-statuses'
 import { buildSetupRunnerCommand } from '../../shared/setup-runner-command'
 import { FIRST_PANE_ID } from '../../shared/pane-key'
@@ -366,6 +371,7 @@ import type { RateLimitState } from '../../shared/rate-limit-types'
 import type { VoiceSettings } from '../../shared/speech-types'
 import { getSpeechModelManager, getSpeechSttService } from '../speech/speech-runtime-service'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
+import { scanNestedRepos } from '../repo-groups/nested-repo-discovery'
 
 type RuntimeAccountServices = {
   claudeAccounts: ClaudeAccountService
@@ -393,6 +399,11 @@ type RuntimeStore = {
   getRepo: Store['getRepo']
   addRepo: Store['addRepo']
   updateRepo: Store['updateRepo']
+  getRepoGroups?: Store['getRepoGroups']
+  createRepoGroup?: Store['createRepoGroup']
+  updateRepoGroup?: Store['updateRepoGroup']
+  deleteRepoGroup?: Store['deleteRepoGroup']
+  moveRepoToGroup?: Store['moveRepoToGroup']
   removeRepo?: Store['removeRepo']
   reorderRepos?: Store['reorderRepos']
   getAllWorktreeMeta: Store['getAllWorktreeMeta']
@@ -5032,6 +5043,150 @@ export class OrcaRuntimeService {
     return this.store?.getRepos() ?? []
   }
 
+  listRepoGroups(): RepoGroup[] {
+    return this.store?.getRepoGroups?.() ?? []
+  }
+
+  async createRepoGroup(input: {
+    name: string
+    parentPath?: string | null
+    createdFrom?: RepoGroup['createdFrom']
+  }): Promise<RepoGroup> {
+    if (!this.store?.createRepoGroup) {
+      throw new Error('runtime_unavailable')
+    }
+    const group = this.store.createRepoGroup({
+      name: input.name,
+      parentPath: input.parentPath ?? null,
+      createdFrom: input.createdFrom ?? 'manual'
+    })
+    this.notifier?.reposChanged()
+    return group
+  }
+
+  async updateRepoGroup(
+    groupId: string,
+    updates: Partial<Pick<RepoGroup, 'name' | 'isCollapsed' | 'tabOrder' | 'color'>>
+  ): Promise<RepoGroup | null> {
+    if (!this.store?.updateRepoGroup) {
+      throw new Error('runtime_unavailable')
+    }
+    const updated = this.store.updateRepoGroup(groupId, updates)
+    if (updated) {
+      this.notifier?.reposChanged()
+    }
+    return updated
+  }
+
+  async deleteRepoGroup(groupId: string): Promise<{ deleted: boolean }> {
+    if (!this.store?.deleteRepoGroup) {
+      throw new Error('runtime_unavailable')
+    }
+    const deleted = this.store.deleteRepoGroup(groupId)
+    if (deleted) {
+      this.notifier?.reposChanged()
+    }
+    return { deleted }
+  }
+
+  async moveRepoToGroup(
+    repoSelector: string,
+    groupId: string | null,
+    order?: number
+  ): Promise<Repo> {
+    if (!this.store?.moveRepoToGroup) {
+      throw new Error('runtime_unavailable')
+    }
+    const repo = await this.resolveRepoSelector(repoSelector)
+    const moved = this.store.moveRepoToGroup(repo.id, groupId, order)
+    if (!moved) {
+      throw new Error('repo_not_found')
+    }
+    this.notifier?.reposChanged()
+    return moved
+  }
+
+  async scanNestedRepos(path: string): Promise<NestedRepoScanResult> {
+    return scanNestedRepos({ path })
+  }
+
+  async importNestedRepos(args: {
+    parentPath: string
+    groupName: string
+    repoPaths: string[]
+    mode: RepoGroupImportMode
+  }): Promise<RepoGroupImportResult> {
+    if (!this.store?.createRepoGroup || !this.store?.moveRepoToGroup) {
+      throw new Error('runtime_unavailable')
+    }
+    const group =
+      args.mode === 'group'
+        ? this.store.createRepoGroup({
+            name: args.groupName,
+            parentPath: args.parentPath,
+            createdFrom: 'folder-scan'
+          })
+        : undefined
+    const results: RepoGroupImportResult['repos'] = []
+    for (const repoPath of args.repoPaths) {
+      try {
+        if (!isGitRepo(repoPath)) {
+          results.push({ path: repoPath, status: 'failed', error: 'Not a valid git repository' })
+          continue
+        }
+        const existing = this.store
+          .getRepos()
+          .find((repo) => runtimePathsEqual(repo.path, repoPath))
+        if (existing) {
+          if (group) {
+            this.store.moveRepoToGroup(existing.id, group.id)
+          }
+          results.push({ path: repoPath, repoId: existing.id, status: 'already-known' })
+          continue
+        }
+        const repo: Repo = {
+          id: randomUUID(),
+          path: repoPath,
+          displayName: getRepoName(repoPath),
+          badgeColor: DEFAULT_REPO_BADGE_COLOR,
+          addedAt: Date.now(),
+          kind: 'git',
+          externalWorktreeVisibility: 'hide',
+          externalWorktreeVisibilityLegacy: false,
+          ...(group
+            ? {
+                repoGroupId: group.id,
+                repoGroupOrder: getNextRepoGroupOrder(this.store.getRepos(), group.id)
+              }
+            : {})
+        }
+        this.store.addRepo(repo)
+        results.push({ path: repoPath, repoId: repo.id, status: 'imported' })
+      } catch (error) {
+        results.push({
+          path: repoPath,
+          status: 'failed',
+          error: error instanceof Error ? error.message : String(error)
+        })
+      }
+    }
+    const importedCount = results.filter((entry) => entry.status === 'imported').length
+    const alreadyKnownCount = results.filter((entry) => entry.status === 'already-known').length
+    const failedCount = results.filter((entry) => entry.status === 'failed').length
+    if (group && importedCount + alreadyKnownCount === 0) {
+      this.store.deleteRepoGroup?.(group.id)
+    }
+    this.invalidateResolvedWorktreeCache()
+    this.notifier?.reposChanged()
+    return {
+      ...(group && importedCount + alreadyKnownCount > 0 ? { group } : {}),
+      repos: results,
+      importedCount,
+      alreadyKnownCount,
+      failedCount
+    }
+  }
+
   async listSparsePresets(repoSelector: string) {
     if (!this.store?.getSparsePresets) {
       throw new Error('runtime_unavailable')
@@ -5322,6 +5477,8 @@ export class OrcaRuntimeService {
         | 'issueSourcePreference'
         | 'externalWorktreeVisibility'
         | 'externalWorktreeVisibilityPromptDismissedAt'
+        | 'repoGroupId'
+        | 'repoGroupOrder'
       >
     >
   ): Promise<Repo> {

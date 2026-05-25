@@ -6,12 +6,13 @@ import {
   ALL_GROUP_META,
   buildRows,
   getGroupKeyForWorktree,
+  getGroupKeysForWorktree,
   getLineageGroupKey,
   getLineageRenderInfo,
   getPRGroupKey,
   getRepoGroupOrdering
 } from './worktree-list-groups'
-import type { Repo, Worktree, WorktreeLineage } from '../../../../shared/types'
+import type { Repo, RepoGroup, Worktree, WorktreeLineage } from '../../../../shared/types'
 
 const repo: Repo = {
   id: 'repo-1',
@@ -417,6 +418,123 @@ describe('getRepoGroupOrdering', () => {
     ['pr-status', 'recent', 'manual']
   ] as const)('uses %s/%s -> %s', (groupBy, sortBy, expected) => {
     expect(getRepoGroupOrdering(groupBy, sortBy)).toBe(expected)
+  })
+})
+
+describe('repo groups', () => {
+  it('keeps empty repo groups visible in repo grouping mode', () => {
+    const group: RepoGroup = {
+      id: 'group-1',
+      name: 'Platform',
+      parentPath: null,
+      createdFrom: 'manual',
+      tabOrder: 0,
+      isCollapsed: false,
+      color: null,
+      createdAt: 1,
+      updatedAt: 1
+    }
+
+    const rows = buildRows(
+      'repo',
+      [],
+      repoMap,
+      null,
+      new Set(),
+      undefined,
+      undefined,
+      undefined,
+      {},
+      new Map(),
+      false,
+      undefined,
+      [group]
+    )
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        type: 'header',
+        key: 'repo-group:group-1',
+        label: 'Platform',
+        count: 0,
+        repoGroup: group
+      })
+    ])
+  })
+
+  it('orders repos inside a Repo Group by repoGroupOrder in manual mode', () => {
+    const group: RepoGroup = {
+      id: 'group-1',
+      name: 'Platform',
+      parentPath: '/platform',
+      createdFrom: 'folder-scan',
+      tabOrder: 0,
+      isCollapsed: false,
+      color: null,
+      createdAt: 1,
+      updatedAt: 1
+    }
+    const repoA: Repo = {
+      ...repo,
+      id: 'repo-a',
+      displayName: 'alpha',
+      repoGroupId: group.id,
+      repoGroupOrder: 1
+    }
+    const repoB: Repo = {
+      ...repo,
+      id: 'repo-b',
+      displayName: 'beta',
+      repoGroupId: group.id,
+      repoGroupOrder: 0
+    }
+    const worktreeA: Worktree = { ...worktree, id: 'wt-a', repoId: repoA.id }
+    const worktreeB: Worktree = { ...worktree, id: 'wt-b', repoId: repoB.id }
+    const groupedMap = new Map([
+      [repoA.id, repoA],
+      [repoB.id, repoB]
+    ])
+    const repoOrder = new Map([
+      [repoA.id, 0],
+      [repoB.id, 1]
+    ])
+
+    const rows = buildRows(
+      'repo',
+      [worktreeA, worktreeB],
+      groupedMap,
+      null,
+      new Set(),
+      repoOrder,
+      undefined,
+      'manual',
+      undefined,
+      undefined,
+      false,
+      undefined,
+      [group]
+    )
+
+    expect(rows.filter((row) => row.type === 'header').map((row) => row.key)).toEqual([
+      'repo-group:group-1',
+      'repo:repo-b',
+      'repo:repo-a'
+    ])
+  })
+
+  it('returns both parent Repo Group and repo keys for grouped repo reveals', () => {
+    const groupedRepo: Repo = { ...repo, repoGroupId: 'group-1' }
+
+    expect(
+      getGroupKeysForWorktree('repo', worktree, new Map([[groupedRepo.id, groupedRepo]]), null)
+    ).toEqual(['repo-group:group-1', 'repo:repo-1'])
+  })
+
+  it('returns the Ungrouped parent key for ungrouped repo reveals', () => {
+    expect(getGroupKeysForWorktree('repo', worktree, repoMap, null)).toEqual([
+      'repo-group:ungrouped',
+      'repo:repo-1'
+    ])
   })
 })
 

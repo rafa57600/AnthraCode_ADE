@@ -1,0 +1,93 @@
+import { randomUUID } from 'node:crypto'
+import type { Repo, RepoGroup, RepoGroupCreatedFrom } from './types'
+
+export const UNGROUPED_REPO_GROUP_KEY = 'repo-group:ungrouped'
+
+export function normalizeRepoGroupName(name: string, fallback = 'Untitled group'): string {
+  const trimmed = name.trim()
+  return trimmed.length > 0 ? trimmed : fallback
+}
+
+export function createRepoGroup(input: {
+  name: string
+  parentPath?: string | null
+  createdFrom: RepoGroupCreatedFrom
+  tabOrder: number
+  now?: number
+}): RepoGroup {
+  const now = input.now ?? Date.now()
+  return {
+    id: randomUUID(),
+    name: normalizeRepoGroupName(input.name),
+    parentPath: input.parentPath ?? null,
+    createdFrom: input.createdFrom,
+    tabOrder: input.tabOrder,
+    isCollapsed: false,
+    color: null,
+    createdAt: now,
+    updatedAt: now
+  }
+}
+
+export function normalizeRepoGroups(value: unknown): RepoGroup[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+  const groups: RepoGroup[] = []
+  const seen = new Set<string>()
+  for (const candidate of value) {
+    if (!candidate || typeof candidate !== 'object') {
+      continue
+    }
+    const raw = candidate as Partial<RepoGroup>
+    if (typeof raw.id !== 'string' || seen.has(raw.id)) {
+      continue
+    }
+    seen.add(raw.id)
+    const now = Date.now()
+    groups.push({
+      id: raw.id,
+      name: normalizeRepoGroupName(typeof raw.name === 'string' ? raw.name : ''),
+      parentPath: typeof raw.parentPath === 'string' ? raw.parentPath : null,
+      createdFrom:
+        raw.createdFrom === 'manual' ||
+        raw.createdFrom === 'folder-scan' ||
+        raw.createdFrom === 'migration'
+          ? raw.createdFrom
+          : 'manual',
+      tabOrder:
+        typeof raw.tabOrder === 'number' && Number.isFinite(raw.tabOrder) ? raw.tabOrder : 0,
+      isCollapsed: raw.isCollapsed === true,
+      color: typeof raw.color === 'string' ? raw.color : null,
+      createdAt:
+        typeof raw.createdAt === 'number' && Number.isFinite(raw.createdAt) ? raw.createdAt : now,
+      updatedAt:
+        typeof raw.updatedAt === 'number' && Number.isFinite(raw.updatedAt) ? raw.updatedAt : now
+    })
+  }
+  groups.sort(
+    (left, right) => left.tabOrder - right.tabOrder || left.name.localeCompare(right.name)
+  )
+  return groups
+}
+
+export function clearMissingRepoGroupMemberships(repos: Repo[], groups: RepoGroup[]): Repo[] {
+  const groupIds = new Set(groups.map((group) => group.id))
+  return repos.map((repo) =>
+    repo.repoGroupId && !groupIds.has(repo.repoGroupId) ? { ...repo, repoGroupId: null } : repo
+  )
+}
+
+export function getNextRepoGroupOrder(repos: readonly Repo[], groupId: string | null): number {
+  let max = -1
+  for (const repo of repos) {
+    if ((repo.repoGroupId ?? null) !== groupId) {
+      continue
+    }
+    const order = repo.repoGroupOrder
+    if (typeof order === 'number' && Number.isFinite(order)) {
+      max = Math.max(max, order)
+    }
+  }
+  return max + 1
+}

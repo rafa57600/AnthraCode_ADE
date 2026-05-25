@@ -1,8 +1,16 @@
-import { ArrowRight, FolderOpen, GitBranch, Server } from 'lucide-react'
+import { ArrowRight, FolderOpen, FolderTree, GitBranch, Server } from 'lucide-react'
+import type { Dispatch, SetStateAction } from 'react'
+import type { NestedRepoScanResult } from '../../../../shared/types'
 
 type RepoStepProps = {
   cloneUrl: string
   onCloneUrlChange: (value: string) => void
+  nestedScan: NestedRepoScanResult | null
+  nestedSelectedPaths: Set<string>
+  onNestedSelectedPathsChange: Dispatch<SetStateAction<Set<string>>>
+  nestedGroupName: string
+  onNestedGroupNameChange: (value: string) => void
+  onImportNested: (mode: 'group' | 'separate') => void
   onOpenFolder: () => void
   onOpenServerFolder: (kind: 'git' | 'folder') => void
   onClone: () => void
@@ -20,6 +28,12 @@ type RepoStepProps = {
 export function RepoStep({
   cloneUrl,
   onCloneUrlChange,
+  nestedScan,
+  nestedSelectedPaths,
+  onNestedSelectedPathsChange,
+  nestedGroupName,
+  onNestedGroupNameChange,
+  onImportNested,
   onOpenFolder,
   onOpenServerFolder,
   onClone,
@@ -34,6 +48,100 @@ export function RepoStep({
   error
 }: RepoStepProps) {
   const disabled = Boolean(busyLabel)
+  if (nestedScan) {
+    return (
+      <div className="space-y-3">
+        <div className="rounded-lg border border-border bg-muted/30 p-5">
+          <div className="flex items-center gap-4">
+            <div className="grid size-11 shrink-0 place-items-center rounded-lg bg-muted text-foreground">
+              <FolderTree className="size-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-base font-semibold text-foreground">Import repositories</div>
+              <div className="mt-0.5 truncate text-[13px] text-muted-foreground">
+                {nestedScan.selectedPath}
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 space-y-1">
+            <label className="text-[11px] font-medium text-muted-foreground">Group name</label>
+            <input
+              className="w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition focus:border-foreground/50 focus:ring-2 focus:ring-foreground/15"
+              value={nestedGroupName}
+              disabled={disabled}
+              onChange={(event) => onNestedGroupNameChange(event.target.value)}
+            />
+          </div>
+          <div className="scrollbar-sleek mt-3 max-h-56 space-y-1 overflow-y-auto rounded-lg border border-border bg-background/60 p-1">
+            {nestedScan.repos.map((repo) => (
+              <label
+                key={repo.path}
+                className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
+              >
+                <input
+                  type="checkbox"
+                  checked={nestedSelectedPaths.has(repo.path)}
+                  disabled={disabled}
+                  onChange={(event) => {
+                    onNestedSelectedPathsChange((previous) => {
+                      const next = new Set(previous)
+                      if (event.target.checked) {
+                        next.add(repo.path)
+                      } else {
+                        next.delete(repo.path)
+                      }
+                      return next
+                    })
+                  }}
+                />
+                <span className="min-w-0">
+                  <span className="block truncate font-medium text-foreground">
+                    {repo.displayName}
+                  </span>
+                  <span className="block truncate text-[11px] text-muted-foreground">
+                    {repo.path}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+          {nestedScan.truncated || nestedScan.timedOut ? (
+            <div className="mt-2 text-[11px] text-muted-foreground">
+              Showing partial results from a bounded scan.
+            </div>
+          ) : null}
+          <div className="mt-4 flex gap-2">
+            <button
+              type="button"
+              className="rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
+              disabled={disabled || nestedSelectedPaths.size === 0 || !nestedGroupName.trim()}
+              onClick={() => onImportNested('group')}
+            >
+              Group selected
+            </button>
+            <button
+              type="button"
+              className="rounded-lg border border-border bg-background px-4 py-3 text-sm font-medium text-foreground hover:bg-muted/60 disabled:opacity-40"
+              disabled={disabled || nestedSelectedPaths.size === 0}
+              onClick={() => onImportNested('separate')}
+            >
+              Import separately
+            </button>
+          </div>
+        </div>
+        {busyLabel && (
+          <div className="rounded-lg border border-blue-400/30 bg-blue-400/10 px-4 py-2.5 text-sm text-blue-700 dark:text-blue-200">
+            {busyLabel}
+          </div>
+        )}
+        {error && (
+          <div className="rounded-lg border border-red-400/30 bg-red-400/10 px-4 py-2.5 text-sm text-red-700 dark:text-red-200">
+            {error}
+          </div>
+        )}
+      </div>
+    )
+  }
   return (
     <div className="space-y-3">
       {runtimeActive ? (

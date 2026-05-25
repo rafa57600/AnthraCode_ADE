@@ -5,7 +5,12 @@ auditing and preserving. */
 import type { StateCreator } from 'zustand'
 import { toast } from 'sonner'
 import type { AppState } from '../types'
-import type { Repo } from '../../../../shared/types'
+import type {
+  Repo,
+  RepoGroup,
+  RepoGroupImportResult,
+  NestedRepoScanResult
+} from '../../../../shared/types'
 import { isGitRepoKind } from '../../../../shared/repo-kind'
 import { sanitizeRepoIcon } from '../../../../shared/repo-icon'
 import { getRepoIdFromWorktreeId } from './worktree-helpers'
@@ -27,6 +32,8 @@ type RepoUpdate = Partial<
     | 'issueSourcePreference'
     | 'externalWorktreeVisibility'
     | 'externalWorktreeVisibilityPromptDismissedAt'
+    | 'repoGroupId'
+    | 'repoGroupOrder'
   >
 >
 
@@ -67,11 +74,27 @@ function getKnownRepoWorktreeIds(state: AppState, repoId: string): string[] {
 
 export type RepoSlice = {
   repos: Repo[]
+  repoGroups: RepoGroup[]
   activeRepoId: string | null
   fetchRepos: () => Promise<void>
+  fetchRepoGroups: () => Promise<void>
   addRepo: () => Promise<Repo | null>
   addRepoPath: (path: string, kind?: 'git' | 'folder') => Promise<Repo | null>
   addNonGitFolder: (path: string) => Promise<Repo | null>
+  scanNestedRepos: (path: string) => Promise<NestedRepoScanResult | null>
+  importNestedRepos: (args: {
+    parentPath: string
+    groupName: string
+    repoPaths: string[]
+    mode: 'group' | 'separate'
+  }) => Promise<RepoGroupImportResult | null>
+  createRepoGroup: (name: string) => Promise<RepoGroup | null>
+  updateRepoGroup: (
+    groupId: string,
+    updates: Partial<Pick<RepoGroup, 'name' | 'isCollapsed' | 'tabOrder' | 'color'>>
+  ) => Promise<boolean>
+  deleteRepoGroup: (groupId: string) => Promise<boolean>
+  moveRepoToGroup: (repoId: string, groupId: string | null, order?: number) => Promise<boolean>
   removeRepo: (repoId: string) => Promise<void>
   updateRepo: (repoId: string, updates: RepoUpdate) => Promise<boolean>
   setActiveRepo: (repoId: string | null) => void
@@ -80,6 +103,7 @@ export type RepoSlice = {
 
 export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set, get) => ({
   repos: [],
+  repoGroups: [],
   activeRepoId: null,
 
   fetchRepos: async () => {
@@ -112,6 +136,172 @@ export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set, 
       })
     } catch (err) {
       console.error('Failed to fetch repos:', err)
+    }
+  },
+
+  fetchRepoGroups: async () => {
+    try {
+      const target = getActiveRuntimeTarget(get().settings)
+      const repoGroups =
+        target.kind === 'local'
+          ? ((await window.api.repoGroups.list()) as RepoGroup[])
+          : (
+              await callRuntimeRpc<{ groups: RepoGroup[] }>(target, 'repoGroup.list', undefined, {
+                timeoutMs: 15_000
+              })
+            ).groups
+      set({ repoGroups })
+    } catch (err) {
+      console.error('Failed to fetch repo groups:', err)
+    }
+  },
+
+  scanNestedRepos: async (path) => {
+    try {
+      const target = getActiveRuntimeTarget(get().settings)
+      return target.kind === 'local'
+        ? ((await window.api.repoGroups.scanNested({ path })) as NestedRepoScanResult)
+        : await callRuntimeRpc<NestedRepoScanResult>(
+            target,
+            'repoGroup.scanNested',
+            { path },
+            { timeoutMs: 15_000 }
+          )
+    } catch (err) {
+      console.error('Failed to scan nested repos:', err)
+      return null
+    }
+  },
+
+  importNestedRepos: async (args) => {
+    try {
+      const target = getActiveRuntimeTarget(get().settings)
+      const result =
+        target.kind === 'local'
+          ? ((await window.api.repoGroups.importNested(args)) as RepoGroupImportResult)
+          : await callRuntimeRpc<RepoGroupImportResult>(target, 'repoGroup.importNested', args, {
+              timeoutMs: 60_000
+            })
+      await get().fetchRepoGroups()
+      await get().fetchRepos()
+      return result
+    } catch (err) {
+      console.error('Failed to import nested repos:', err)
+      toast.error('Failed to import repositories', {
+        description: err instanceof Error ? err.message : String(err)
+      })
+      return null
+    }
+  },
+
+  createRepoGroup: async (name) => {
+    try {
+      const target = getActiveRuntimeTarget(get().settings)
+      const group =
+        target.kind === 'local'
+          ? ((await window.api.repoGroups.create({
+              name,
+              createdFrom: 'manual'
+            })) as RepoGroup)
+          : (
+              await callRuntimeRpc<{ group: RepoGroup }>(
+                target,
+                'repoGroup.create',
+                { name, createdFrom: 'manual' },
+                { timeoutMs: 15_000 }
+              )
+            ).group
+      set((s) => ({ repoGroups: [...s.repoGroups, group] }))
+      return group
+    } catch (err) {
+      console.error('Failed to create repo group:', err)
+      return null
+    }
+  },
+
+  updateRepoGroup: async (groupId, updates) => {
+    try {
+      const target = getActiveRuntimeTarget(get().settings)
+      const updated =
+        target.kind === 'local'
+          ? ((await window.api.repoGroups.update({ groupId, updates })) as RepoGroup | null)
+          : (
+              await callRuntimeRpc<{ group: RepoGroup | null }>(
+                target,
+                'repoGroup.update',
+                { groupId, updates },
+                { timeoutMs: 15_000 }
+              )
+            ).group
+      if (!updated) {
+        return false
+      }
+      set((s) => ({
+        repoGroups: s.repoGroups.map((group) => (group.id === groupId ? updated : group))
+      }))
+      return true
+    } catch (err) {
+      console.error('Failed to update repo group:', err)
+      return false
+    }
+  },
+
+  deleteRepoGroup: async (groupId) => {
+    try {
+      const target = getActiveRuntimeTarget(get().settings)
+      const deleted =
+        target.kind === 'local'
+          ? await window.api.repoGroups.delete({ groupId })
+          : (
+              await callRuntimeRpc<{ deleted: boolean }>(
+                target,
+                'repoGroup.delete',
+                { groupId },
+                { timeoutMs: 15_000 }
+              )
+            ).deleted
+      if (!deleted) {
+        return false
+      }
+      set((s) => ({
+        repoGroups: s.repoGroups.filter((group) => group.id !== groupId),
+        repos: s.repos.map((repo) =>
+          repo.repoGroupId === groupId ? { ...repo, repoGroupId: null } : repo
+        )
+      }))
+      return true
+    } catch (err) {
+      console.error('Failed to delete repo group:', err)
+      return false
+    }
+  },
+
+  moveRepoToGroup: async (repoId, groupId, order) => {
+    try {
+      const target = getActiveRuntimeTarget(get().settings)
+      const moved =
+        target.kind === 'local'
+          ? ((await window.api.repoGroups.moveRepo({
+              repoId,
+              groupId,
+              order
+            })) as Repo | null)
+          : (
+              await callRuntimeRpc<{ repo: Repo | null }>(
+                target,
+                'repoGroup.moveRepo',
+                { repo: repoId, groupId, order },
+                { timeoutMs: 15_000 }
+              )
+            ).repo
+      if (!moved) {
+        return false
+      }
+      set((s) => ({ repos: s.repos.map((repo) => (repo.id === repoId ? moved : repo)) }))
+      return true
+    } catch (err) {
+      console.error('Failed to move repo to group:', err)
+      return false
     }
   },
 

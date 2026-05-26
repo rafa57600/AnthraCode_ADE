@@ -136,8 +136,19 @@ function closeExistingPermissionHelpers(): void {
   }
 }
 
+let inFlightStatusProbe: Promise<ComputerUsePermissionStatusResult> | null = null
+
 export function getComputerUsePermissionStatus(): Promise<ComputerUsePermissionStatusResult> {
-  return getComputerUsePermissionStatusAsync()
+  if (inFlightStatusProbe) {
+    return inFlightStatusProbe
+  }
+  const probe = getComputerUsePermissionStatusAsync().finally(() => {
+    if (inFlightStatusProbe === probe) {
+      inFlightStatusProbe = null
+    }
+  })
+  inFlightStatusProbe = probe
+  return probe
 }
 
 async function getComputerUsePermissionStatusAsync(): Promise<ComputerUsePermissionStatusResult> {

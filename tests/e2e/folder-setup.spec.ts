@@ -11,15 +11,15 @@ const tempRoots: string[] = []
 
 async function createNestedRepoFixture(): Promise<{
   parentPath: string
-  repoPaths: string[]
+  projectPaths: string[]
   groupName: string
 }> {
   const parentPath = await mkdtemp(path.join(os.tmpdir(), 'orca-e2e-folder-setup-'))
   tempRoots.push(parentPath)
   const repoNames = ['api-service', 'web-client']
-  const repoPaths = repoNames.map((name) => path.join(parentPath, name))
+  const projectPaths = repoNames.map((name) => path.join(parentPath, name))
 
-  for (const repoPath of repoPaths) {
+  for (const repoPath of projectPaths) {
     mkdirSync(repoPath, { recursive: true })
     execFileSync('git', ['init'], { cwd: repoPath, stdio: 'pipe' })
     execFileSync('git', ['config', 'user.email', 'e2e@test.local'], {
@@ -34,7 +34,7 @@ async function createNestedRepoFixture(): Promise<{
 
   return {
     parentPath,
-    repoPaths,
+    projectPaths,
     groupName: path.basename(parentPath)
   }
 }
@@ -59,7 +59,7 @@ async function chooseFolderInNativeDialog(
 }
 
 test.describe('Folder setup', () => {
-  test('imports nested repositories from the add-project dialog as a repo group', async ({
+  test('imports nested repositories from the add-project dialog as a project group', async ({
     electronApp,
     orcaPage
   }) => {
@@ -75,12 +75,16 @@ test.describe('Folder setup', () => {
     await expect(dialog).toBeVisible()
     await dialog.getByRole('button', { name: /Browse folder/i }).click()
 
-    const importDialog = orcaPage.getByRole('dialog', { name: /Import as repo group/i })
-    await expect(importDialog.getByRole('heading', { name: /Import as repo group/i })).toBeVisible()
+    const importDialog = orcaPage.getByRole('dialog', { name: /Import as project group/i })
+    await expect(
+      importDialog.getByRole('heading', { name: /Import as project group/i })
+    ).toBeVisible()
     await expect(importDialog.getByText('api-service', { exact: true }).first()).toBeVisible()
     await expect(importDialog.getByText('web-client', { exact: true }).first()).toBeVisible()
-    await expect(importDialog.getByRole('button', { name: /Import as repo group/i })).toBeEnabled()
-    await importDialog.getByRole('button', { name: /Import as repo group/i }).click()
+    await expect(
+      importDialog.getByRole('button', { name: /Import as project group/i })
+    ).toBeEnabled()
+    await importDialog.getByRole('button', { name: /Import as project group/i }).click()
 
     await expect
       .poll(
@@ -91,27 +95,28 @@ test.describe('Folder setup', () => {
               return null
             }
             const importedRepos = state.repos
-              .filter((repo) => args.repoPaths.includes(repo.path))
+              .filter((repo) => args.projectPaths.includes(repo.path))
               .sort((left, right) => left.displayName.localeCompare(right.displayName))
-            const group = state.repoGroups.find((entry) => entry.parentPath === args.parentPath)
+            const group = state.projectGroups.find((entry) => entry.parentPath === args.parentPath)
             return {
               groupName: group?.name ?? null,
               repoNames: importedRepos.map((repo) => repo.displayName),
               reposInCreatedGroup:
-                group !== undefined && importedRepos.every((repo) => repo.repoGroupId === group.id),
-              repoGroupOrders: importedRepos.map((repo) => repo.repoGroupOrder ?? null)
+                group !== undefined &&
+                importedRepos.every((repo) => repo.projectGroupId === group.id),
+              projectGroupOrders: importedRepos.map((repo) => repo.projectGroupOrder ?? null)
             }
           }, fixture),
         {
           timeout: 20_000,
-          message: 'nested repos were not imported into a repo group'
+          message: 'nested repos were not imported into a project group'
         }
       )
       .toEqual({
         groupName: fixture.groupName,
         repoNames: ['api-service', 'web-client'],
         reposInCreatedGroup: true,
-        repoGroupOrders: [0, 1]
+        projectGroupOrders: [0, 1]
       })
 
     await orcaPage.evaluate(() => {

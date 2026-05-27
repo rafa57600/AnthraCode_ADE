@@ -20,14 +20,14 @@ const {
   mockStore: {
     getRepos: vi.fn().mockReturnValue([]),
     addRepo: vi.fn(),
-    removeRepo: vi.fn(),
+    removeProject: vi.fn(),
     getRepo: vi.fn(),
     updateRepo: vi.fn(),
-    getRepoGroups: vi.fn().mockReturnValue([]),
-    createRepoGroup: vi.fn(),
-    updateRepoGroup: vi.fn(),
-    deleteRepoGroup: vi.fn(),
-    moveRepoToGroup: vi.fn(),
+    getProjectGroups: vi.fn().mockReturnValue([]),
+    createProjectGroup: vi.fn(),
+    updateProjectGroup: vi.fn(),
+    deleteProjectGroup: vi.fn(),
+    moveProjectToGroup: vi.fn(),
     getSshTarget: vi.fn()
   },
   mockGitProvider: {
@@ -109,7 +109,7 @@ vi.mock('./ssh', () => ({
 
 import { registerRepoHandlers } from './repos'
 
-describe('repoGroups IPC validation', () => {
+describe('projectGroups IPC validation', () => {
   const handlers = new Map<string, (_event: unknown, args: unknown) => unknown>()
   const mockWindow = {
     isDestroyed: () => false,
@@ -123,10 +123,10 @@ describe('repoGroups IPC validation', () => {
       handlers.set(channel, handler)
     })
     mockWindow.webContents.send.mockReset()
-    mockStore.createRepoGroup.mockReset()
-    mockStore.updateRepoGroup.mockReset()
-    mockStore.deleteRepoGroup.mockReset()
-    mockStore.moveRepoToGroup.mockReset()
+    mockStore.createProjectGroup.mockReset()
+    mockStore.updateProjectGroup.mockReset()
+    mockStore.deleteProjectGroup.mockReset()
+    mockStore.moveProjectToGroup.mockReset()
     mockStore.getRepos.mockReset()
     mockStore.getRepos.mockReturnValue([])
     mockFilesystemProvider.readDir.mockReset()
@@ -139,23 +139,23 @@ describe('repoGroups IPC validation', () => {
     registerRepoHandlers(mockWindow as never, mockStore as never)
   })
 
-  it('rejects malformed local repo group create arguments before persistence', () => {
+  it('rejects malformed local project group create arguments before persistence', () => {
     expect(() =>
-      handlers.get('repoGroups:create')!(null, { name: 123, createdFrom: 'unexpected' })
-    ).toThrow('invalid_repo_group_create_args')
+      handlers.get('projectGroups:create')!(null, { name: 123, createdFrom: 'unexpected' })
+    ).toThrow('invalid_project_group_create_args')
 
-    expect(mockStore.createRepoGroup).not.toHaveBeenCalled()
+    expect(mockStore.createProjectGroup).not.toHaveBeenCalled()
   })
 
-  it('rejects malformed local repo group update arguments before persistence', () => {
+  it('rejects malformed local project group update arguments before persistence', () => {
     expect(() =>
-      handlers.get('repoGroups:update')!(null, {
+      handlers.get('projectGroups:update')!(null, {
         groupId: 'group-1',
         updates: { isCollapsed: 'yes' }
       })
-    ).toThrow('invalid_repo_group_update_args')
+    ).toThrow('invalid_project_group_update_args')
 
-    expect(mockStore.updateRepoGroup).not.toHaveBeenCalled()
+    expect(mockStore.updateProjectGroup).not.toHaveBeenCalled()
   })
 
   it('scans nested repositories over a connected SSH filesystem', async () => {
@@ -167,7 +167,7 @@ describe('repoGroups IPC validation', () => {
       dirPath === '/srv/platform' ? [{ name: 'api', isDirectory: true, isSymlink: false }] : []
     )
 
-    const result = await handlers.get('repoGroups:scanNested')!(null, {
+    const result = await handlers.get('projectGroups:scanNested')!(null, {
       path: '/srv/platform',
       connectionId: 'conn-1'
     })
@@ -181,7 +181,7 @@ describe('repoGroups IPC validation', () => {
 
   it('rejects local nested scans with relative paths', async () => {
     await expect(
-      handlers.get('repoGroups:scanNested')!(null, {
+      handlers.get('projectGroups:scanNested')!(null, {
         path: 'relative/project'
       })
     ).rejects.toThrow('Repo path must be an absolute path')
@@ -200,7 +200,7 @@ describe('repoGroups IPC validation', () => {
       createdAt: 1,
       updatedAt: 1
     }
-    mockStore.createRepoGroup.mockReturnValue(group)
+    mockStore.createProjectGroup.mockReturnValue(group)
     mockGitProvider.isGitRepoAsync.mockImplementation(async (path: string) => ({
       isRepo: path === '/srv/platform/api',
       rootPath: null
@@ -209,10 +209,10 @@ describe('repoGroups IPC validation', () => {
       dirPath === '/srv/platform' ? [{ name: 'api', isDirectory: true, isSymlink: false }] : []
     )
 
-    const result = await handlers.get('repoGroups:importNested')!(null, {
+    const result = await handlers.get('projectGroups:importNested')!(null, {
       parentPath: '/srv/platform',
       groupName: 'Platform',
-      repoPaths: ['/srv/platform/api'],
+      projectPaths: ['/srv/platform/api'],
       connectionId: 'conn-1',
       mode: 'group'
     })
@@ -222,7 +222,7 @@ describe('repoGroups IPC validation', () => {
       expect.objectContaining({
         path: '/srv/platform/api',
         connectionId: 'conn-1',
-        repoGroupId: group.id
+        projectGroupId: group.id
       })
     )
     expect(mockMultiplexer.notify).toHaveBeenCalledWith('session.registerRoot', {
@@ -243,7 +243,7 @@ describe('repoGroups IPC validation', () => {
       createdAt: 1,
       updatedAt: 1
     }
-    mockStore.createRepoGroup.mockReturnValue(group)
+    mockStore.createProjectGroup.mockReturnValue(group)
     mockGitProvider.isGitRepoAsync.mockImplementation(async (path: string) => ({
       isRepo: path === '/srv/platform/api',
       rootPath: null
@@ -255,15 +255,15 @@ describe('repoGroups IPC validation', () => {
       throw new Error('secret backend path /srv/platform/api')
     })
 
-    const result = (await handlers.get('repoGroups:importNested')!(null, {
+    const result = (await handlers.get('projectGroups:importNested')!(null, {
       parentPath: '/srv/platform',
       groupName: 'Platform',
-      repoPaths: ['/srv/platform/api'],
+      projectPaths: ['/srv/platform/api'],
       connectionId: 'conn-1',
       mode: 'group'
-    })) as { repos: { error?: string }[] }
+    })) as { projects: { error?: string }[] }
 
-    expect(result.repos[0].error).toBe('Repository could not be imported')
+    expect(result.projects[0].error).toBe('Repository could not be imported')
   })
 })
 

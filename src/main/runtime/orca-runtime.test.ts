@@ -619,21 +619,21 @@ describe('OrcaRuntimeService', () => {
   it('rejects relative paths for runtime nested repo scan/import', async () => {
     const runtime = new OrcaRuntimeService({
       ...store,
-      createRepoGroup: vi.fn(),
-      moveRepoToGroup: vi.fn()
+      createProjectGroup: vi.fn(),
+      moveProjectToGroup: vi.fn()
     } as never)
 
     await expect(runtime.scanNestedRepos('relative/project')).rejects.toThrow(
-      'Repo path must be an absolute path'
+      'Project path must be an absolute path'
     )
     await expect(
       runtime.importNestedRepos({
         parentPath: 'relative/project',
         groupName: 'Project',
-        repoPaths: ['relative/project/api'],
+        projectPaths: ['relative/project/api'],
         mode: 'group'
       })
-    ).rejects.toThrow('Repo path must be an absolute path')
+    ).rejects.toThrow('Project path must be an absolute path')
   })
 
   it('starts unavailable with no authoritative window', () => {

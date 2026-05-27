@@ -1,4 +1,4 @@
-import type { NestedRepoScanResult, RepoGroup, RepoGroupImportMode } from '../../shared/types'
+import type { NestedRepoScanResult, ProjectGroup, ProjectGroupImportMode } from '../../shared/types'
 import {
   normalizeRuntimePathForComparison,
   relativePathInsideRoot
@@ -8,13 +8,13 @@ type CreateGroupInput = {
   name: string
   parentPath?: string | null
   parentGroupId?: string | null
-  createdFrom: RepoGroup['createdFrom']
+  createdFrom: ProjectGroup['createdFrom']
 }
 
-type NestedRepoGroupResolver = {
-  getGroupForRepo: (repoPath: string) => RepoGroup | undefined
-  getRootGroup: () => RepoGroup | undefined
-  getCreatedGroups: () => RepoGroup[]
+type NestedProjectGroupResolver = {
+  getGroupForRepo: (repoPath: string) => ProjectGroup | undefined
+  getRootGroup: () => ProjectGroup | undefined
+  getCreatedGroups: () => ProjectGroup[]
 }
 
 export type ResolvedNestedRepoSelection = {
@@ -70,16 +70,16 @@ function getRelativeSegments(parentPath: string, repoPath: string): string[] {
   return splitPath(normalizedRepo).slice(-1)
 }
 
-export function createNestedRepoGroupResolver(args: {
+export function createNestedProjectGroupResolver(args: {
   parentPath: string
   groupName: string
-  mode: RepoGroupImportMode
-  createGroup: (input: CreateGroupInput) => RepoGroup
-}): NestedRepoGroupResolver {
-  const createdGroups: RepoGroup[] = []
-  const groupsByRelativeDir = new Map<string, RepoGroup>()
+  mode: ProjectGroupImportMode
+  createGroup: (input: CreateGroupInput) => ProjectGroup
+}): NestedProjectGroupResolver {
+  const createdGroups: ProjectGroup[] = []
+  const groupsByRelativeDir = new Map<string, ProjectGroup>()
 
-  const ensureGroup = (relativeDirs: readonly string[]): RepoGroup | undefined => {
+  const ensureGroup = (relativeDirs: readonly string[]): ProjectGroup | undefined => {
     if (args.mode !== 'group') {
       return undefined
     }
@@ -115,7 +115,7 @@ export function createNestedRepoGroupResolver(args: {
 
 export function resolveNestedRepoSelection(args: {
   scan: NestedRepoScanResult
-  repoPaths: readonly string[]
+  projectPaths: readonly string[]
 }): ResolvedNestedRepoSelection {
   const candidatesByPath = new Map(
     args.scan.repos.map((repo) => [normalizeRuntimePathForComparison(repo.path), repo.path])
@@ -124,7 +124,7 @@ export function resolveNestedRepoSelection(args: {
   const rejectedPaths: string[] = []
   const seen = new Set<string>()
 
-  for (const repoPath of args.repoPaths) {
+  for (const repoPath of args.projectPaths) {
     const normalizedPath = normalizeRuntimePathForComparison(repoPath)
     if (seen.has(normalizedPath)) {
       continue

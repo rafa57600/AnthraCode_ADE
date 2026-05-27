@@ -36,7 +36,7 @@ import {
   isLegacyRepoForExternalWorktreeVisibility
 } from '../../../../shared/worktree-ownership'
 
-function defaultRepoGroupNameForPath(path: string): string {
+function defaultProjectGroupNameForPath(path: string): string {
   return (
     path
       .replace(/[\\/]+$/g, '')
@@ -113,7 +113,7 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
     (scan, selectedPath, connectionId) => {
       setNestedScan(scan)
       setNestedSelectedPaths(new Set(scan.repos.map((repo) => repo.path)))
-      setNestedGroupName(defaultRepoGroupNameForPath(scan.selectedPath || selectedPath))
+      setNestedGroupName(defaultProjectGroupNameForPath(scan.selectedPath || selectedPath))
       setNestedConnectionId(connectionId)
       setStep('nested')
     }
@@ -162,13 +162,13 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
   }, [step, cloneDestination, settings?.activeRuntimeEnvironmentId, settings?.workspaceDir])
 
   const isOpen = activeModal === 'add-repo'
-  const repoId = addedRepo?.id ?? ''
+  const projectId = addedRepo?.id ?? ''
   const isRuntimeEnvironmentActive = Boolean(settings?.activeRuntimeEnvironmentId?.trim())
 
   const worktrees = useMemo(() => {
-    return worktreesByRepo[repoId] ?? []
-  }, [worktreesByRepo, repoId])
-  const detectedResult = repoId ? detectedWorktreesByRepo[repoId] : undefined
+    return worktreesByRepo[projectId] ?? []
+  }, [worktreesByRepo, projectId])
+  const detectedResult = projectId ? detectedWorktreesByRepo[projectId] : undefined
   const hiddenWorktreeCount =
     detectedResult?.authoritative === true
       ? detectedResult.worktrees.filter(
@@ -246,7 +246,7 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
       if (scan?.selectedPathKind === 'non_git_folder' && scan.repos.length > 0) {
         setNestedScan(scan)
         setNestedSelectedPaths(new Set(scan.repos.map((repo) => repo.path)))
-        setNestedGroupName(defaultRepoGroupNameForPath(path))
+        setNestedGroupName(defaultProjectGroupNameForPath(path))
         setNestedConnectionId(null)
         setStep('nested')
         return
@@ -277,23 +277,23 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
         const result = await importNestedRepos({
           parentPath: nestedScan.selectedPath,
           groupName: nestedGroupName,
-          repoPaths: [...nestedSelectedPaths],
+          projectPaths: [...nestedSelectedPaths],
           ...(nestedConnectionId ? { connectionId: nestedConnectionId } : {}),
           mode
         })
         if (!result) {
           return
         }
-        const importedRepoIds = result.repos
-          .map((entry) => entry.repoId)
-          .filter((repoId): repoId is string => typeof repoId === 'string')
+        const importedRepoIds = result.projects
+          .map((entry) => entry.projectId)
+          .filter((projectId): projectId is string => typeof projectId === 'string')
         const firstRepoId = importedRepoIds[0]
         if (!firstRepoId) {
           toast.error('No repositories imported')
           return
         }
-        for (const repoId of importedRepoIds) {
-          await fetchWorktrees(repoId)
+        for (const projectId of importedRepoIds) {
+          await fetchWorktrees(projectId)
         }
         const repo = useAppStore.getState().repos.find((entry) => entry.id === firstRepoId)
         if (repo) {
@@ -340,7 +340,7 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
           if (scan?.selectedPathKind === 'non_git_folder' && scan.repos.length > 0) {
             setNestedScan(scan)
             setNestedSelectedPaths(new Set(scan.repos.map((repo) => repo.path)))
-            setNestedGroupName(defaultRepoGroupNameForPath(path))
+            setNestedGroupName(defaultProjectGroupNameForPath(path))
             setNestedConnectionId(null)
             setStep('nested')
             return
@@ -448,16 +448,16 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
   useEffect(() => {
     if (
       step !== 'setup' ||
-      !repoId ||
+      !projectId ||
       !existingWorkspaceTelemetry ||
       !shouldTrackAddRepoExistingWorkspacesDetected(existingWorkspaceTelemetry) ||
-      detectedTelemetryTrackedRef.current.has(repoId)
+      detectedTelemetryTrackedRef.current.has(projectId)
     ) {
       return
     }
-    detectedTelemetryTrackedRef.current.add(repoId)
+    detectedTelemetryTrackedRef.current.add(projectId)
     track('add_repo_existing_workspaces_detected', existingWorkspaceTelemetry)
-  }, [existingWorkspaceSource, existingWorkspaceTelemetry, repoId, step])
+  }, [existingWorkspaceSource, existingWorkspaceTelemetry, projectId, step])
 
   const trackSetupAction = useCallback(
     (action: AddRepoSetupStepAction): void => {
@@ -486,13 +486,13 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
       closeModal()
       setTimeout(() => {
         openModal('new-workspace-composer', {
-          initialRepoId: repoId,
+          initialRepoId: projectId,
           ...(name ? { prefilledName: name } : {}),
           telemetrySource: 'sidebar'
         })
       }, 150)
     },
-    [closeModal, openModal, repoId, trackSetupAction]
+    [closeModal, openModal, projectId, trackSetupAction]
   )
 
   const handleStartPrimaryWorktree = useCallback(() => {
@@ -510,12 +510,12 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
   const handleConfigureRepo = useCallback(() => {
     trackSetupAction('configure')
     closeModal()
-    openSettingsTarget({ pane: 'repo', repoId })
+    openSettingsTarget({ pane: 'repo', repoId: projectId })
     openSettingsPage()
-  }, [closeModal, openSettingsTarget, openSettingsPage, repoId, trackSetupAction])
+  }, [closeModal, openSettingsTarget, openSettingsPage, projectId, trackSetupAction])
 
   const finishImportedRepoWithoutOpening = useCallback(async () => {
-    const importedRepoId = repoId
+    const importedRepoId = projectId
     closeModal()
     resetState()
     if (!importedRepoId) {
@@ -525,19 +525,19 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
     await fetchWorktrees(importedRepoId)
     const state = useAppStore.getState()
     finalizeImportedRepoAfterSkip(state, importedRepoId)
-  }, [closeModal, fetchWorktrees, repoId, resetState])
+  }, [closeModal, fetchWorktrees, projectId, resetState])
 
   const handleUseExistingWorktrees = useCallback(async () => {
-    if (!repoId) {
+    if (!projectId) {
       return
     }
     trackSetupAction('open_existing')
     if (!otherWorktreesVisible) {
-      const updated = await updateRepo(repoId, { externalWorktreeVisibility: 'show' })
+      const updated = await updateRepo(projectId, { externalWorktreeVisibility: 'show' })
       if (updated && addedRepo) {
         setAddedRepo({ ...addedRepo, externalWorktreeVisibility: 'show' })
       }
-      await fetchWorktrees(repoId)
+      await fetchWorktrees(projectId)
     }
     await finishImportedRepoWithoutOpening()
   }, [
@@ -545,7 +545,7 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
     fetchWorktrees,
     finishImportedRepoWithoutOpening,
     otherWorktreesVisible,
-    repoId,
+    projectId,
     trackSetupAction,
     updateRepo
   ])
@@ -807,7 +807,7 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
         ) : step === 'nested' && nestedScan ? (
           <>
             <DialogHeader>
-              <DialogTitle>Import as repo group</DialogTitle>
+              <DialogTitle>Import as project group</DialogTitle>
               <DialogDescription>
                 {`Found ${nestedScan.repos.length} git ${
                   nestedScan.repos.length === 1 ? 'repository' : 'repositories'
@@ -867,7 +867,7 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
                     onClick={() => void handleImportNestedRepos('group')}
                     disabled={isAdding || nestedSelectedPaths.size === 0 || !nestedGroupName.trim()}
                   >
-                    Import as repo group
+                    Import as project group
                   </Button>
                 </div>
               </div>

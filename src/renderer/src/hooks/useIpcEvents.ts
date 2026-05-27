@@ -593,7 +593,7 @@ export function useIpcEvents(): void {
           return
         }
         const state = useAppStore.getState()
-        void state.fetchRepoGroups()
+        void state.fetchProjectGroups()
         void state.fetchRepos()
       })
     )

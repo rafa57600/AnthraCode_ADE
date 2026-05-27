@@ -455,35 +455,35 @@ const api = {
     }
   },
 
-  repoGroups: {
-    list: (): Promise<unknown[]> => ipcRenderer.invoke('repoGroups:list'),
+  projectGroups: {
+    list: (): Promise<unknown[]> => ipcRenderer.invoke('projectGroups:list'),
     create: (args: {
       name: string
       parentPath?: string | null
       parentGroupId?: string | null
       createdFrom?: 'manual' | 'folder-scan' | 'migration'
-    }): Promise<unknown> => ipcRenderer.invoke('repoGroups:create', args),
+    }): Promise<unknown> => ipcRenderer.invoke('projectGroups:create', args),
     update: (args: { groupId: string; updates: Record<string, unknown> }): Promise<unknown> =>
-      ipcRenderer.invoke('repoGroups:update', args),
+      ipcRenderer.invoke('projectGroups:update', args),
     delete: (args: { groupId: string }): Promise<boolean> =>
-      ipcRenderer.invoke('repoGroups:delete', args),
-    moveRepo: (args: {
-      repoId: string
+      ipcRenderer.invoke('projectGroups:delete', args),
+    moveProject: (args: {
+      projectId: string
       groupId: string | null
       order?: number
-    }): Promise<unknown> => ipcRenderer.invoke('repoGroups:moveRepo', args),
+    }): Promise<unknown> => ipcRenderer.invoke('projectGroups:moveProject', args),
     scanNested: (args: {
       path: string
       connectionId?: string
       options?: Record<string, unknown>
-    }): Promise<unknown> => ipcRenderer.invoke('repoGroups:scanNested', args),
+    }): Promise<unknown> => ipcRenderer.invoke('projectGroups:scanNested', args),
     importNested: (args: {
       parentPath: string
       groupName: string
-      repoPaths: string[]
+      projectPaths: string[]
       connectionId?: string
       mode: 'group' | 'separate'
-    }): Promise<unknown> => ipcRenderer.invoke('repoGroups:importNested', args)
+    }): Promise<unknown> => ipcRenderer.invoke('projectGroups:importNested', args)
   },
 
   sparsePresets: {

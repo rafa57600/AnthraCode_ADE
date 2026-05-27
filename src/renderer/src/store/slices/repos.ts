@@ -7,13 +7,13 @@ import { toast } from 'sonner'
 import type { AppState } from '../types'
 import type {
   Repo,
-  RepoGroup,
-  RepoGroupImportResult,
+  ProjectGroup,
+  ProjectGroupImportResult,
   NestedRepoScanResult
 } from '../../../../shared/types'
 import { isGitRepoKind } from '../../../../shared/repo-kind'
 import { sanitizeRepoIcon } from '../../../../shared/repo-icon'
-import { getRepoGroupSubtreeIds } from '../../../../shared/repo-groups'
+import { getProjectGroupSubtreeIds } from '../../../../shared/project-groups'
 import { getRepoIdFromWorktreeId } from './worktree-helpers'
 import { callRuntimeRpc, getActiveRuntimeTarget } from '../../runtime/runtime-rpc-client'
 import { buildDismissedOnboardingFolderAgentStartup } from '@/lib/onboarding-folder-agent-startup'
@@ -33,8 +33,8 @@ type RepoUpdate = Partial<
     | 'issueSourcePreference'
     | 'externalWorktreeVisibility'
     | 'externalWorktreeVisibilityPromptDismissedAt'
-    | 'repoGroupId'
-    | 'repoGroupOrder'
+    | 'projectGroupId'
+    | 'projectGroupOrder'
   >
 >
 
@@ -62,12 +62,12 @@ function getRepoUpdateChains(get: () => AppState): Map<string, Promise<boolean>>
   return chains
 }
 
-function getKnownRepoWorktreeIds(state: AppState, repoId: string): string[] {
+function getKnownRepoWorktreeIds(state: AppState, projectId: string): string[] {
   const ids = new Set<string>()
-  for (const worktree of state.worktreesByRepo[repoId] ?? []) {
+  for (const worktree of state.worktreesByRepo[projectId] ?? []) {
     ids.add(worktree.id)
   }
-  for (const worktree of state.detectedWorktreesByRepo[repoId]?.worktrees ?? []) {
+  for (const worktree of state.detectedWorktreesByRepo[projectId]?.worktrees ?? []) {
     ids.add(worktree.id)
   }
   return [...ids]
@@ -75,10 +75,10 @@ function getKnownRepoWorktreeIds(state: AppState, repoId: string): string[] {
 
 export type RepoSlice = {
   repos: Repo[]
-  repoGroups: RepoGroup[]
+  projectGroups: ProjectGroup[]
   activeRepoId: string | null
   fetchRepos: () => Promise<void>
-  fetchRepoGroups: () => Promise<void>
+  fetchProjectGroups: () => Promise<void>
   addRepo: () => Promise<Repo | null>
   addRepoPath: (path: string, kind?: 'git' | 'folder') => Promise<Repo | null>
   addNonGitFolder: (path: string) => Promise<Repo | null>
@@ -86,26 +86,30 @@ export type RepoSlice = {
   importNestedRepos: (args: {
     parentPath: string
     groupName: string
-    repoPaths: string[]
+    projectPaths: string[]
     connectionId?: string
     mode: 'group' | 'separate'
-  }) => Promise<RepoGroupImportResult | null>
-  createRepoGroup: (name: string) => Promise<RepoGroup | null>
-  updateRepoGroup: (
+  }) => Promise<ProjectGroupImportResult | null>
+  createProjectGroup: (name: string) => Promise<ProjectGroup | null>
+  updateProjectGroup: (
     groupId: string,
-    updates: Partial<Pick<RepoGroup, 'name' | 'isCollapsed' | 'tabOrder' | 'color'>>
+    updates: Partial<Pick<ProjectGroup, 'name' | 'isCollapsed' | 'tabOrder' | 'color'>>
   ) => Promise<boolean>
-  deleteRepoGroup: (groupId: string) => Promise<boolean>
-  moveRepoToGroup: (repoId: string, groupId: string | null, order?: number) => Promise<boolean>
-  removeRepo: (repoId: string) => Promise<void>
-  updateRepo: (repoId: string, updates: RepoUpdate) => Promise<boolean>
-  setActiveRepo: (repoId: string | null) => void
+  deleteProjectGroup: (groupId: string) => Promise<boolean>
+  moveProjectToGroup: (
+    projectId: string,
+    groupId: string | null,
+    order?: number
+  ) => Promise<boolean>
+  removeProject: (projectId: string) => Promise<void>
+  updateRepo: (projectId: string, updates: RepoUpdate) => Promise<boolean>
+  setActiveRepo: (projectId: string | null) => void
   reorderRepos: (orderedIds: string[]) => Promise<void>
 }
 
 export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set, get) => ({
   repos: [],
-  repoGroups: [],
+  projectGroups: [],
   activeRepoId: null,
 
   fetchRepos: async () => {
@@ -130,9 +134,9 @@ export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set, 
         return {
           repos,
           activeRepoId: s.activeRepoId && validRepoIds.has(s.activeRepoId) ? s.activeRepoId : null,
-          filterRepoIds: s.filterRepoIds.filter((repoId) => validRepoIds.has(repoId)),
-          setupScriptPromptDismissedRepoIds: s.setupScriptPromptDismissedRepoIds.filter((repoId) =>
-            validRepoIds.has(repoId)
+          filterRepoIds: s.filterRepoIds.filter((projectId) => validRepoIds.has(projectId)),
+          setupScriptPromptDismissedRepoIds: s.setupScriptPromptDismissedRepoIds.filter(
+            (projectId) => validRepoIds.has(projectId)
           )
         }
       })
@@ -141,20 +145,25 @@ export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set, 
     }
   },
 
-  fetchRepoGroups: async () => {
+  fetchProjectGroups: async () => {
     try {
       const target = getActiveRuntimeTarget(get().settings)
-      const repoGroups =
+      const projectGroups =
         target.kind === 'local'
-          ? ((await window.api.repoGroups.list()) as RepoGroup[])
+          ? ((await window.api.projectGroups.list()) as ProjectGroup[])
           : (
-              await callRuntimeRpc<{ groups: RepoGroup[] }>(target, 'repoGroup.list', undefined, {
-                timeoutMs: 15_000
-              })
+              await callRuntimeRpc<{ groups: ProjectGroup[] }>(
+                target,
+                'projectGroup.list',
+                undefined,
+                {
+                  timeoutMs: 15_000
+                }
+              )
             ).groups
-      set({ repoGroups })
+      set({ projectGroups })
     } catch (err) {
-      console.error('Failed to fetch repo groups:', err)
+      console.error('Failed to fetch project groups:', err)
     }
   },
 
@@ -162,10 +171,13 @@ export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set, 
     try {
       const target = getActiveRuntimeTarget(get().settings)
       return target.kind === 'local'
-        ? ((await window.api.repoGroups.scanNested({ path, connectionId })) as NestedRepoScanResult)
+        ? ((await window.api.projectGroups.scanNested({
+            path,
+            connectionId
+          })) as NestedRepoScanResult)
         : await callRuntimeRpc<NestedRepoScanResult>(
             target,
-            'repoGroup.scanNested',
+            'projectGroup.scanNested',
             { path },
             { timeoutMs: 15_000 }
           )
@@ -180,19 +192,19 @@ export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set, 
       const target = getActiveRuntimeTarget(get().settings)
       const result =
         target.kind === 'local'
-          ? ((await window.api.repoGroups.importNested(args)) as RepoGroupImportResult)
-          : await callRuntimeRpc<RepoGroupImportResult>(
+          ? ((await window.api.projectGroups.importNested(args)) as ProjectGroupImportResult)
+          : await callRuntimeRpc<ProjectGroupImportResult>(
               target,
-              'repoGroup.importNested',
+              'projectGroup.importNested',
               {
                 parentPath: args.parentPath,
                 groupName: args.groupName,
-                repoPaths: args.repoPaths,
+                projectPaths: args.projectPaths,
                 mode: args.mode
               },
               { timeoutMs: 60_000 }
             )
-      await get().fetchRepoGroups()
+      await get().fetchProjectGroups()
       await get().fetchRepos()
       return result
     } catch (err) {
@@ -204,41 +216,41 @@ export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set, 
     }
   },
 
-  createRepoGroup: async (name) => {
+  createProjectGroup: async (name) => {
     try {
       const target = getActiveRuntimeTarget(get().settings)
       const group =
         target.kind === 'local'
-          ? ((await window.api.repoGroups.create({
+          ? ((await window.api.projectGroups.create({
               name,
               createdFrom: 'manual'
-            })) as RepoGroup)
+            })) as ProjectGroup)
           : (
-              await callRuntimeRpc<{ group: RepoGroup }>(
+              await callRuntimeRpc<{ group: ProjectGroup }>(
                 target,
-                'repoGroup.create',
+                'projectGroup.create',
                 { name, createdFrom: 'manual' },
                 { timeoutMs: 15_000 }
               )
             ).group
-      set((s) => ({ repoGroups: [...s.repoGroups, group] }))
+      set((s) => ({ projectGroups: [...s.projectGroups, group] }))
       return group
     } catch (err) {
-      console.error('Failed to create repo group:', err)
+      console.error('Failed to create project group:', err)
       return null
     }
   },
 
-  updateRepoGroup: async (groupId, updates) => {
+  updateProjectGroup: async (groupId, updates) => {
     try {
       const target = getActiveRuntimeTarget(get().settings)
       const updated =
         target.kind === 'local'
-          ? ((await window.api.repoGroups.update({ groupId, updates })) as RepoGroup | null)
+          ? ((await window.api.projectGroups.update({ groupId, updates })) as ProjectGroup | null)
           : (
-              await callRuntimeRpc<{ group: RepoGroup | null }>(
+              await callRuntimeRpc<{ group: ProjectGroup | null }>(
                 target,
-                'repoGroup.update',
+                'projectGroup.update',
                 { groupId, updates },
                 { timeoutMs: 15_000 }
               )
@@ -247,25 +259,25 @@ export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set, 
         return false
       }
       set((s) => ({
-        repoGroups: s.repoGroups.map((group) => (group.id === groupId ? updated : group))
+        projectGroups: s.projectGroups.map((group) => (group.id === groupId ? updated : group))
       }))
       return true
     } catch (err) {
-      console.error('Failed to update repo group:', err)
+      console.error('Failed to update project group:', err)
       return false
     }
   },
 
-  deleteRepoGroup: async (groupId) => {
+  deleteProjectGroup: async (groupId) => {
     try {
       const target = getActiveRuntimeTarget(get().settings)
       const deleted =
         target.kind === 'local'
-          ? await window.api.repoGroups.delete({ groupId })
+          ? await window.api.projectGroups.delete({ groupId })
           : (
               await callRuntimeRpc<{ deleted: boolean }>(
                 target,
-                'repoGroup.delete',
+                'projectGroup.delete',
                 { groupId },
                 { timeoutMs: 15_000 }
               )
@@ -274,45 +286,45 @@ export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set, 
         return false
       }
       set((s) => {
-        const deletedGroupIds = getRepoGroupSubtreeIds(s.repoGroups, groupId)
+        const deletedGroupIds = getProjectGroupSubtreeIds(s.projectGroups, groupId)
         return {
-          repoGroups: s.repoGroups.filter((group) => !deletedGroupIds.has(group.id)),
+          projectGroups: s.projectGroups.filter((group) => !deletedGroupIds.has(group.id)),
           repos: s.repos.map((repo) =>
-            repo.repoGroupId && deletedGroupIds.has(repo.repoGroupId)
-              ? { ...repo, repoGroupId: null }
+            repo.projectGroupId && deletedGroupIds.has(repo.projectGroupId)
+              ? { ...repo, projectGroupId: null }
               : repo
           )
         }
       })
       return true
     } catch (err) {
-      console.error('Failed to delete repo group:', err)
+      console.error('Failed to delete project group:', err)
       return false
     }
   },
 
-  moveRepoToGroup: async (repoId, groupId, order) => {
+  moveProjectToGroup: async (projectId, groupId, order) => {
     try {
       const target = getActiveRuntimeTarget(get().settings)
       const moved =
         target.kind === 'local'
-          ? ((await window.api.repoGroups.moveRepo({
-              repoId,
+          ? ((await window.api.projectGroups.moveProject({
+              projectId,
               groupId,
               order
             })) as Repo | null)
           : (
               await callRuntimeRpc<{ repo: Repo | null }>(
                 target,
-                'repoGroup.moveRepo',
-                { repo: repoId, groupId, order },
+                'projectGroup.moveProject',
+                { repo: projectId, groupId, order },
                 { timeoutMs: 15_000 }
               )
             ).repo
       if (!moved) {
         return false
       }
-      set((s) => ({ repos: s.repos.map((repo) => (repo.id === repoId ? moved : repo)) }))
+      set((s) => ({ repos: s.repos.map((repo) => (repo.id === projectId ? moved : repo)) }))
       return true
     } catch (err) {
       console.error('Failed to move repo to group:', err)
@@ -439,21 +451,21 @@ export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set, 
     }
   },
 
-  removeRepo: async (repoId) => {
+  removeProject: async (projectId) => {
     try {
       const target = getActiveRuntimeTarget(get().settings)
       await (target.kind === 'local'
-        ? window.api.repos.remove({ repoId })
-        : callRuntimeRpc(target, 'repo.rm', { repo: repoId }, { timeoutMs: 15_000 }))
+        ? window.api.repos.remove({ repoId: projectId })
+        : callRuntimeRpc(target, 'repo.rm', { repo: projectId }, { timeoutMs: 15_000 }))
 
-      get().clearOrcaHookTrustForRepo(repoId)
-      const repoPath = get().repos.find((repo) => repo.id === repoId)?.path
-      get().evictGitHubRepoCaches(repoId, repoPath)
+      get().clearOrcaHookTrustForRepo(projectId)
+      const repoPath = get().repos.find((repo) => repo.id === projectId)?.path
+      get().evictGitHubRepoCaches(projectId, repoPath)
       const { clearRepoSlugCacheEntry } = await import('../../lib/repo-slug-index')
-      clearRepoSlugCacheEntry(repoId)
+      clearRepoSlugCacheEntry(projectId)
 
       // Kill PTYs for all worktrees belonging to this repo
-      const worktreeIds = getKnownRepoWorktreeIds(get(), repoId)
+      const worktreeIds = getKnownRepoWorktreeIds(get(), projectId)
       const killedTabIds = new Set<string>()
       const killedPtyIds = new Set<string>()
       if (target.kind === 'environment') {
@@ -478,9 +490,9 @@ export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set, 
 
       set((s) => {
         const nextWorktrees = { ...s.worktreesByRepo }
-        delete nextWorktrees[repoId]
+        delete nextWorktrees[projectId]
         const nextDetectedWorktrees = { ...s.detectedWorktreesByRepo }
-        delete nextDetectedWorktrees[repoId]
+        delete nextDetectedWorktrees[projectId]
         const nextTabs = { ...s.tabsByWorktree }
         const nextLayouts = { ...s.terminalLayoutsByTabId }
         const nextPtyIdsByTabId = { ...s.ptyIdsByTabId }
@@ -518,18 +530,18 @@ export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set, 
         // forever after the repo is removed.
         let nextLastVisitedAtByWorktreeId = s.lastVisitedAtByWorktreeId
         for (const id of Object.keys(s.lastVisitedAtByWorktreeId)) {
-          if (getRepoIdFromWorktreeId(id) === repoId) {
+          if (getRepoIdFromWorktreeId(id) === projectId) {
             if (nextLastVisitedAtByWorktreeId === s.lastVisitedAtByWorktreeId) {
               nextLastVisitedAtByWorktreeId = { ...s.lastVisitedAtByWorktreeId }
             }
             delete nextLastVisitedAtByWorktreeId[id]
           }
         }
-        const nextRepos = s.repos.filter((r) => r.id !== repoId)
+        const nextRepos = s.repos.filter((r) => r.id !== projectId)
         return {
           repos: nextRepos,
-          activeRepoId: s.activeRepoId === repoId ? null : s.activeRepoId,
-          filterRepoIds: s.filterRepoIds.filter((id) => id !== repoId),
+          activeRepoId: s.activeRepoId === projectId ? null : s.activeRepoId,
+          filterRepoIds: s.filterRepoIds.filter((id) => id !== projectId),
           worktreesByRepo: nextWorktrees,
           detectedWorktreesByRepo: nextDetectedWorktrees,
           tabsByWorktree: nextTabs,
@@ -563,22 +575,22 @@ export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set, 
     }
   },
 
-  updateRepo: async (repoId, updates) => {
+  updateRepo: async (projectId, updates) => {
     const updateRepoChains = getRepoUpdateChains(get)
     const applyRepoUpdate = async () => {
       try {
         const sanitizedUpdates = sanitizeRepoUpdate(updates)
         const target = getActiveRuntimeTarget(get().settings)
         await (target.kind === 'local'
-          ? window.api.repos.update({ repoId, updates: sanitizedUpdates })
+          ? window.api.repos.update({ repoId: projectId, updates: sanitizedUpdates })
           : callRuntimeRpc(
               target,
               'repo.update',
-              { repo: repoId, updates: sanitizedUpdates },
+              { repo: projectId, updates: sanitizedUpdates },
               { timeoutMs: 15_000 }
             ))
         set((s) => ({
-          repos: s.repos.map((r) => (r.id === repoId ? { ...r, ...sanitizedUpdates } : r))
+          repos: s.repos.map((r) => (r.id === projectId ? { ...r, ...sanitizedUpdates } : r))
         }))
         return true
       } catch (err) {
@@ -586,23 +598,23 @@ export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set, 
         return false
       }
     }
-    const previous = updateRepoChains.get(repoId)
+    const previous = updateRepoChains.get(projectId)
     // Why: repo settings are persisted as full nested values. Preserve call
     // order per repo so a slower IPC/RPC response cannot overwrite newer state.
     const next = previous
       ? previous.catch(() => undefined).then(applyRepoUpdate)
       : applyRepoUpdate()
-    updateRepoChains.set(repoId, next)
+    updateRepoChains.set(projectId, next)
     const cleanup = () => {
-      if (updateRepoChains.get(repoId) === next) {
-        updateRepoChains.delete(repoId)
+      if (updateRepoChains.get(projectId) === next) {
+        updateRepoChains.delete(projectId)
       }
     }
     void next.then(cleanup, cleanup)
     return next
   },
 
-  setActiveRepo: (repoId) => set({ activeRepoId: repoId }),
+  setActiveRepo: (projectId) => set({ activeRepoId: projectId }),
 
   reorderRepos: async (orderedIds) => {
     // Optimistically apply the new order so the sidebar updates instantly;

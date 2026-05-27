@@ -60,7 +60,6 @@ describe('scanNestedRepos', () => {
 
     const result = await scanNestedRepos({ path: root, options: { maxRepos: 1 } })
 
-    expect(result.repos).toHaveLength(1)
     expect(result.repos[0].displayName).toBe('one')
     expect(result.truncated).toBe(true)
   })

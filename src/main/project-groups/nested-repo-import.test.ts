@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { createNestedRepoGroupResolver, resolveNestedRepoSelection } from './nested-repo-import'
-import type { RepoGroup } from '../../shared/types'
+import { createNestedProjectGroupResolver, resolveNestedRepoSelection } from './nested-repo-import'
+import type { ProjectGroup } from '../../shared/types'
 
-describe('createNestedRepoGroupResolver', () => {
+describe('createNestedProjectGroupResolver', () => {
   it('creates a root group plus intermediate directory groups for nested repos', () => {
-    const groups: RepoGroup[] = []
-    const resolver = createNestedRepoGroupResolver({
+    const groups: ProjectGroup[] = []
+    const resolver = createNestedProjectGroupResolver({
       parentPath: '/workspace',
       groupName: 'workspace',
       mode: 'group',
       createGroup: (input) => {
-        const group: RepoGroup = {
+        const group: ProjectGroup = {
           id: `group-${groups.length}`,
           name: input.name,
           parentPath: input.parentPath ?? null,
@@ -43,7 +43,7 @@ describe('createNestedRepoGroupResolver', () => {
   })
 
   it('does not create groups for separate imports', () => {
-    const resolver = createNestedRepoGroupResolver({
+    const resolver = createNestedProjectGroupResolver({
       parentPath: '/workspace',
       groupName: 'workspace',
       mode: 'separate',
@@ -57,13 +57,13 @@ describe('createNestedRepoGroupResolver', () => {
   })
 
   it('preserves filesystem root parent paths when creating groups', () => {
-    const groups: RepoGroup[] = []
-    const resolver = createNestedRepoGroupResolver({
+    const groups: ProjectGroup[] = []
+    const resolver = createNestedProjectGroupResolver({
       parentPath: '/',
       groupName: 'root',
       mode: 'group',
       createGroup: (input) => {
-        const group: RepoGroup = {
+        const group: ProjectGroup = {
           id: `group-${groups.length}`,
           name: input.name,
           parentPath: input.parentPath ?? null,
@@ -87,13 +87,13 @@ describe('createNestedRepoGroupResolver', () => {
   })
 
   it('preserves Windows drive roots when creating groups', () => {
-    const groups: RepoGroup[] = []
-    const resolver = createNestedRepoGroupResolver({
+    const groups: ProjectGroup[] = []
+    const resolver = createNestedProjectGroupResolver({
       parentPath: 'C:\\',
       groupName: 'C',
       mode: 'group',
       createGroup: (input) => {
-        const group: RepoGroup = {
+        const group: ProjectGroup = {
           id: `group-${groups.length}`,
           name: input.name,
           parentPath: input.parentPath ?? null,
@@ -130,7 +130,7 @@ describe('createNestedRepoGroupResolver', () => {
         durationMs: 1,
         maxDepth: 3
       },
-      repoPaths: ['c:/workspace/services/api', 'C:/workspace/services/api', 'D:/other/repo']
+      projectPaths: ['c:/workspace/services/api', 'C:/workspace/services/api', 'D:/other/repo']
     })
 
     expect(selection.selectedPaths).toEqual(['C:\\workspace\\Services\\API'])

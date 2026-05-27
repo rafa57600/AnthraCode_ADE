@@ -67,7 +67,7 @@ describe('repo RPC methods', () => {
       listSparsePresets: vi.fn().mockResolvedValue([
         {
           id: 'preset-1',
-          repoId: 'repo-1',
+          projectId: 'repo-1',
           name: 'Frontend',
           directories: ['src/renderer'],
           createdAt: 1,
@@ -93,7 +93,7 @@ describe('repo RPC methods', () => {
       getRuntimeId: () => 'test-runtime',
       saveSparsePreset: vi.fn().mockResolvedValue({
         id: 'preset-1',
-        repoId: 'repo-1',
+        projectId: 'repo-1',
         name: 'Frontend',
         directories: ['src/renderer'],
         createdAt: 1,
@@ -206,7 +206,7 @@ describe('repo RPC methods', () => {
     })
   })
 
-  it('routes repo group mutations to the runtime server', async () => {
+  it('routes project group mutations to the runtime server', async () => {
     const group = {
       id: 'group-1',
       name: 'Platform',
@@ -220,52 +220,52 @@ describe('repo RPC methods', () => {
     }
     const runtime = {
       getRuntimeId: () => 'test-runtime',
-      listRepoGroups: vi.fn().mockReturnValue([group]),
-      createRepoGroup: vi.fn().mockResolvedValue(group),
-      updateRepoGroup: vi.fn().mockResolvedValue({ ...group, name: 'Core' }),
-      deleteRepoGroup: vi.fn().mockResolvedValue({ deleted: true }),
-      moveRepoToGroup: vi.fn().mockResolvedValue({ id: 'repo-1', repoGroupId: group.id })
+      listProjectGroups: vi.fn().mockReturnValue([group]),
+      createProjectGroup: vi.fn().mockResolvedValue(group),
+      updateProjectGroup: vi.fn().mockResolvedValue({ ...group, name: 'Core' }),
+      deleteProjectGroup: vi.fn().mockResolvedValue({ deleted: true }),
+      moveProjectToGroup: vi.fn().mockResolvedValue({ id: 'repo-1', projectGroupId: group.id })
     } as unknown as OrcaRuntimeService
     const dispatcher = new RpcDispatcher({ runtime, methods: REPO_METHODS })
 
-    await dispatcher.dispatch(makeRequest('repoGroup.list'))
+    await dispatcher.dispatch(makeRequest('projectGroup.list'))
     await dispatcher.dispatch(
-      makeRequest('repoGroup.create', {
+      makeRequest('projectGroup.create', {
         name: 'Platform',
         parentPath: '/srv/platform',
         createdFrom: 'folder-scan'
       })
     )
     await dispatcher.dispatch(
-      makeRequest('repoGroup.update', {
+      makeRequest('projectGroup.update', {
         groupId: group.id,
         updates: { name: 'Core', isCollapsed: true }
       })
     )
-    await dispatcher.dispatch(makeRequest('repoGroup.delete', { groupId: group.id }))
+    await dispatcher.dispatch(makeRequest('projectGroup.delete', { groupId: group.id }))
     const moveResponse = await dispatcher.dispatch(
-      makeRequest('repoGroup.moveRepo', {
+      makeRequest('projectGroup.moveProject', {
         repo: 'repo-1',
         groupId: group.id,
         order: 2
       })
     )
 
-    expect(runtime.listRepoGroups).toHaveBeenCalled()
-    expect(runtime.createRepoGroup).toHaveBeenCalledWith({
+    expect(runtime.listProjectGroups).toHaveBeenCalled()
+    expect(runtime.createProjectGroup).toHaveBeenCalledWith({
       name: 'Platform',
       parentPath: '/srv/platform',
       createdFrom: 'folder-scan'
     })
-    expect(runtime.updateRepoGroup).toHaveBeenCalledWith(group.id, {
+    expect(runtime.updateProjectGroup).toHaveBeenCalledWith(group.id, {
       name: 'Core',
       isCollapsed: true
     })
-    expect(runtime.deleteRepoGroup).toHaveBeenCalledWith(group.id)
-    expect(runtime.moveRepoToGroup).toHaveBeenCalledWith('repo-1', group.id, 2)
+    expect(runtime.deleteProjectGroup).toHaveBeenCalledWith(group.id)
+    expect(runtime.moveProjectToGroup).toHaveBeenCalledWith('repo-1', group.id, 2)
     expect(moveResponse).toMatchObject({
       ok: true,
-      result: { repo: { id: 'repo-1', repoGroupId: group.id } }
+      result: { project: { id: 'repo-1', projectGroupId: group.id } }
     })
   })
 
@@ -273,7 +273,7 @@ describe('repo RPC methods', () => {
     const runtime = {
       getRuntimeId: () => 'test-runtime',
       importNestedRepos: vi.fn().mockResolvedValue({
-        repos: [{ path: '/srv/platform/api', repoId: 'repo-1', status: 'imported' }],
+        repos: [{ path: '/srv/platform/api', projectId: 'repo-1', status: 'imported' }],
         importedCount: 1,
         alreadyKnownCount: 0,
         failedCount: 0
@@ -282,9 +282,9 @@ describe('repo RPC methods', () => {
     const dispatcher = new RpcDispatcher({ runtime, methods: REPO_METHODS })
 
     const response = await dispatcher.dispatch(
-      makeRequest('repoGroup.importNested', {
+      makeRequest('projectGroup.importNested', {
         parentPath: '/srv/platform',
-        repoPaths: ['/srv/platform/api'],
+        projectPaths: ['/srv/platform/api'],
         mode: 'separate'
       })
     )
@@ -292,7 +292,7 @@ describe('repo RPC methods', () => {
     expect(runtime.importNestedRepos).toHaveBeenCalledWith({
       parentPath: '/srv/platform',
       groupName: '',
-      repoPaths: ['/srv/platform/api'],
+      projectPaths: ['/srv/platform/api'],
       mode: 'separate'
     })
     expect(response).toMatchObject({

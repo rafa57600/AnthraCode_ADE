@@ -44,15 +44,15 @@ import type {
   LinearIssueUpdate,
   LinearWorkspaceSelection,
   NestedRepoScanResult,
-  RepoGroup,
-  RepoGroupImportMode,
-  RepoGroupImportResult,
+  ProjectGroup,
+  ProjectGroupImportMode,
+  ProjectGroupImportResult,
   TabGroupLayoutNode,
   TuiAgent
 } from '../../shared/types'
 import { FOLDER_WORKSPACE_INSTANCE_SEPARATOR, splitWorktreeId } from '../../shared/worktree-id'
 import { isFolderRepo } from '../../shared/repo-kind'
-import { getNextRepoGroupOrder } from '../../shared/repo-groups'
+import { getNextProjectGroupOrder } from '../../shared/project-groups'
 import { DEFAULT_WORKSPACE_STATUS_ID } from '../../shared/workspace-statuses'
 import { buildSetupRunnerCommand } from '../../shared/setup-runner-command'
 import { FIRST_PANE_ID } from '../../shared/pane-key'
@@ -372,14 +372,14 @@ import type { RateLimitState } from '../../shared/rate-limit-types'
 import type { VoiceSettings } from '../../shared/speech-types'
 import { getSpeechModelManager, getSpeechSttService } from '../speech/speech-runtime-service'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
-import { scanNestedRepos } from '../repo-groups/nested-repo-discovery'
+import { scanNestedRepos } from '../project-groups/nested-repo-discovery'
 import {
-  createNestedRepoGroupResolver,
+  createNestedProjectGroupResolver,
   resolveNestedRepoSelection
-} from '../repo-groups/nested-repo-import'
+} from '../project-groups/nested-repo-import'
 
 function sanitizeNestedRepoRuntimeImportError(context: string, error: unknown): string {
-  console.warn(`[repo-groups] ${context}`, error)
+  console.warn(`[project-groups] ${context}`, error)
   return 'Repository could not be imported'
 }
 
@@ -409,12 +409,12 @@ type RuntimeStore = {
   getRepo: Store['getRepo']
   addRepo: Store['addRepo']
   updateRepo: Store['updateRepo']
-  getRepoGroups?: Store['getRepoGroups']
-  createRepoGroup?: Store['createRepoGroup']
-  updateRepoGroup?: Store['updateRepoGroup']
-  deleteRepoGroup?: Store['deleteRepoGroup']
-  moveRepoToGroup?: Store['moveRepoToGroup']
-  removeRepo?: Store['removeRepo']
+  getProjectGroups?: Store['getProjectGroups']
+  createProjectGroup?: Store['createProjectGroup']
+  updateProjectGroup?: Store['updateProjectGroup']
+  deleteProjectGroup?: Store['deleteProjectGroup']
+  moveProjectToGroup?: Store['moveProjectToGroup']
+  removeProject?: Store['removeProject']
   reorderRepos?: Store['reorderRepos']
   getAllWorktreeMeta: Store['getAllWorktreeMeta']
   getWorktreeMeta: Store['getWorktreeMeta']
@@ -5080,20 +5080,20 @@ export class OrcaRuntimeService {
     return this.store?.getRepos() ?? []
   }
 
-  listRepoGroups(): RepoGroup[] {
-    return this.store?.getRepoGroups?.() ?? []
+  listProjectGroups(): ProjectGroup[] {
+    return this.store?.getProjectGroups?.() ?? []
   }
 
-  async createRepoGroup(input: {
+  async createProjectGroup(input: {
     name: string
     parentPath?: string | null
     parentGroupId?: string | null
-    createdFrom?: RepoGroup['createdFrom']
-  }): Promise<RepoGroup> {
-    if (!this.store?.createRepoGroup) {
+    createdFrom?: ProjectGroup['createdFrom']
+  }): Promise<ProjectGroup> {
+    if (!this.store?.createProjectGroup) {
       throw new Error('runtime_unavailable')
     }
-    const group = this.store.createRepoGroup({
+    const group = this.store.createProjectGroup({
       name: input.name,
       parentPath: input.parentPath ?? null,
       parentGroupId: input.parentGroupId ?? null,
@@ -5103,41 +5103,41 @@ export class OrcaRuntimeService {
     return group
   }
 
-  async updateRepoGroup(
+  async updateProjectGroup(
     groupId: string,
-    updates: Partial<Pick<RepoGroup, 'name' | 'isCollapsed' | 'tabOrder' | 'color'>>
-  ): Promise<RepoGroup | null> {
-    if (!this.store?.updateRepoGroup) {
+    updates: Partial<Pick<ProjectGroup, 'name' | 'isCollapsed' | 'tabOrder' | 'color'>>
+  ): Promise<ProjectGroup | null> {
+    if (!this.store?.updateProjectGroup) {
       throw new Error('runtime_unavailable')
     }
-    const updated = this.store.updateRepoGroup(groupId, updates)
+    const updated = this.store.updateProjectGroup(groupId, updates)
     if (updated) {
       this.notifier?.reposChanged()
     }
     return updated
   }
 
-  async deleteRepoGroup(groupId: string): Promise<{ deleted: boolean }> {
-    if (!this.store?.deleteRepoGroup) {
+  async deleteProjectGroup(groupId: string): Promise<{ deleted: boolean }> {
+    if (!this.store?.deleteProjectGroup) {
       throw new Error('runtime_unavailable')
     }
-    const deleted = this.store.deleteRepoGroup(groupId)
+    const deleted = this.store.deleteProjectGroup(groupId)
     if (deleted) {
       this.notifier?.reposChanged()
     }
     return { deleted }
   }
 
-  async moveRepoToGroup(
+  async moveProjectToGroup(
     repoSelector: string,
     groupId: string | null,
     order?: number
   ): Promise<Repo> {
-    if (!this.store?.moveRepoToGroup) {
+    if (!this.store?.moveProjectToGroup) {
       throw new Error('runtime_unavailable')
     }
     const repo = await this.resolveRepoSelector(repoSelector)
-    const moved = this.store.moveRepoToGroup(repo.id, groupId, order)
+    const moved = this.store.moveProjectToGroup(repo.id, groupId, order)
     if (!moved) {
       throw new Error('repo_not_found')
     }
@@ -5147,7 +5147,7 @@ export class OrcaRuntimeService {
 
   async scanNestedRepos(path: string): Promise<NestedRepoScanResult> {
     if (!isAbsolute(path)) {
-      throw new Error('Repo path must be an absolute path')
+      throw new Error('Project path must be an absolute path')
     }
     return scanNestedRepos({ path })
   }
@@ -5155,28 +5155,30 @@ export class OrcaRuntimeService {
   async importNestedRepos(args: {
     parentPath: string
     groupName: string
-    repoPaths: string[]
-    mode: RepoGroupImportMode
-  }): Promise<RepoGroupImportResult> {
-    if (!this.store?.createRepoGroup || !this.store?.moveRepoToGroup) {
+    projectPaths: string[]
+    mode: ProjectGroupImportMode
+  }): Promise<ProjectGroupImportResult> {
+    if (!this.store?.createProjectGroup || !this.store?.moveProjectToGroup) {
       throw new Error('runtime_unavailable')
     }
     if (!isAbsolute(args.parentPath)) {
-      throw new Error('Repo path must be an absolute path')
+      throw new Error('Project path must be an absolute path')
     }
     const scan = await scanNestedRepos({ path: args.parentPath })
-    const selection = resolveNestedRepoSelection({ scan, repoPaths: args.repoPaths })
-    const groupResolver = createNestedRepoGroupResolver({
+    const selection = resolveNestedRepoSelection({ scan, projectPaths: args.projectPaths })
+    const groupResolver = createNestedProjectGroupResolver({
       parentPath: scan.selectedPath,
       groupName: args.groupName,
       mode: args.mode,
-      createGroup: (input) => this.store!.createRepoGroup!(input)
+      createGroup: (input) => this.store!.createProjectGroup!(input)
     })
-    const results: RepoGroupImportResult['repos'] = selection.rejectedPaths.map((repoPath) => ({
-      path: repoPath,
-      status: 'failed',
-      error: 'Repository was not found in the nested repo scan result'
-    }))
+    const results: ProjectGroupImportResult['projects'] = selection.rejectedPaths.map(
+      (repoPath) => ({
+        path: repoPath,
+        status: 'failed',
+        error: 'Repository was not found in the nested repo scan result'
+      })
+    )
     for (const repoPath of selection.selectedPaths) {
       try {
         if (!isGitRepo(repoPath)) {
@@ -5189,9 +5191,9 @@ export class OrcaRuntimeService {
         const group = groupResolver.getGroupForRepo(repoPath)
         if (existing) {
           if (group) {
-            this.store.moveRepoToGroup(existing.id, group.id)
+            this.store.moveProjectToGroup(existing.id, group.id)
           }
-          results.push({ path: repoPath, repoId: existing.id, status: 'already-known' })
+          results.push({ path: repoPath, projectId: existing.id, status: 'already-known' })
           continue
         }
         const repo: Repo = {
@@ -5205,13 +5207,13 @@ export class OrcaRuntimeService {
           externalWorktreeVisibilityLegacy: false,
           ...(group
             ? {
-                repoGroupId: group.id,
-                repoGroupOrder: getNextRepoGroupOrder(this.store.getRepos(), group.id)
+                projectGroupId: group.id,
+                projectGroupOrder: getNextProjectGroupOrder(this.store.getRepos(), group.id)
               }
             : {})
         }
         this.store.addRepo(repo)
-        results.push({ path: repoPath, repoId: repo.id, status: 'imported' })
+        results.push({ path: repoPath, projectId: repo.id, status: 'imported' })
       } catch (error) {
         results.push({
           path: repoPath,
@@ -5228,7 +5230,7 @@ export class OrcaRuntimeService {
     const failedCount = results.filter((entry) => entry.status === 'failed').length
     if (importedCount + alreadyKnownCount === 0) {
       for (const group of groupResolver.getCreatedGroups().reverse()) {
-        this.store.deleteRepoGroup?.(group.id)
+        this.store.deleteProjectGroup?.(group.id)
       }
     }
     this.invalidateResolvedWorktreeCache()
@@ -5236,7 +5238,7 @@ export class OrcaRuntimeService {
     const rootGroup = groupResolver.getRootGroup()
     return {
       ...(rootGroup && importedCount + alreadyKnownCount > 0 ? { group: rootGroup } : {}),
-      repos: results,
+      projects: results,
       importedCount,
       alreadyKnownCount,
       failedCount
@@ -5282,7 +5284,7 @@ export class OrcaRuntimeService {
     if (!isAbsolute(path)) {
       // Why: remote clients may run in a different cwd than the server. Require
       // server-side repo paths to be explicit so `orca serve` cwd is irrelevant.
-      throw new Error('Repo path must be an absolute path')
+      throw new Error('Project path must be an absolute path')
     }
     if (kind === 'git' && !isGitRepo(path)) {
       throw new Error(`Not a valid git repository: ${path}`)
@@ -5533,8 +5535,8 @@ export class OrcaRuntimeService {
         | 'issueSourcePreference'
         | 'externalWorktreeVisibility'
         | 'externalWorktreeVisibilityPromptDismissedAt'
-        | 'repoGroupId'
-        | 'repoGroupOrder'
+        | 'projectGroupId'
+        | 'projectGroupOrder'
       >
     >
   ): Promise<Repo> {
@@ -5551,12 +5553,12 @@ export class OrcaRuntimeService {
     return updated
   }
 
-  async removeRepo(repoSelector: string): Promise<{ removed: true }> {
-    if (!this.store?.removeRepo) {
+  async removeProject(repoSelector: string): Promise<{ removed: true }> {
+    if (!this.store?.removeProject) {
       throw new Error('runtime_unavailable')
     }
     const repo = await this.resolveRepoSelector(repoSelector)
-    this.store.removeRepo(repo.id)
+    this.store.removeProject(repo.id)
     this.invalidateResolvedWorktreeCache()
     invalidateAuthorizedRootsCache()
     this.notifier?.reposChanged()

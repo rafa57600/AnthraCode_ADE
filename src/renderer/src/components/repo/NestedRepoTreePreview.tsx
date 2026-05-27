@@ -191,7 +191,7 @@ export function NestedRepoTreePreview({
                 {row.name}
               </span>
               <span className="shrink-0 rounded-full border border-border bg-background px-2 py-0.5 text-[11px] leading-none font-medium text-muted-foreground">
-                Repo group
+                Project group
               </span>
               <span className="shrink-0 text-[11px] text-muted-foreground">
                 {repoCountLabel(row.repoCount)}

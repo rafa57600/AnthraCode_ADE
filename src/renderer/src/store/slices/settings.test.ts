@@ -90,7 +90,7 @@ beforeEach(() => {
                 }
               : method === 'browser.profile.list'
                 ? { profiles: [] }
-                : method === 'repoGroup.list'
+                : method === 'projectGroup.list'
                   ? { groups: [] }
                   : method === 'worktree.lineageList'
                     ? { lineage: { [env2Lineage.worktreeId]: env2Lineage } }
@@ -156,7 +156,7 @@ describe('createSettingsSlice runtime switching', () => {
     store.setState({
       settings: { activeRuntimeEnvironmentId: 'env-1' } as AppState['settings'],
       repos: [{ id: 'repo-env-1', path: '/env-1/repo', displayName: 'Env 1' } as never],
-      repoGroups: [
+      projectGroups: [
         {
           id: 'group-env-1',
           name: 'Env 1 Group',
@@ -241,7 +241,7 @@ describe('createSettingsSlice runtime switching', () => {
       })
     )
     expect(store.getState().repos.map((repo) => repo.id)).toEqual(['repo-env-2'])
-    expect(store.getState().repoGroups).toEqual([])
+    expect(store.getState().projectGroups).toEqual([])
     expect(store.getState().worktreesByRepo['repo-env-2']?.map((worktree) => worktree.id)).toEqual([
       'repo-env-2::/env-2/repo'
     ])

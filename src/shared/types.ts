@@ -101,19 +101,19 @@ export type Repo = {
    *  Undefined/empty means no symlinks are created for this repo. */
   symlinkPaths?: string[]
   /** Durable sidebar-only repo organization. Execution remains repo-scoped. */
-  repoGroupId?: string | null
-  /** User-authored ordering inside the repo group or ungrouped bucket. */
-  repoGroupOrder?: number
+  projectGroupId?: string | null
+  /** User-authored ordering inside the project group or ungrouped bucket. */
+  projectGroupOrder?: number
 }
 
-export type RepoGroupCreatedFrom = 'manual' | 'folder-scan' | 'migration'
+export type ProjectGroupCreatedFrom = 'manual' | 'folder-scan' | 'migration'
 
-export type RepoGroup = {
+export type ProjectGroup = {
   id: string
   name: string
   parentPath: string | null
   parentGroupId: string | null
-  createdFrom: RepoGroupCreatedFrom
+  createdFrom: ProjectGroupCreatedFrom
   tabOrder: number
   isCollapsed: boolean
   color: string | null
@@ -143,18 +143,18 @@ export type NestedRepoScanResult = {
   maxDepth: number
 }
 
-export type RepoGroupImportMode = 'group' | 'separate'
+export type ProjectGroupImportMode = 'group' | 'separate'
 
-export type RepoGroupImportRepoResult = {
+export type ProjectGroupImportProjectResult = {
   path: string
-  repoId?: string
+  projectId?: string
   status: 'imported' | 'already-known' | 'failed'
   error?: string
 }
 
-export type RepoGroupImportResult = {
-  group?: RepoGroup
-  repos: RepoGroupImportRepoResult[]
+export type ProjectGroupImportResult = {
+  group?: ProjectGroup
+  projects: ProjectGroupImportProjectResult[]
   importedCount: number
   alreadyKnownCount: number
   failedCount: number
@@ -2368,7 +2368,7 @@ export type LegacyPaneKeyAliasEntry = {
 export type PersistedState = {
   schemaVersion: number
   repos: Repo[]
-  repoGroups: RepoGroup[]
+  projectGroups: ProjectGroup[]
   /** Sparse-checkout presets keyed by repoId. Empty record on first launch;
    *  presets are managed from the new-workspace composer and repo settings. */
   sparsePresetsByRepo: Record<string, SparsePreset[]>

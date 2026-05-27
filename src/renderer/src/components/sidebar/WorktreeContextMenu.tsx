@@ -191,9 +191,9 @@ const WorktreeContextMenu = React.memo(function WorktreeContextMenu({
   const updateWorktreeMeta = useAppStore((s) => s.updateWorktreeMeta)
   const workspaceStatuses = useAppStore((s) => s.workspaceStatuses)
   const openModal = useAppStore((s) => s.openModal)
-  const repoGroups = useAppStore((s) => s.repoGroups)
-  const createRepoGroup = useAppStore((s) => s.createRepoGroup)
-  const moveRepoToGroup = useAppStore((s) => s.moveRepoToGroup)
+  const projectGroups = useAppStore((s) => s.projectGroups)
+  const createProjectGroup = useAppStore((s) => s.createProjectGroup)
+  const moveProjectToGroup = useAppStore((s) => s.moveProjectToGroup)
   const repo = useRepoById(worktree.repoId)
   const deleteState = useAppStore((s) => s.deleteStateByWorktreeId[worktree.id])
   const [menuOpen, setMenuOpen] = useState(false)
@@ -291,32 +291,32 @@ const WorktreeContextMenu = React.memo(function WorktreeContextMenu({
     if (!repo) {
       return
     }
-    const nextName = window.prompt('New group from repo', `${repo.displayName} group`)
+    const nextName = window.prompt('New group from project', `${repo.displayName} group`)
     if (nextName === null) {
       return
     }
-    const group = await createRepoGroup(nextName)
+    const group = await createProjectGroup(nextName)
     if (group) {
-      await moveRepoToGroup(repo.id, group.id)
+      await moveProjectToGroup(repo.id, group.id)
     }
-  }, [createRepoGroup, moveRepoToGroup, repo])
+  }, [createProjectGroup, moveProjectToGroup, repo])
 
-  const handleMoveRepoToGroup = useCallback(
+  const handleMoveProjectToGroup = useCallback(
     (groupId: string) => {
-      if (!repo || repo.repoGroupId === groupId) {
+      if (!repo || repo.projectGroupId === groupId) {
         return
       }
-      void moveRepoToGroup(repo.id, groupId)
+      void moveProjectToGroup(repo.id, groupId)
     },
-    [moveRepoToGroup, repo]
+    [moveProjectToGroup, repo]
   )
 
-  const handleRemoveRepoFromGroup = useCallback(() => {
+  const handleRemoveProjectFromGroup = useCallback(() => {
     if (!repo) {
       return
     }
-    void moveRepoToGroup(repo.id, null)
-  }, [moveRepoToGroup, repo])
+    void moveProjectToGroup(repo.id, null)
+  }, [moveProjectToGroup, repo])
 
   const handleAssignWorkspaceStatus = useCallback(
     (status: string) => {
@@ -522,20 +522,20 @@ const WorktreeContextMenu = React.memo(function WorktreeContextMenu({
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onSelect={handleCreateGroupFromRepo} disabled={isDeleting}>
                     <FolderPlus className="size-3.5" />
-                    New group from repo
+                    New group from project
                   </DropdownMenuItem>
-                  {repoGroups.length > 0 ? (
+                  {projectGroups.length > 0 ? (
                     <DropdownMenuSub>
                       <DropdownMenuSubTrigger disabled={isDeleting}>
                         <FolderInput className="size-3.5" />
                         Move to group
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent>
-                        {repoGroups.map((group) => (
+                        {projectGroups.map((group) => (
                           <DropdownMenuItem
                             key={group.id}
-                            disabled={repo.repoGroupId === group.id}
-                            onSelect={() => handleMoveRepoToGroup(group.id)}
+                            disabled={repo.projectGroupId === group.id}
+                            onSelect={() => handleMoveProjectToGroup(group.id)}
                           >
                             <span className="max-w-48 truncate">{group.name}</span>
                           </DropdownMenuItem>
@@ -543,8 +543,8 @@ const WorktreeContextMenu = React.memo(function WorktreeContextMenu({
                       </DropdownMenuSubContent>
                     </DropdownMenuSub>
                   ) : null}
-                  {repo.repoGroupId ? (
-                    <DropdownMenuItem onSelect={handleRemoveRepoFromGroup} disabled={isDeleting}>
+                  {repo.projectGroupId ? (
+                    <DropdownMenuItem onSelect={handleRemoveProjectFromGroup} disabled={isDeleting}>
                       <CircleX className="size-3.5" />
                       Remove from group
                     </DropdownMenuItem>

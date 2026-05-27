@@ -33,7 +33,7 @@ import {
 import type {
   PersistedState,
   Repo,
-  RepoGroup,
+  ProjectGroup,
   SparsePreset,
   WorktreeMeta,
   WorktreeLineage,
@@ -96,13 +96,13 @@ import {
 import { isLegacyRepoForExternalWorktreeVisibility } from '../shared/worktree-ownership'
 import { sanitizeRepoIcon } from '../shared/repo-icon'
 import {
-  clearMissingRepoGroupMemberships,
-  createRepoGroup,
-  getNextRepoGroupOrder,
-  getRepoGroupSubtreeIds,
-  normalizeRepoGroupName,
-  normalizeRepoGroups
-} from '../shared/repo-groups'
+  clearMissingProjectGroupMemberships,
+  createProjectGroup,
+  getNextProjectGroupOrder,
+  getProjectGroupSubtreeIds,
+  normalizeProjectGroupName,
+  normalizeProjectGroups
+} from '../shared/project-groups'
 
 function encrypt(plaintext: string): string {
   if (!plaintext || !safeStorage.isEncryptionAvailable()) {
@@ -1514,7 +1514,7 @@ export class Store {
         result = {
           ...defaults,
           ...parsed,
-          repoGroups: normalizeRepoGroups(parsed.repoGroups),
+          projectGroups: normalizeProjectGroups(parsed.projectGroups),
           worktreeLineageById: parsed.worktreeLineageById ?? {},
           settings: {
             ...defaults.settings,
@@ -1801,7 +1801,7 @@ export class Store {
 
     result = {
       ...result,
-      repos: clearMissingRepoGroupMemberships(result.repos, result.repoGroups ?? []),
+      repos: clearMissingProjectGroupMemberships(result.repos, result.projectGroups ?? []),
       workspaceSession: pruneWorkspaceSessionBrowserHistory(
         pruneLocalTerminalScrollbackBuffers(result.workspaceSession, result.repos)
       )
@@ -2032,38 +2032,41 @@ export class Store {
     return repo ? this.hydrateRepo(repo) : undefined
   }
 
-  getRepoGroups(): RepoGroup[] {
-    return [...(this.state.repoGroups ?? [])].sort(
+  getProjectGroups(): ProjectGroup[] {
+    return [...(this.state.projectGroups ?? [])].sort(
       (left, right) => left.tabOrder - right.tabOrder || left.name.localeCompare(right.name)
     )
   }
 
-  createRepoGroup(input: {
+  createProjectGroup(input: {
     name: string
     parentPath?: string | null
     parentGroupId?: string | null
-    createdFrom: RepoGroup['createdFrom']
-  }): RepoGroup {
-    const maxOrder = Math.max(-1, ...(this.state.repoGroups ?? []).map((group) => group.tabOrder))
-    const group = createRepoGroup({
+    createdFrom: ProjectGroup['createdFrom']
+  }): ProjectGroup {
+    const maxOrder = Math.max(
+      -1,
+      ...(this.state.projectGroups ?? []).map((group) => group.tabOrder)
+    )
+    const group = createProjectGroup({
       ...input,
       tabOrder: maxOrder + 1
     })
-    this.state.repoGroups = [...(this.state.repoGroups ?? []), group]
+    this.state.projectGroups = [...(this.state.projectGroups ?? []), group]
     this.scheduleSave()
     return group
   }
 
-  updateRepoGroup(
+  updateProjectGroup(
     groupId: string,
-    updates: Partial<Pick<RepoGroup, 'name' | 'isCollapsed' | 'tabOrder' | 'color'>>
-  ): RepoGroup | null {
-    const group = (this.state.repoGroups ?? []).find((entry) => entry.id === groupId)
+    updates: Partial<Pick<ProjectGroup, 'name' | 'isCollapsed' | 'tabOrder' | 'color'>>
+  ): ProjectGroup | null {
+    const group = (this.state.projectGroups ?? []).find((entry) => entry.id === groupId)
     if (!group) {
       return null
     }
     if (updates.name !== undefined) {
-      group.name = normalizeRepoGroupName(updates.name, group.name)
+      group.name = normalizeProjectGroupName(updates.name, group.name)
     }
     if (updates.isCollapsed !== undefined) {
       group.isCollapsed = updates.isCollapsed
@@ -2079,41 +2082,41 @@ export class Store {
     return group
   }
 
-  deleteRepoGroup(groupId: string): boolean {
-    const before = this.state.repoGroups?.length ?? 0
-    const deletedGroupIds = getRepoGroupSubtreeIds(this.state.repoGroups ?? [], groupId)
-    this.state.repoGroups = (this.state.repoGroups ?? []).filter(
+  deleteProjectGroup(groupId: string): boolean {
+    const before = this.state.projectGroups?.length ?? 0
+    const deletedGroupIds = getProjectGroupSubtreeIds(this.state.projectGroups ?? [], groupId)
+    this.state.projectGroups = (this.state.projectGroups ?? []).filter(
       (group) => !deletedGroupIds.has(group.id)
     )
-    if ((this.state.repoGroups?.length ?? 0) === before) {
+    if ((this.state.projectGroups?.length ?? 0) === before) {
       return false
     }
     // Why: groups are sidebar organization only. Deleting one must not delete
     // repos or worktrees, so contained repos from the full subtree are ungrouped.
     this.state.repos = this.state.repos.map((repo) =>
-      repo.repoGroupId && deletedGroupIds.has(repo.repoGroupId)
-        ? { ...repo, repoGroupId: null }
+      repo.projectGroupId && deletedGroupIds.has(repo.projectGroupId)
+        ? { ...repo, projectGroupId: null }
         : repo
     )
     this.scheduleSave()
     return true
   }
 
-  moveRepoToGroup(repoId: string, groupId: string | null, order?: number): Repo | null {
+  moveProjectToGroup(repoId: string, groupId: string | null, order?: number): Repo | null {
     const repo = this.state.repos.find((entry) => entry.id === repoId)
     if (!repo) {
       return null
     }
     const normalizedGroupId =
-      groupId && (this.state.repoGroups ?? []).some((group) => group.id === groupId)
+      groupId && (this.state.projectGroups ?? []).some((group) => group.id === groupId)
         ? groupId
         : null
     const siblingRepos = this.state.repos.filter((entry) => entry.id !== repoId)
-    repo.repoGroupId = normalizedGroupId
-    repo.repoGroupOrder =
+    repo.projectGroupId = normalizedGroupId
+    repo.projectGroupOrder =
       typeof order === 'number' && Number.isFinite(order)
         ? order
-        : getNextRepoGroupOrder(siblingRepos, normalizedGroupId)
+        : getNextProjectGroupOrder(siblingRepos, normalizedGroupId)
     this.scheduleSave()
     return this.hydrateRepo(repo)
   }
@@ -2155,7 +2158,7 @@ export class Store {
     return true
   }
 
-  removeRepo(id: string): void {
+  removeProject(id: string): void {
     this.state.repos = this.state.repos.filter((r) => r.id !== id)
     // Why: presets are repo-scoped, so removing the repo means the presets
     // can never be referenced again — drop them with the parent.
@@ -2189,8 +2192,8 @@ export class Store {
         | 'issueSourcePreference'
         | 'externalWorktreeVisibility'
         | 'externalWorktreeVisibilityPromptDismissedAt'
-        | 'repoGroupId'
-        | 'repoGroupOrder'
+        | 'projectGroupId'
+        | 'projectGroupOrder'
       >
     >
   ): Repo | null {
@@ -2199,22 +2202,22 @@ export class Store {
       return null
     }
     const sanitizedUpdates = sanitizeRepoUpdatesForPersistence(updates)
-    if ('repoGroupId' in sanitizedUpdates) {
-      const nextGroupId = sanitizedUpdates.repoGroupId
+    if ('projectGroupId' in sanitizedUpdates) {
+      const nextGroupId = sanitizedUpdates.projectGroupId
       if (
         typeof nextGroupId !== 'string' ||
         nextGroupId.trim().length === 0 ||
-        !this.state.repoGroups.some((group) => group.id === nextGroupId)
+        !this.state.projectGroups.some((group) => group.id === nextGroupId)
       ) {
-        sanitizedUpdates.repoGroupId = null
+        sanitizedUpdates.projectGroupId = null
       }
     }
     if (
-      'repoGroupOrder' in sanitizedUpdates &&
-      (typeof sanitizedUpdates.repoGroupOrder !== 'number' ||
-        !Number.isFinite(sanitizedUpdates.repoGroupOrder))
+      'projectGroupOrder' in sanitizedUpdates &&
+      (typeof sanitizedUpdates.projectGroupOrder !== 'number' ||
+        !Number.isFinite(sanitizedUpdates.projectGroupOrder))
     ) {
-      delete sanitizedUpdates.repoGroupOrder
+      delete sanitizedUpdates.projectGroupOrder
     }
     const externalWorktreeVisibilityLegacy =
       'externalWorktreeVisibility' in sanitizedUpdates &&

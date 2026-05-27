@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
-  clearMissingRepoGroupMemberships,
-  createRepoGroup,
-  getNextRepoGroupOrder,
-  getRepoGroupSubtreeIds,
-  normalizeRepoGroupName,
-  normalizeRepoGroups
-} from './repo-groups'
+  clearMissingProjectGroupMemberships,
+  createProjectGroup,
+  getNextProjectGroupOrder,
+  getProjectGroupSubtreeIds,
+  normalizeProjectGroupName,
+  normalizeProjectGroups
+} from './project-groups'
 import type { Repo } from './types'
 
 function repo(overrides: Partial<Repo>): Repo {
@@ -21,9 +21,9 @@ function repo(overrides: Partial<Repo>): Repo {
   }
 }
 
-describe('repo-groups', () => {
-  it('creates a durable repo group with normalized defaults', () => {
-    const group = createRepoGroup({
+describe('project-groups', () => {
+  it('creates a durable project group with normalized defaults', () => {
+    const group = createProjectGroup({
       name: '  Platform  ',
       parentPath: '/srv/platform',
       createdFrom: 'folder-scan',
@@ -45,11 +45,11 @@ describe('repo-groups', () => {
   })
 
   it('trims empty group names to a fallback', () => {
-    expect(normalizeRepoGroupName('   ', 'Existing')).toBe('Existing')
+    expect(normalizeProjectGroupName('   ', 'Existing')).toBe('Existing')
   })
 
   it('normalizes persisted groups and drops malformed entries', () => {
-    const groups = normalizeRepoGroups([
+    const groups = normalizeProjectGroups([
       { id: 'b', name: 'B', tabOrder: 2 },
       {
         id: 'a',
@@ -72,22 +72,25 @@ describe('repo-groups', () => {
   })
 
   it('clears repo memberships whose group no longer exists', () => {
-    const groups = [createRepoGroup({ name: 'Known', createdFrom: 'manual', tabOrder: 0 })]
-    const repos = clearMissingRepoGroupMemberships(
-      [repo({ id: 'known', repoGroupId: groups[0].id }), repo({ id: 'missing', repoGroupId: 'x' })],
+    const groups = [createProjectGroup({ name: 'Known', createdFrom: 'manual', tabOrder: 0 })]
+    const repos = clearMissingProjectGroupMemberships(
+      [
+        repo({ id: 'known', projectGroupId: groups[0].id }),
+        repo({ id: 'missing', projectGroupId: 'x' })
+      ],
       groups
     )
 
-    expect(repos.find((entry) => entry.id === 'known')?.repoGroupId).toBe(groups[0].id)
-    expect(repos.find((entry) => entry.id === 'missing')?.repoGroupId).toBeNull()
+    expect(repos.find((entry) => entry.id === 'known')?.projectGroupId).toBe(groups[0].id)
+    expect(repos.find((entry) => entry.id === 'missing')?.projectGroupId).toBeNull()
   })
 
   it('computes the next order inside a group independently from ungrouped repos', () => {
     expect(
-      getNextRepoGroupOrder(
+      getNextProjectGroupOrder(
         [
-          repo({ id: 'a', repoGroupId: 'g', repoGroupOrder: 2 }),
-          repo({ id: 'b', repoGroupId: null, repoGroupOrder: 9 })
+          repo({ id: 'a', projectGroupId: 'g', projectGroupOrder: 2 }),
+          repo({ id: 'b', projectGroupId: null, projectGroupOrder: 9 })
         ],
         'g'
       )
@@ -97,7 +100,7 @@ describe('repo-groups', () => {
   it('collects descendant group ids for subtree deletion', () => {
     expect(
       [
-        ...getRepoGroupSubtreeIds(
+        ...getProjectGroupSubtreeIds(
           [
             { id: 'root', parentGroupId: null },
             { id: 'child', parentGroupId: 'root' },

@@ -10,9 +10,9 @@ import {
   getLineageGroupKey,
   getLineageRenderInfo,
   getPRGroupKey,
-  getRepoGroupOrdering
+  getProjectGroupOrdering
 } from './worktree-list-groups'
-import type { Repo, RepoGroup, Worktree, WorktreeLineage } from '../../../../shared/types'
+import type { Repo, ProjectGroup, Worktree, WorktreeLineage } from '../../../../shared/types'
 
 const repo: Repo = {
   id: 'repo-1',
@@ -309,7 +309,7 @@ describe('buildRows with pinned worktrees', () => {
   })
 })
 
-describe('buildRows repo grouping order', () => {
+describe('buildRows project grouping order', () => {
   const repoA: Repo = { ...repo, id: 'repo-a', displayName: 'alpha' }
   const repoB: Repo = { ...repo, id: 'repo-b', displayName: 'beta' }
   const repoC: Repo = { ...repo, id: 'repo-c', displayName: 'gamma' }
@@ -395,7 +395,7 @@ describe('buildRows repo grouping order', () => {
     ])
   })
 
-  it('keeps repoOrder for manual repo group ordering', () => {
+  it('keeps repoOrder for manual project group ordering', () => {
     const repoOrder = new Map([
       [repoB.id, 0],
       [repoA.id, 1],
@@ -407,7 +407,7 @@ describe('buildRows repo grouping order', () => {
   })
 })
 
-describe('getRepoGroupOrdering', () => {
+describe('getProjectGroupOrdering', () => {
   it.each([
     ['repo', 'recent', 'visible-worktree-order'],
     ['repo', 'smart', 'visible-worktree-order'],
@@ -417,13 +417,13 @@ describe('getRepoGroupOrdering', () => {
     ['workspace-status', 'recent', 'manual'],
     ['pr-status', 'recent', 'manual']
   ] as const)('uses %s/%s -> %s', (groupBy, sortBy, expected) => {
-    expect(getRepoGroupOrdering(groupBy, sortBy)).toBe(expected)
+    expect(getProjectGroupOrdering(groupBy, sortBy)).toBe(expected)
   })
 })
 
-describe('repo groups', () => {
-  it('keeps empty repo groups visible in repo grouping mode', () => {
-    const group: RepoGroup = {
+describe('project groups', () => {
+  it('keeps empty project groups visible in project grouping mode', () => {
+    const group: ProjectGroup = {
       id: 'group-1',
       name: 'Platform',
       parentPath: null,
@@ -455,16 +455,16 @@ describe('repo groups', () => {
     expect(rows).toEqual([
       expect.objectContaining({
         type: 'header',
-        key: 'repo-group:group-1',
+        key: 'project-group:group-1',
         label: 'Platform',
         count: 0,
-        repoGroup: group
+        projectGroup: group
       })
     ])
   })
 
-  it('orders repos inside a Repo Group by repoGroupOrder in manual mode', () => {
-    const group: RepoGroup = {
+  it('orders repos inside a Project Group by projectGroupOrder in manual mode', () => {
+    const group: ProjectGroup = {
       id: 'group-1',
       name: 'Platform',
       parentPath: '/platform',
@@ -480,15 +480,15 @@ describe('repo groups', () => {
       ...repo,
       id: 'repo-a',
       displayName: 'alpha',
-      repoGroupId: group.id,
-      repoGroupOrder: 1
+      projectGroupId: group.id,
+      projectGroupOrder: 1
     }
     const repoB: Repo = {
       ...repo,
       id: 'repo-b',
       displayName: 'beta',
-      repoGroupId: group.id,
-      repoGroupOrder: 0
+      projectGroupId: group.id,
+      projectGroupOrder: 0
     }
     const worktreeA: Worktree = { ...worktree, id: 'wt-a', repoId: repoA.id }
     const worktreeB: Worktree = { ...worktree, id: 'wt-b', repoId: repoB.id }
@@ -518,14 +518,14 @@ describe('repo groups', () => {
     )
 
     expect(rows.filter((row) => row.type === 'header').map((row) => row.key)).toEqual([
-      'repo-group:group-1',
+      'project-group:group-1',
       'repo:repo-b',
       'repo:repo-a'
     ])
   })
 
-  it('renders nested Repo Groups before repos assigned to their leaf group', () => {
-    const rootGroup: RepoGroup = {
+  it('renders nested Project Groups before repos assigned to their leaf group', () => {
+    const rootGroup: ProjectGroup = {
       id: 'group-root',
       name: 'Services',
       parentPath: '/monorepo',
@@ -537,7 +537,7 @@ describe('repo groups', () => {
       createdAt: 1,
       updatedAt: 1
     }
-    const childGroup: RepoGroup = {
+    const childGroup: ProjectGroup = {
       ...rootGroup,
       id: 'group-payments',
       name: 'payments',
@@ -549,8 +549,8 @@ describe('repo groups', () => {
       ...repo,
       id: 'repo-payments-api',
       displayName: 'api',
-      repoGroupId: childGroup.id,
-      repoGroupOrder: 0
+      projectGroupId: childGroup.id,
+      projectGroupOrder: 0
     }
     const groupedWorktree: Worktree = {
       ...worktree,
@@ -575,27 +575,27 @@ describe('repo groups', () => {
     )
 
     expect(rows.filter((row) => row.type === 'header').map((row) => row.key)).toEqual([
-      'repo-group:group-root',
-      'repo-group:group-payments',
+      'project-group:group-root',
+      'project-group:group-payments',
       'repo:repo-payments-api'
     ])
-    expect(rows.filter((row) => row.type === 'header').map((row) => row.repoGroupDepth)).toEqual([
-      0, 1, 2
-    ])
+    expect(rows.filter((row) => row.type === 'header').map((row) => row.projectGroupDepth)).toEqual(
+      [0, 1, 2]
+    )
     expect(rows[0]).toMatchObject({ count: 1 })
   })
 
-  it('returns both parent Repo Group and repo keys for grouped repo reveals', () => {
-    const groupedRepo: Repo = { ...repo, repoGroupId: 'group-1' }
+  it('returns both parent Project Group and repo keys for grouped repo reveals', () => {
+    const groupedRepo: Repo = { ...repo, projectGroupId: 'group-1' }
 
     expect(
       getGroupKeysForWorktree('repo', worktree, new Map([[groupedRepo.id, groupedRepo]]), null)
-    ).toEqual(['repo-group:group-1', 'repo:repo-1'])
+    ).toEqual(['project-group:group-1', 'repo:repo-1'])
   })
 
   it('returns the Ungrouped parent key for ungrouped repo reveals', () => {
     expect(getGroupKeysForWorktree('repo', worktree, repoMap, null)).toEqual([
-      'repo-group:ungrouped',
+      'project-group:ungrouped',
       'repo:repo-1'
     ])
   })
@@ -850,13 +850,13 @@ describe('WorktreeList header styles', () => {
     expect(source).toContain('[&_path]:cursor-pointer')
   })
 
-  it('resolves repo header color from repo group headers only', () => {
+  it('resolves repo header color from project group headers only', () => {
     const source = readFileSync(
       fileURLToPath(new URL('./WorktreeList.tsx', import.meta.url)),
       'utf8'
     )
 
-    expect(source).toContain('resolveRepoGroupHeaderColor({')
+    expect(source).toContain('resolveProjectGroupHeaderColor({')
     expect(source).toContain('headerKey: row.key')
     expect(source).toContain('color={repoHeaderColor}')
   })

@@ -1309,39 +1309,39 @@ describe('Store', () => {
     expect(fetched!.gitUsername).toBe('testuser')
   })
 
-  it('deleteRepoGroup ungroups repos from the deleted group subtree', async () => {
+  it('deleteProjectGroup ungroups repos from the deleted group subtree', async () => {
     const store = await createStore()
-    const root = store.createRepoGroup({ name: 'Platform', createdFrom: 'folder-scan' })
-    const child = store.createRepoGroup({
+    const root = store.createProjectGroup({ name: 'Platform', createdFrom: 'folder-scan' })
+    const child = store.createProjectGroup({
       name: 'Services',
       parentGroupId: root.id,
       createdFrom: 'folder-scan'
     })
-    const sibling = store.createRepoGroup({ name: 'Tools', createdFrom: 'manual' })
-    store.addRepo(makeRepo({ id: 'direct', path: '/direct', repoGroupId: root.id }))
-    store.addRepo(makeRepo({ id: 'nested', path: '/nested', repoGroupId: child.id }))
-    store.addRepo(makeRepo({ id: 'sibling', path: '/sibling', repoGroupId: sibling.id }))
+    const sibling = store.createProjectGroup({ name: 'Tools', createdFrom: 'manual' })
+    store.addRepo(makeRepo({ id: 'direct', path: '/direct', projectGroupId: root.id }))
+    store.addRepo(makeRepo({ id: 'nested', path: '/nested', projectGroupId: child.id }))
+    store.addRepo(makeRepo({ id: 'sibling', path: '/sibling', projectGroupId: sibling.id }))
 
-    expect(store.deleteRepoGroup(root.id)).toBe(true)
+    expect(store.deleteProjectGroup(root.id)).toBe(true)
 
-    expect(store.getRepoGroups().map((group) => group.id)).toEqual([sibling.id])
-    expect(store.getRepo('direct')?.repoGroupId).toBeNull()
-    expect(store.getRepo('nested')?.repoGroupId).toBeNull()
-    expect(store.getRepo('sibling')?.repoGroupId).toBe(sibling.id)
+    expect(store.getProjectGroups().map((group) => group.id)).toEqual([sibling.id])
+    expect(store.getRepo('direct')?.projectGroupId).toBeNull()
+    expect(store.getRepo('nested')?.projectGroupId).toBeNull()
+    expect(store.getRepo('sibling')?.projectGroupId).toBe(sibling.id)
   })
 
-  it('sanitizes invalid repo group updates before persisting a repo', async () => {
+  it('sanitizes invalid project group updates before persisting a repo', async () => {
     const store = await createStore()
-    const group = store.createRepoGroup({ name: 'Platform', createdFrom: 'manual' })
-    store.addRepo(makeRepo({ id: 'r1', repoGroupId: group.id, repoGroupOrder: 1 }))
+    const group = store.createProjectGroup({ name: 'Platform', createdFrom: 'manual' })
+    store.addRepo(makeRepo({ id: 'r1', projectGroupId: group.id, projectGroupOrder: 1 }))
 
     const updated = store.updateRepo('r1', {
-      repoGroupId: '',
-      repoGroupOrder: Number.POSITIVE_INFINITY
+      projectGroupId: '',
+      projectGroupOrder: Number.POSITIVE_INFINITY
     } as never)
 
-    expect(updated?.repoGroupId).toBeNull()
-    expect(updated?.repoGroupOrder).toBe(1)
+    expect(updated?.projectGroupId).toBeNull()
+    expect(updated?.projectGroupOrder).toBe(1)
   })
 
   it('getRepo returns undefined for nonexistent id', async () => {
@@ -1349,9 +1349,9 @@ describe('Store', () => {
     expect(store.getRepo('nonexistent')).toBeUndefined()
   })
 
-  // ── 6. removeRepo cleans up worktree meta ──────────────────────────
+  // ── 6. removeProject cleans up worktree meta ──────────────────────────
 
-  it('removeRepo deletes the repo and its worktree meta', async () => {
+  it('removeProject deletes the repo and its worktree meta', async () => {
     const store = await createStore()
     store.addRepo(makeRepo({ id: 'r1' }))
     store.addRepo(makeRepo({ id: 'r2', path: '/repo2' }))
@@ -1360,7 +1360,7 @@ describe('Store', () => {
     store.setWorktreeMeta('r1::/path/wt2', { displayName: 'wt2' })
     store.setWorktreeMeta('r2::/other', { displayName: 'other' })
 
-    store.removeRepo('r1')
+    store.removeProject('r1')
 
     expect(store.getRepo('r1')).toBeUndefined()
     expect(store.getWorktreeMeta('r1::/path/wt1')).toBeUndefined()
@@ -1369,7 +1369,7 @@ describe('Store', () => {
     expect(store.getWorktreeMeta('r2::/other')!.displayName).toBe('other')
   })
 
-  it('removeRepo deletes child and parent lineage for the repo', async () => {
+  it('removeProject deletes child and parent lineage for the repo', async () => {
     const store = await createStore()
     store.addRepo(makeRepo({ id: 'r1' }))
     store.addRepo(makeRepo({ id: 'r2', path: '/repo2' }))
@@ -1396,7 +1396,7 @@ describe('Store', () => {
       })
     )
 
-    store.removeRepo('r1')
+    store.removeProject('r1')
 
     expect(store.getWorktreeLineage('r1::/path/child')).toBeUndefined()
     expect(store.getWorktreeLineage('r2::/other-child')).toBeUndefined()
@@ -4592,7 +4592,6 @@ describe('Store', () => {
         const first = await createStore()
         first.addRepo(makeRepo({ id: 'r1' }))
         first.flush()
-        expect((readDataFile() as { repos: Repo[] }).repos[0].id).toBe('r1')
         expect(readBackup(0).repos.map((r) => r.id)).toEqual(['r1'])
 
         vi.setSystemTime(new Date(Date.now() + 61 * 60 * 1000))

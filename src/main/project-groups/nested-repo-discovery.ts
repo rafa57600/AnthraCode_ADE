@@ -151,7 +151,7 @@ export async function scanNestedRepos(args: {
           displayName: filesystem.basename(childPath),
           depth: depth + 1
         })
-        // Repo Groups organize sibling repos; nested repos stay hidden until a
+        // Project Groups organize sibling repos; nested repos stay hidden until a
         // later UI can explain and select submodule-style layouts explicitly.
         continue
       }

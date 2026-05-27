@@ -60,7 +60,7 @@ export function RepoStep({
               <FolderTree className="size-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-base font-semibold text-foreground">Import as repo group</div>
+              <div className="text-base font-semibold text-foreground">Import as project group</div>
               <div className="mt-0.5 truncate text-[13px] text-muted-foreground">
                 {`Found ${nestedScan.repos.length} git ${
                   nestedScan.repos.length === 1 ? 'repository' : 'repositories'
@@ -118,7 +118,7 @@ export function RepoStep({
                 disabled={disabled || nestedSelectedPaths.size === 0 || !nestedGroupName.trim()}
                 onClick={() => onImportNested('group')}
               >
-                Import as repo group
+                Import as project group
               </button>
             </div>
           </div>

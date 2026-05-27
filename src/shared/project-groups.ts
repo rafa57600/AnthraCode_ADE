@@ -1,32 +1,32 @@
-import type { Repo, RepoGroup, RepoGroupCreatedFrom } from './types'
+import type { Repo, ProjectGroup, ProjectGroupCreatedFrom } from './types'
 
-export const UNGROUPED_REPO_GROUP_KEY = 'repo-group:ungrouped'
+export const UNGROUPED_PROJECT_GROUP_KEY = 'project-group:ungrouped'
 
-function createRepoGroupId(): string {
+function createProjectGroupId(): string {
   const randomUUID = globalThis.crypto?.randomUUID
   if (randomUUID) {
     return randomUUID.call(globalThis.crypto)
   }
-  return `repo-group-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return `project-group-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
-export function normalizeRepoGroupName(name: string, fallback = 'Untitled group'): string {
+export function normalizeProjectGroupName(name: string, fallback = 'Untitled group'): string {
   const trimmed = name.trim()
   return trimmed.length > 0 ? trimmed : fallback
 }
 
-export function createRepoGroup(input: {
+export function createProjectGroup(input: {
   name: string
   parentPath?: string | null
   parentGroupId?: string | null
-  createdFrom: RepoGroupCreatedFrom
+  createdFrom: ProjectGroupCreatedFrom
   tabOrder: number
   now?: number
-}): RepoGroup {
+}): ProjectGroup {
   const now = input.now ?? Date.now()
   return {
-    id: createRepoGroupId(),
-    name: normalizeRepoGroupName(input.name),
+    id: createProjectGroupId(),
+    name: normalizeProjectGroupName(input.name),
     parentPath: input.parentPath ?? null,
     parentGroupId: input.parentGroupId ?? null,
     createdFrom: input.createdFrom,
@@ -38,17 +38,17 @@ export function createRepoGroup(input: {
   }
 }
 
-export function normalizeRepoGroups(value: unknown): RepoGroup[] {
+export function normalizeProjectGroups(value: unknown): ProjectGroup[] {
   if (!Array.isArray(value)) {
     return []
   }
-  const groups: RepoGroup[] = []
+  const groups: ProjectGroup[] = []
   const seen = new Set<string>()
   for (const candidate of value) {
     if (!candidate || typeof candidate !== 'object') {
       continue
     }
-    const raw = candidate as Partial<RepoGroup>
+    const raw = candidate as Partial<ProjectGroup>
     if (typeof raw.id !== 'string' || seen.has(raw.id)) {
       continue
     }
@@ -56,7 +56,7 @@ export function normalizeRepoGroups(value: unknown): RepoGroup[] {
     const now = Date.now()
     groups.push({
       id: raw.id,
-      name: normalizeRepoGroupName(typeof raw.name === 'string' ? raw.name : ''),
+      name: normalizeProjectGroupName(typeof raw.name === 'string' ? raw.name : ''),
       parentPath: typeof raw.parentPath === 'string' ? raw.parentPath : null,
       parentGroupId: typeof raw.parentGroupId === 'string' ? raw.parentGroupId : null,
       createdFrom:
@@ -87,15 +87,17 @@ export function normalizeRepoGroups(value: unknown): RepoGroup[] {
   return groups
 }
 
-export function clearMissingRepoGroupMemberships(repos: Repo[], groups: RepoGroup[]): Repo[] {
+export function clearMissingProjectGroupMemberships(repos: Repo[], groups: ProjectGroup[]): Repo[] {
   const groupIds = new Set(groups.map((group) => group.id))
   return repos.map((repo) =>
-    repo.repoGroupId && !groupIds.has(repo.repoGroupId) ? { ...repo, repoGroupId: null } : repo
+    repo.projectGroupId && !groupIds.has(repo.projectGroupId)
+      ? { ...repo, projectGroupId: null }
+      : repo
   )
 }
 
-export function getRepoGroupSubtreeIds(
-  groups: readonly Pick<RepoGroup, 'id' | 'parentGroupId'>[],
+export function getProjectGroupSubtreeIds(
+  groups: readonly Pick<ProjectGroup, 'id' | 'parentGroupId'>[],
   rootGroupId: string
 ): Set<string> {
   const childGroupsByParentId = new Map<string, string[]>()
@@ -122,13 +124,13 @@ export function getRepoGroupSubtreeIds(
   return subtreeIds
 }
 
-export function getNextRepoGroupOrder(repos: readonly Repo[], groupId: string | null): number {
+export function getNextProjectGroupOrder(repos: readonly Repo[], groupId: string | null): number {
   let max = -1
   for (const repo of repos) {
-    if ((repo.repoGroupId ?? null) !== groupId) {
+    if ((repo.projectGroupId ?? null) !== groupId) {
       continue
     }
-    const order = repo.repoGroupOrder
+    const order = repo.projectGroupOrder
     if (typeof order === 'number' && Number.isFinite(order)) {
       max = Math.max(max, order)
     }

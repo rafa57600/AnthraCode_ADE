@@ -48,7 +48,7 @@ type TaskSourcesGithubStatus = TaskSourcesSnapshotProps['github_status']
 type TaskSourcesLinearStatus = TaskSourcesSnapshotProps['linear_status']
 type TaskSourcesExitAction = TaskSourcesSnapshotProps['exit_action']
 
-function defaultRepoGroupNameForPath(path: string): string {
+function defaultProjectGroupNameForPath(path: string): string {
   return (
     path
       .replace(/[\\/]+$/g, '')
@@ -399,10 +399,10 @@ export function useOnboardingFlow(
   })
 
   const completeRepo = useCallback(
-    async (repoId: string, isGit: boolean, path: 'open_folder' | 'clone_url') => {
+    async (projectId: string, isGit: boolean, path: 'open_folder' | 'clone_url') => {
       await fetchRepos()
-      await fetchWorktrees(repoId)
-      const worktree = useAppStore.getState().worktreesByRepo[repoId]?.[0]
+      await fetchWorktrees(projectId)
+      const worktree = useAppStore.getState().worktreesByRepo[projectId]?.[0]
       if (worktree) {
         // Why: onboarding asks for a default agent immediately before this step.
         // Non-git folders skip the composer, so seed their first terminal here.
@@ -434,7 +434,7 @@ export function useOnboardingFlow(
       })
       if (isGit) {
         openModal('project-added', {
-          repoId,
+          projectId,
           defaultWorktreeName: 'orca-worktree-1',
           telemetrySource: 'onboarding'
         })
@@ -557,7 +557,7 @@ export function useOnboardingFlow(
   const showNestedRepoReview = useCallback((scan: NestedRepoScanResult, selectedPath: string) => {
     setNestedScan(scan)
     setNestedSelectedPaths(new Set(scan.repos.map((repo) => repo.path)))
-    setNestedGroupName(defaultRepoGroupNameForPath(selectedPath))
+    setNestedGroupName(defaultProjectGroupNameForPath(selectedPath))
   }, [])
 
   const startFeatureSetup = useCallback(async () => {
@@ -685,21 +685,21 @@ export function useOnboardingFlow(
         const result = await importNestedRepos({
           parentPath: nestedScan.selectedPath,
           groupName: nestedGroupName,
-          repoPaths: [...nestedSelectedPaths],
+          projectPaths: [...nestedSelectedPaths],
           mode
         })
         const importedRepoIds =
-          result?.repos
-            .map((entry) => entry.repoId)
-            .filter((repoId): repoId is string => typeof repoId === 'string') ?? []
-        const repoId = importedRepoIds[0]
-        if (!repoId) {
+          result?.projects
+            .map((entry) => entry.projectId)
+            .filter((projectId): projectId is string => typeof projectId === 'string') ?? []
+        const projectId = importedRepoIds[0]
+        if (!projectId) {
           throw new Error('No repositories imported')
         }
         for (const importedRepoId of importedRepoIds) {
           await fetchWorktrees(importedRepoId)
         }
-        await completeRepo(repoId, true, 'open_folder')
+        await completeRepo(projectId, true, 'open_folder')
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
         track('onboarding_step4_path_failed', { path: 'open_folder', reason: 'invalid_path' })

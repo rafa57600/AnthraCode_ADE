@@ -43,8 +43,8 @@ const RepoUpdate = RepoSelector.extend({
     issueSourcePreference: z.enum(['auto', 'upstream', 'origin']).optional(),
     externalWorktreeVisibility: z.enum(['hide', 'show']).optional(),
     externalWorktreeVisibilityPromptDismissedAt: z.number().finite().optional(),
-    repoGroupId: OptionalString.nullable().optional(),
-    repoGroupOrder: OptionalFiniteNumber
+    projectGroupId: OptionalString.nullable().optional(),
+    projectGroupOrder: OptionalFiniteNumber
   })
 })
 
@@ -61,14 +61,14 @@ const RepoReorder = z.object({
   orderedIds: z.array(z.string())
 })
 
-const RepoGroupCreate = z.object({
+const ProjectGroupCreate = z.object({
   name: requiredString('Missing group name'),
   parentPath: OptionalString,
   parentGroupId: OptionalString.nullable().optional(),
   createdFrom: z.enum(['manual', 'folder-scan', 'migration']).optional()
 })
 
-const RepoGroupUpdate = z.object({
+const ProjectGroupUpdate = z.object({
   groupId: requiredString('Missing group id'),
   updates: z.object({
     name: OptionalString,
@@ -78,25 +78,25 @@ const RepoGroupUpdate = z.object({
   })
 })
 
-const RepoGroupSelector = z.object({
+const ProjectGroupSelector = z.object({
   groupId: requiredString('Missing group id')
 })
 
-const RepoGroupMoveRepo = z.object({
+const ProjectGroupMoveProject = z.object({
   repo: requiredString('Missing repo selector'),
   groupId: OptionalString.nullable(),
   order: OptionalFiniteNumber
 })
 
-const RepoGroupScanNested = z.object({
+const ProjectGroupScanNested = z.object({
   path: requiredString('Missing folder path')
 })
 
-const RepoGroupImportNested = z.discriminatedUnion('mode', [
+const ProjectGroupImportNested = z.discriminatedUnion('mode', [
   z.object({
     parentPath: requiredString('Missing parent path'),
     groupName: requiredString('Missing group name'),
-    repoPaths: z.array(z.string()),
+    projectPaths: z.array(z.string()),
     mode: z.literal('group')
   }),
   z.object({
@@ -104,7 +104,7 @@ const RepoGroupImportNested = z.discriminatedUnion('mode', [
     // Why: "Import separately" does not create a group, so SSH must accept the
     // same empty group-name state that the local dialog allows.
     groupName: z.string().optional().default(''),
-    repoPaths: z.array(z.string()),
+    projectPaths: z.array(z.string()),
     mode: z.literal('separate')
   })
 ])
@@ -126,44 +126,44 @@ export const REPO_METHODS: RpcMethod[] = [
     handler: (_params, { runtime }) => ({ repos: runtime.listRepos() })
   }),
   defineMethod({
-    name: 'repoGroup.list',
+    name: 'projectGroup.list',
     params: null,
-    handler: (_params, { runtime }) => ({ groups: runtime.listRepoGroups() })
+    handler: (_params, { runtime }) => ({ groups: runtime.listProjectGroups() })
   }),
   defineMethod({
-    name: 'repoGroup.create',
-    params: RepoGroupCreate,
+    name: 'projectGroup.create',
+    params: ProjectGroupCreate,
     handler: async (params, { runtime }) => ({
-      group: await runtime.createRepoGroup(params)
+      group: await runtime.createProjectGroup(params)
     })
   }),
   defineMethod({
-    name: 'repoGroup.update',
-    params: RepoGroupUpdate,
+    name: 'projectGroup.update',
+    params: ProjectGroupUpdate,
     handler: async (params, { runtime }) => ({
-      group: await runtime.updateRepoGroup(params.groupId, params.updates)
+      group: await runtime.updateProjectGroup(params.groupId, params.updates)
     })
   }),
   defineMethod({
-    name: 'repoGroup.delete',
-    params: RepoGroupSelector,
-    handler: async (params, { runtime }) => runtime.deleteRepoGroup(params.groupId)
+    name: 'projectGroup.delete',
+    params: ProjectGroupSelector,
+    handler: async (params, { runtime }) => runtime.deleteProjectGroup(params.groupId)
   }),
   defineMethod({
-    name: 'repoGroup.moveRepo',
-    params: RepoGroupMoveRepo,
+    name: 'projectGroup.moveProject',
+    params: ProjectGroupMoveProject,
     handler: async (params, { runtime }) => ({
-      repo: await runtime.moveRepoToGroup(params.repo, params.groupId ?? null, params.order)
+      project: await runtime.moveProjectToGroup(params.repo, params.groupId ?? null, params.order)
     })
   }),
   defineMethod({
-    name: 'repoGroup.scanNested',
-    params: RepoGroupScanNested,
+    name: 'projectGroup.scanNested',
+    params: ProjectGroupScanNested,
     handler: async (params, { runtime }) => runtime.scanNestedRepos(params.path)
   }),
   defineMethod({
-    name: 'repoGroup.importNested',
-    params: RepoGroupImportNested,
+    name: 'projectGroup.importNested',
+    params: ProjectGroupImportNested,
     handler: async (params, { runtime }) => runtime.importNestedRepos(params)
   }),
   defineMethod({
@@ -207,7 +207,7 @@ export const REPO_METHODS: RpcMethod[] = [
   defineMethod({
     name: 'repo.show',
     params: RepoSelector,
-    handler: async (params, { runtime }) => ({ repo: await runtime.showRepo(params.repo) })
+    handler: async (params, { runtime }) => ({ project: await runtime.showRepo(params.repo) })
   }),
   defineMethod({
     name: 'repo.update',
@@ -222,7 +222,7 @@ export const REPO_METHODS: RpcMethod[] = [
   defineMethod({
     name: 'repo.rm',
     params: RepoSelector,
-    handler: async (params, { runtime }) => runtime.removeRepo(params.repo)
+    handler: async (params, { runtime }) => runtime.removeProject(params.repo)
   }),
   defineMethod({
     name: 'repo.reorder',

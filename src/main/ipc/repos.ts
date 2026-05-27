@@ -9,8 +9,8 @@ import type { Store } from '../persistence'
 import type {
   BaseRefSearchResult,
   Repo,
-  RepoGroup,
-  RepoGroupImportResult,
+  ProjectGroup,
+  ProjectGroupImportResult,
   NestedRepoScanResult,
   BaseRefDefaultResult,
   SparsePreset
@@ -24,12 +24,12 @@ import { access, mkdir, readdir, rm } from 'fs/promises'
 import { gitExecFileAsync, gitSpawn } from '../git/runner'
 import { basename, isAbsolute, join, posix } from 'path'
 import { normalizeRuntimePathForComparison } from '../../shared/cross-platform-path'
-import { getNextRepoGroupOrder } from '../../shared/repo-groups'
-import { scanNestedRepos } from '../repo-groups/nested-repo-discovery'
+import { getNextProjectGroupOrder } from '../../shared/project-groups'
+import { scanNestedRepos } from '../project-groups/nested-repo-discovery'
 import {
-  createNestedRepoGroupResolver,
+  createNestedProjectGroupResolver,
   resolveNestedRepoSelection
-} from '../repo-groups/nested-repo-import'
+} from '../project-groups/nested-repo-import'
 import {
   isGitRepo,
   getGitUsername,
@@ -79,14 +79,14 @@ function emitRepoAdded(method: RepoMethod, alreadyExisted: boolean): void {
 let activeCloneProc: ChildProcess | null = null
 let activeClonePath: string | null = null
 
-const RepoGroupCreateArgs = z.object({
+const ProjectGroupCreateArgs = z.object({
   name: z.string().min(1),
   parentPath: z.string().nullable().optional(),
   parentGroupId: z.string().nullable().optional(),
   createdFrom: z.enum(['manual', 'folder-scan', 'migration']).optional()
 })
 
-const RepoGroupUpdateArgs = z.object({
+const ProjectGroupUpdateArgs = z.object({
   groupId: z.string().min(1),
   updates: z.object({
     name: z.string().optional(),
@@ -96,40 +96,40 @@ const RepoGroupUpdateArgs = z.object({
   })
 })
 
-const RepoGroupSelectorArgs = z.object({
+const ProjectGroupSelectorArgs = z.object({
   groupId: z.string().min(1)
 })
 
-const RepoGroupMoveRepoArgs = z.object({
-  repoId: z.string().min(1),
+const ProjectGroupMoveProjectArgs = z.object({
+  projectId: z.string().min(1),
   groupId: z.string().nullable(),
   order: z.number().finite().optional()
 })
 
-const RepoGroupScanNestedArgs = z.object({
+const ProjectGroupScanNestedArgs = z.object({
   path: z.string().min(1),
   connectionId: z.string().min(1).optional(),
   options: z.unknown().optional()
 })
 
-const RepoGroupImportNestedArgs = z.discriminatedUnion('mode', [
+const ProjectGroupImportNestedArgs = z.discriminatedUnion('mode', [
   z.object({
     parentPath: z.string().min(1),
     groupName: z.string().min(1),
-    repoPaths: z.array(z.string()),
+    projectPaths: z.array(z.string()),
     connectionId: z.string().min(1).optional(),
     mode: z.literal('group')
   }),
   z.object({
     parentPath: z.string().min(1),
     groupName: z.string().optional().default(''),
-    repoPaths: z.array(z.string()),
+    projectPaths: z.array(z.string()),
     connectionId: z.string().min(1).optional(),
     mode: z.literal('separate')
   })
 ])
 
-function parseRepoGroupIpcArgs<T>(schema: z.ZodType<T>, value: unknown, errorCode: string): T {
+function parseProjectGroupIpcArgs<T>(schema: z.ZodType<T>, value: unknown, errorCode: string): T {
   const result = schema.safeParse(value)
   if (result.success) {
     return result.data
@@ -147,11 +147,11 @@ function validateNestedRepoScanRoot(path: string, connectionId?: string): void {
 }
 
 function sanitizeNestedRepoImportError(context: string, error: unknown): string {
-  console.warn(`[repo-groups] ${context}`, error)
+  console.warn(`[project-groups] ${context}`, error)
   return 'Repository could not be imported'
 }
 
-async function resolveSshRepoGroupPath(connectionId: string, path: string): Promise<string> {
+async function resolveSshProjectGroupPath(connectionId: string, path: string): Promise<string> {
   if (path === '~' || path === '~/' || path.startsWith('~/')) {
     const mux = getActiveMultiplexer(connectionId)
     if (mux) {
@@ -182,7 +182,7 @@ async function scanNestedReposForIpc(args: {
   if (!gitProvider || !fsProvider) {
     throw new Error('ssh_connection_unavailable')
   }
-  const resolvedPath = await resolveSshRepoGroupPath(args.connectionId, args.path)
+  const resolvedPath = await resolveSshProjectGroupPath(args.connectionId, args.path)
   return scanNestedRepos({
     path: resolvedPath,
     options: args.options,
@@ -213,13 +213,13 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
   ipcMain.removeHandler('repos:remove')
   ipcMain.removeHandler('repos:reorder')
   ipcMain.removeHandler('repos:update')
-  ipcMain.removeHandler('repoGroups:list')
-  ipcMain.removeHandler('repoGroups:create')
-  ipcMain.removeHandler('repoGroups:update')
-  ipcMain.removeHandler('repoGroups:delete')
-  ipcMain.removeHandler('repoGroups:moveRepo')
-  ipcMain.removeHandler('repoGroups:scanNested')
-  ipcMain.removeHandler('repoGroups:importNested')
+  ipcMain.removeHandler('projectGroups:list')
+  ipcMain.removeHandler('projectGroups:create')
+  ipcMain.removeHandler('projectGroups:update')
+  ipcMain.removeHandler('projectGroups:delete')
+  ipcMain.removeHandler('projectGroups:moveProject')
+  ipcMain.removeHandler('projectGroups:scanNested')
+  ipcMain.removeHandler('projectGroups:importNested')
   ipcMain.removeHandler('repos:pickFolder')
   ipcMain.removeHandler('repos:pickDirectory')
   ipcMain.removeHandler('repos:clone')
@@ -238,15 +238,15 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
     return store.getRepos()
   })
 
-  ipcMain.handle('repoGroups:list', () => store.getRepoGroups())
+  ipcMain.handle('projectGroups:list', () => store.getProjectGroups())
 
-  ipcMain.handle('repoGroups:create', (_event, rawArgs: unknown): RepoGroup => {
-    const args = parseRepoGroupIpcArgs(
-      RepoGroupCreateArgs,
+  ipcMain.handle('projectGroups:create', (_event, rawArgs: unknown): ProjectGroup => {
+    const args = parseProjectGroupIpcArgs(
+      ProjectGroupCreateArgs,
       rawArgs,
-      'invalid_repo_group_create_args'
+      'invalid_project_group_create_args'
     )
-    const group = store.createRepoGroup({
+    const group = store.createProjectGroup({
       name: args.name,
       parentPath: args.parentPath ?? null,
       parentGroupId: args.parentGroupId ?? null,
@@ -256,39 +256,39 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
     return group
   })
 
-  ipcMain.handle('repoGroups:update', (_event, rawArgs: unknown): RepoGroup | null => {
-    const args = parseRepoGroupIpcArgs(
-      RepoGroupUpdateArgs,
+  ipcMain.handle('projectGroups:update', (_event, rawArgs: unknown): ProjectGroup | null => {
+    const args = parseProjectGroupIpcArgs(
+      ProjectGroupUpdateArgs,
       rawArgs,
-      'invalid_repo_group_update_args'
+      'invalid_project_group_update_args'
     )
-    const updated = store.updateRepoGroup(args.groupId, args.updates)
+    const updated = store.updateProjectGroup(args.groupId, args.updates)
     if (updated) {
       notifyReposChanged(mainWindow)
     }
     return updated
   })
 
-  ipcMain.handle('repoGroups:delete', (_event, rawArgs: unknown): boolean => {
-    const args = parseRepoGroupIpcArgs(
-      RepoGroupSelectorArgs,
+  ipcMain.handle('projectGroups:delete', (_event, rawArgs: unknown): boolean => {
+    const args = parseProjectGroupIpcArgs(
+      ProjectGroupSelectorArgs,
       rawArgs,
-      'invalid_repo_group_delete_args'
+      'invalid_project_group_delete_args'
     )
-    const deleted = store.deleteRepoGroup(args.groupId)
+    const deleted = store.deleteProjectGroup(args.groupId)
     if (deleted) {
       notifyReposChanged(mainWindow)
     }
     return deleted
   })
 
-  ipcMain.handle('repoGroups:moveRepo', (_event, rawArgs: unknown): Repo | null => {
-    const args = parseRepoGroupIpcArgs(
-      RepoGroupMoveRepoArgs,
+  ipcMain.handle('projectGroups:moveProject', (_event, rawArgs: unknown): Repo | null => {
+    const args = parseProjectGroupIpcArgs(
+      ProjectGroupMoveProjectArgs,
       rawArgs,
-      'invalid_repo_group_move_repo_args'
+      'invalid_project_group_move_repo_args'
     )
-    const moved = store.moveRepoToGroup(args.repoId, args.groupId, args.order)
+    const moved = store.moveProjectToGroup(args.projectId, args.groupId, args.order)
     if (moved) {
       notifyReposChanged(mainWindow)
     }
@@ -296,42 +296,44 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
   })
 
   ipcMain.handle(
-    'repoGroups:scanNested',
+    'projectGroups:scanNested',
     async (_event, rawArgs: unknown): Promise<NestedRepoScanResult> => {
-      const args = parseRepoGroupIpcArgs(
-        RepoGroupScanNestedArgs,
+      const args = parseProjectGroupIpcArgs(
+        ProjectGroupScanNestedArgs,
         rawArgs,
-        'invalid_repo_group_scan_nested_args'
+        'invalid_project_group_scan_nested_args'
       )
       return scanNestedReposForIpc(args)
     }
   )
 
   ipcMain.handle(
-    'repoGroups:importNested',
-    async (_event, rawArgs: unknown): Promise<RepoGroupImportResult> => {
-      const args = parseRepoGroupIpcArgs(
-        RepoGroupImportNestedArgs,
+    'projectGroups:importNested',
+    async (_event, rawArgs: unknown): Promise<ProjectGroupImportResult> => {
+      const args = parseProjectGroupIpcArgs(
+        ProjectGroupImportNestedArgs,
         rawArgs,
-        'invalid_repo_group_import_nested_args'
+        'invalid_project_group_import_nested_args'
       )
-      const requestedPaths = args.repoPaths
+      const requestedPaths = args.projectPaths
       const scan = await scanNestedReposForIpc({
         path: args.parentPath,
         connectionId: args.connectionId
       })
-      const selection = resolveNestedRepoSelection({ scan, repoPaths: requestedPaths })
-      const groupResolver = createNestedRepoGroupResolver({
+      const selection = resolveNestedRepoSelection({ scan, projectPaths: requestedPaths })
+      const groupResolver = createNestedProjectGroupResolver({
         parentPath: scan.selectedPath,
         groupName: args.groupName ?? '',
         mode: args.mode,
-        createGroup: (input) => store.createRepoGroup(input)
+        createGroup: (input) => store.createProjectGroup(input)
       })
-      const results: RepoGroupImportResult['repos'] = selection.rejectedPaths.map((repoPath) => ({
-        path: repoPath,
-        status: 'failed',
-        error: 'Repository was not found in the nested repo scan result'
-      }))
+      const results: ProjectGroupImportResult['projects'] = selection.rejectedPaths.map(
+        (repoPath) => ({
+          path: repoPath,
+          status: 'failed',
+          error: 'Repository was not found in the nested repo scan result'
+        })
+      )
 
       for (const repoPath of selection.selectedPaths) {
         try {
@@ -360,9 +362,9 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
           const group = groupResolver.getGroupForRepo(repoPath)
           if (existing) {
             if (group) {
-              store.moveRepoToGroup(existing.id, group.id)
+              store.moveProjectToGroup(existing.id, group.id)
             }
-            results.push({ path: repoPath, repoId: existing.id, status: 'already-known' })
+            results.push({ path: repoPath, projectId: existing.id, status: 'already-known' })
             continue
           }
           const repo: Repo = {
@@ -377,8 +379,8 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
             externalWorktreeVisibilityLegacy: false,
             ...(group
               ? {
-                  repoGroupId: group.id,
-                  repoGroupOrder: getNextRepoGroupOrder(store.getRepos(), group.id)
+                  projectGroupId: group.id,
+                  projectGroupOrder: getNextProjectGroupOrder(store.getRepos(), group.id)
                 }
               : {})
           }
@@ -388,7 +390,7 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
               rootPath: repoPath
             })
           }
-          results.push({ path: repoPath, repoId: repo.id, status: 'imported' })
+          results.push({ path: repoPath, projectId: repo.id, status: 'imported' })
           emitRepoAdded('folder_picker', false)
         } catch (error) {
           results.push({
@@ -404,7 +406,7 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
       const failedCount = results.filter((entry) => entry.status === 'failed').length
       if (importedCount + alreadyKnownCount === 0) {
         for (const group of groupResolver.getCreatedGroups().reverse()) {
-          store.deleteRepoGroup(group.id)
+          store.deleteProjectGroup(group.id)
         }
       }
       invalidateAuthorizedRootsCache()
@@ -412,7 +414,7 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
       const rootGroup = groupResolver.getRootGroup()
       return {
         ...(rootGroup && importedCount + alreadyKnownCount > 0 ? { group: rootGroup } : {}),
-        repos: results,
+        projects: results,
         importedCount,
         alreadyKnownCount,
         failedCount
@@ -788,7 +790,7 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
   )
 
   ipcMain.handle('repos:remove', async (_event, args: { repoId: string }) => {
-    store.removeRepo(args.repoId)
+    store.removeProject(args.repoId)
     invalidateAuthorizedRootsCache()
     notifyReposChanged(mainWindow)
   })
@@ -812,8 +814,8 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
             | 'issueSourcePreference'
             | 'externalWorktreeVisibility'
             | 'externalWorktreeVisibilityPromptDismissedAt'
-            | 'repoGroupId'
-            | 'repoGroupOrder'
+            | 'projectGroupId'
+            | 'projectGroupOrder'
           >
         >
       }

@@ -90,9 +90,9 @@ import type {
   PRInfo,
   PRRefreshOutcome,
   Repo,
-  RepoGroup,
-  RepoGroupImportResult,
-  RepoGroupImportMode,
+  ProjectGroup,
+  ProjectGroupImportResult,
+  ProjectGroupImportMode,
   ShellHydrationFailureReason,
   SparsePreset,
   SearchOptions,
@@ -633,8 +633,8 @@ export type PreloadApi = {
           | 'issueSourcePreference'
           | 'externalWorktreeVisibility'
           | 'externalWorktreeVisibilityPromptDismissedAt'
-          | 'repoGroupId'
-          | 'repoGroupOrder'
+          | 'projectGroupId'
+          | 'projectGroupOrder'
         >
       >
     }) => Promise<Repo>
@@ -666,21 +666,21 @@ export type PreloadApi = {
     }) => Promise<BaseRefSearchResult[]>
     onChanged: (callback: () => void) => () => void
   }
-  repoGroups: {
-    list: () => Promise<RepoGroup[]>
+  projectGroups: {
+    list: () => Promise<ProjectGroup[]>
     create: (args: {
       name: string
       parentPath?: string | null
       parentGroupId?: string | null
-      createdFrom?: RepoGroup['createdFrom']
-    }) => Promise<RepoGroup>
+      createdFrom?: ProjectGroup['createdFrom']
+    }) => Promise<ProjectGroup>
     update: (args: {
       groupId: string
-      updates: Partial<Pick<RepoGroup, 'name' | 'isCollapsed' | 'tabOrder' | 'color'>>
-    }) => Promise<RepoGroup | null>
+      updates: Partial<Pick<ProjectGroup, 'name' | 'isCollapsed' | 'tabOrder' | 'color'>>
+    }) => Promise<ProjectGroup | null>
     delete: (args: { groupId: string }) => Promise<boolean>
-    moveRepo: (args: {
-      repoId: string
+    moveProject: (args: {
+      projectId: string
       groupId: string | null
       order?: number
     }) => Promise<Repo | null>
@@ -692,10 +692,10 @@ export type PreloadApi = {
     importNested: (args: {
       parentPath: string
       groupName: string
-      repoPaths: string[]
+      projectPaths: string[]
       connectionId?: string
-      mode: RepoGroupImportMode
-    }) => Promise<RepoGroupImportResult>
+      mode: ProjectGroupImportMode
+    }) => Promise<ProjectGroupImportResult>
   }
   sparsePresets: {
     list: (args: { repoId: string }) => Promise<SparsePreset[]>

@@ -311,7 +311,7 @@ export class DaemonServer {
         return { pong: true }
 
       case 'systemResolverHealth':
-        return { health: readCurrentProcessMacSystemResolverHealth() }
+        return { health: await readCurrentProcessMacSystemResolverHealth() }
 
       case 'shutdown':
         if (request.payload.killSessions) {

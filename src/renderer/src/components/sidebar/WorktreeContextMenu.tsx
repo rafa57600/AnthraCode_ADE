@@ -42,6 +42,7 @@ import { VIRTUALIZED_SCROLL_ANCHOR_RECORD_EVENT } from '@/hooks/useVirtualizedSc
 import { getLineageRenderInfo } from './worktree-list-groups'
 import { getWorkspaceStatus, getWorkspaceStatusVisualMeta } from './workspace-status'
 import { WorktreeOpenInSubMenu } from './WorktreeOpenInMenu'
+import { ProjectGroupNameDialog } from './ProjectGroupNameDialog'
 
 type Props = {
   worktree: Worktree
@@ -199,6 +200,7 @@ const WorktreeContextMenu = React.memo(function WorktreeContextMenu({
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuPoint, setMenuPoint] = useState({ x: 0, y: 0 })
   const [contextWorktrees, setContextWorktrees] = useState<readonly Worktree[]>(selectedWorktrees)
+  const [createGroupDialogOpen, setCreateGroupDialogOpen] = useState(false)
   const isDeleting = deleteState?.isDeleting ?? false
   const isFolder = repo ? isFolderRepo(repo) : false
   const repoMap = useRepoMap()
@@ -287,19 +289,25 @@ const WorktreeContextMenu = React.memo(function WorktreeContextMenu({
     updateWorktreeMeta(worktree.id, { isPinned: !worktree.isPinned })
   }, [worktree.id, worktree.isPinned, updateWorktreeMeta])
 
-  const handleCreateGroupFromRepo = useCallback(async () => {
+  const handleCreateGroupFromRepo = useCallback(() => {
     if (!repo) {
       return
     }
-    const nextName = window.prompt('New group from project', `${repo.displayName} group`)
-    if (nextName === null) {
-      return
-    }
-    const group = await createProjectGroup(nextName)
-    if (group) {
-      await moveProjectToGroup(repo.id, group.id)
-    }
-  }, [createProjectGroup, moveProjectToGroup, repo])
+    setCreateGroupDialogOpen(true)
+  }, [repo])
+
+  const handleSubmitNewProjectGroup = useCallback(
+    async (name: string) => {
+      if (!repo) {
+        return
+      }
+      const group = await createProjectGroup(name)
+      if (group) {
+        await moveProjectToGroup(repo.id, group.id)
+      }
+    },
+    [createProjectGroup, moveProjectToGroup, repo]
+  )
 
   const handleMoveProjectToGroup = useCallback(
     (groupId: string) => {
@@ -657,6 +665,15 @@ const WorktreeContextMenu = React.memo(function WorktreeContextMenu({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      <ProjectGroupNameDialog
+        open={createGroupDialogOpen}
+        title="New Project Group"
+        description="Create a group and move this project into it."
+        initialName={repo ? `${repo.displayName} group` : ''}
+        confirmLabel="Create"
+        onOpenChange={setCreateGroupDialogOpen}
+        onSubmit={handleSubmitNewProjectGroup}
+      />
     </div>
   )
 })

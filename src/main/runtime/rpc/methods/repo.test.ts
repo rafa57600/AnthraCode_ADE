@@ -61,6 +61,26 @@ describe('repo RPC methods', () => {
     })
   })
 
+  it('shows a repo with the CLI-compatible response shape', async () => {
+    const runtime = {
+      getRuntimeId: () => 'test-runtime',
+      showRepo: vi.fn().mockResolvedValue({
+        id: 'repo-1',
+        path: '/srv/projects/orca',
+        kind: 'git'
+      })
+    } as unknown as OrcaRuntimeService
+    const dispatcher = new RpcDispatcher({ runtime, methods: REPO_METHODS })
+
+    const response = await dispatcher.dispatch(makeRequest('repo.show', { repo: 'repo-1' }))
+
+    expect(runtime.showRepo).toHaveBeenCalledWith('repo-1')
+    expect(response).toMatchObject({
+      ok: true,
+      result: { repo: { id: 'repo-1', path: '/srv/projects/orca' } }
+    })
+  })
+
   it('lists sparse checkout presets for a repo', async () => {
     const runtime = {
       getRuntimeId: () => 'test-runtime',
@@ -265,7 +285,7 @@ describe('repo RPC methods', () => {
     expect(runtime.moveProjectToGroup).toHaveBeenCalledWith('repo-1', group.id, 2)
     expect(moveResponse).toMatchObject({
       ok: true,
-      result: { project: { id: 'repo-1', projectGroupId: group.id } }
+      result: { repo: { id: 'repo-1', projectGroupId: group.id } }
     })
   })
 

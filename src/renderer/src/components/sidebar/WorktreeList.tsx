@@ -138,6 +138,8 @@ import { getRepoHeaderCreateState } from './repo-header-create-state'
 import type { PendingSidebarWorktreeReveal } from '@/store/slices/ui'
 import { getRepositoryIconSectionId } from '@/components/settings/repository-settings-targets'
 import { keybindingMatchesAction } from '../../../../shared/keybindings'
+import { ProjectGroupNameDialog } from './ProjectGroupNameDialog'
+import { ProjectGroupDeleteDialog } from './ProjectGroupDeleteDialog'
 import { isGitRepoKind } from '../../../../shared/repo-kind'
 import {
   effectiveExternalWorktreeVisibility,
@@ -145,6 +147,15 @@ import {
 } from '../../../../shared/worktree-ownership'
 import { RepoIconGlyph } from '@/components/repo/repo-icon'
 import { RepoBadgeMark } from '@/components/repo/RepoBadgeLabel'
+
+type ProjectGroupNameDialogState =
+  | { type: 'create-from-repo'; repo: Repo }
+  | { type: 'rename'; groupId: string; currentName: string }
+
+type ProjectGroupDeleteDialogState = {
+  groupId: string
+  groupName: string
+}
 
 // How long to wait after a sortEpoch bump before actually re-sorting.
 // Prevents jarring position shifts when background events (AI starting work,
@@ -301,7 +312,7 @@ type VirtualizedWorktreeViewportProps = {
   handleMoveProjectToGroup: (repo: Repo, groupId: string) => void
   handleRemoveProjectFromGroup: (repo: Repo) => void
   handleRenameProjectGroup: (groupId: string, currentName: string) => void
-  handleDeleteProjectGroup: (groupId: string) => void
+  handleDeleteProjectGroup: (groupId: string, groupName: string) => void
   activeModal: string
   pendingRevealWorktree: PendingSidebarWorktreeReveal | null
   clearPendingRevealWorktreeId: () => void
@@ -2152,7 +2163,7 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
                             variant="destructive"
                             onSelect={() => {
                               if (row.projectGroup?.id) {
-                                handleDeleteProjectGroup(row.projectGroup.id)
+                                handleDeleteProjectGroup(row.projectGroup.id, row.label)
                               }
                             }}
                           >
@@ -3158,7 +3169,7 @@ const WorktreeList = React.memo(function WorktreeList({
 
   const handleOpenWorktreeVisibility = useCallback(
     (projectId: string) => {
-      openModal('worktree-visibility', { projectId })
+      openModal('worktree-visibility', { repoId: projectId })
     },
     [openModal]
   )
@@ -3166,7 +3177,7 @@ const WorktreeList = React.memo(function WorktreeList({
   const handleRemoveProject = useCallback(
     (repo: Repo) => {
       openModal('confirm-remove-folder', {
-        projectId: repo.id,
+        repoId: repo.id,
         displayName: repo.displayName
       })
     },
@@ -3177,20 +3188,14 @@ const WorktreeList = React.memo(function WorktreeList({
   const createProjectGroup = useAppStore((s) => s.createProjectGroup)
   const updateProjectGroup = useAppStore((s) => s.updateProjectGroup)
   const deleteProjectGroup = useAppStore((s) => s.deleteProjectGroup)
+  const [projectGroupNameDialog, setProjectGroupNameDialog] =
+    useState<ProjectGroupNameDialogState | null>(null)
+  const [projectGroupDeleteDialog, setProjectGroupDeleteDialog] =
+    useState<ProjectGroupDeleteDialogState | null>(null)
 
-  const handleCreateGroupFromRepo = useCallback(
-    async (repo: Repo) => {
-      const nextName = window.prompt('New group from project', `${repo.displayName} group`)
-      if (nextName === null) {
-        return
-      }
-      const group = await createProjectGroup(nextName)
-      if (group) {
-        await moveProjectToGroup(repo.id, group.id)
-      }
-    },
-    [createProjectGroup, moveProjectToGroup]
-  )
+  const handleCreateGroupFromRepo = useCallback((repo: Repo) => {
+    setProjectGroupNameDialog({ type: 'create-from-repo', repo })
+  }, [])
 
   const handleMoveProjectToGroup = useCallback(
     (repo: Repo, groupId: string) => {
@@ -3209,22 +3214,37 @@ const WorktreeList = React.memo(function WorktreeList({
     [moveProjectToGroup]
   )
 
-  const handleRenameProjectGroup = useCallback(
-    (groupId: string, currentName: string) => {
-      const nextName = window.prompt('Rename group', currentName)
-      if (nextName !== null) {
-        void updateProjectGroup(groupId, { name: nextName })
+  const handleRenameProjectGroup = useCallback((groupId: string, currentName: string) => {
+    setProjectGroupNameDialog({ type: 'rename', groupId, currentName })
+  }, [])
+
+  const handleSubmitProjectGroupName = useCallback(
+    async (name: string) => {
+      if (!projectGroupNameDialog) {
+        return
       }
+      if (projectGroupNameDialog.type === 'create-from-repo') {
+        const group = await createProjectGroup(name)
+        if (group) {
+          await moveProjectToGroup(projectGroupNameDialog.repo.id, group.id)
+        }
+        return
+      }
+      await updateProjectGroup(projectGroupNameDialog.groupId, { name })
     },
-    [updateProjectGroup]
+    [createProjectGroup, moveProjectToGroup, projectGroupNameDialog, updateProjectGroup]
   )
 
-  const handleDeleteProjectGroup = useCallback(
-    (groupId: string) => {
-      void deleteProjectGroup(groupId)
-    },
-    [deleteProjectGroup]
-  )
+  const handleDeleteProjectGroup = useCallback((groupId: string, groupName: string) => {
+    setProjectGroupDeleteDialog({ groupId, groupName })
+  }, [])
+
+  const handleConfirmDeleteProjectGroup = useCallback(async () => {
+    if (!projectGroupDeleteDialog) {
+      return
+    }
+    await deleteProjectGroup(projectGroupDeleteDialog.groupId)
+  }, [deleteProjectGroup, projectGroupDeleteDialog])
 
   const moveWorktreeToStatus = useCallback(
     (worktreeId: string, status: WorkspaceStatus) => {
@@ -3393,52 +3413,89 @@ const WorktreeList = React.memo(function WorktreeList({
   }
 
   return (
-    <VirtualizedWorktreeViewport
-      key={viewportResetKey}
-      rows={rows}
-      activeWorktreeId={selectedSidebarWorktreeId}
-      currentWorktreeId={activeWorktreeId}
-      groupBy={groupBy}
-      projectGroupOrdering={projectGroupOrdering}
-      toggleGroup={toggleGroup}
-      collapsedGroups={collapsedGroups}
-      handleCreateForRepo={handleCreateForRepo}
-      handleOpenRepoSettings={handleOpenRepoSettings}
-      handleOpenWorktreeVisibility={handleOpenWorktreeVisibility}
-      handleRemoveProject={handleRemoveProject}
-      handleCreateGroupFromRepo={handleCreateGroupFromRepo}
-      handleMoveProjectToGroup={handleMoveProjectToGroup}
-      handleRemoveProjectFromGroup={handleRemoveProjectFromGroup}
-      handleRenameProjectGroup={handleRenameProjectGroup}
-      handleDeleteProjectGroup={handleDeleteProjectGroup}
-      activeModal={activeModal}
-      pendingRevealWorktree={pendingRevealWorktree}
-      clearPendingRevealWorktreeId={clearPendingRevealWorktreeId}
-      worktrees={worktrees}
-      selectedWorktreeIds={selectedWorktreeIds}
-      selectedWorktrees={selectedWorktrees}
-      onSelectionGesture={updateSelectionForGesture}
-      onContextMenuSelect={selectForContextMenu}
-      repoMap={repoMap}
-      worktreeMap={worktreeMap}
-      worktreeLineageById={worktreeLineageById}
-      repoOrder={repoOrder}
-      allRepoIds={allRepoIds}
-      reorderRepos={(orderedIds) => {
-        void reorderReposAction(orderedIds)
-      }}
-      prCache={prCache}
-      workspaceStatuses={workspaceStatuses}
-      projectGroups={projectGroups}
-      onMoveWorktreeToStatus={moveWorktreeToStatus}
-      onMoveWorktreesToStatus={moveWorktreesToStatus}
-      onPinWorktree={pinWorktree}
-      onPinWorktrees={pinWorktrees}
-      onReorderWorktrees={reorderWorktrees}
-      showInlineAgentCards={cardProps.includes('inline-agents')}
-      scrollOffsetRef={scrollOffsetRef}
-      scrollAnchorRef={scrollAnchorRef}
-    />
+    <>
+      <ProjectGroupNameDialog
+        open={projectGroupNameDialog !== null}
+        title={
+          projectGroupNameDialog?.type === 'rename' ? 'Rename Project Group' : 'New Project Group'
+        }
+        description={
+          projectGroupNameDialog?.type === 'rename'
+            ? 'Update the group name shown in the sidebar.'
+            : 'Create a group and move this project into it.'
+        }
+        initialName={
+          projectGroupNameDialog?.type === 'rename'
+            ? projectGroupNameDialog.currentName
+            : projectGroupNameDialog
+              ? `${projectGroupNameDialog.repo.displayName} group`
+              : ''
+        }
+        confirmLabel={projectGroupNameDialog?.type === 'rename' ? 'Rename' : 'Create'}
+        onOpenChange={(open) => {
+          if (!open) {
+            setProjectGroupNameDialog(null)
+          }
+        }}
+        onSubmit={handleSubmitProjectGroupName}
+      />
+      <ProjectGroupDeleteDialog
+        open={projectGroupDeleteDialog !== null}
+        groupName={projectGroupDeleteDialog?.groupName ?? ''}
+        onOpenChange={(open) => {
+          if (!open) {
+            setProjectGroupDeleteDialog(null)
+          }
+        }}
+        onConfirm={handleConfirmDeleteProjectGroup}
+      />
+      <VirtualizedWorktreeViewport
+        key={viewportResetKey}
+        rows={rows}
+        activeWorktreeId={selectedSidebarWorktreeId}
+        currentWorktreeId={activeWorktreeId}
+        groupBy={groupBy}
+        projectGroupOrdering={projectGroupOrdering}
+        toggleGroup={toggleGroup}
+        collapsedGroups={collapsedGroups}
+        handleCreateForRepo={handleCreateForRepo}
+        handleOpenRepoSettings={handleOpenRepoSettings}
+        handleOpenWorktreeVisibility={handleOpenWorktreeVisibility}
+        handleRemoveProject={handleRemoveProject}
+        handleCreateGroupFromRepo={handleCreateGroupFromRepo}
+        handleMoveProjectToGroup={handleMoveProjectToGroup}
+        handleRemoveProjectFromGroup={handleRemoveProjectFromGroup}
+        handleRenameProjectGroup={handleRenameProjectGroup}
+        handleDeleteProjectGroup={handleDeleteProjectGroup}
+        activeModal={activeModal}
+        pendingRevealWorktree={pendingRevealWorktree}
+        clearPendingRevealWorktreeId={clearPendingRevealWorktreeId}
+        worktrees={worktrees}
+        selectedWorktreeIds={selectedWorktreeIds}
+        selectedWorktrees={selectedWorktrees}
+        onSelectionGesture={updateSelectionForGesture}
+        onContextMenuSelect={selectForContextMenu}
+        repoMap={repoMap}
+        worktreeMap={worktreeMap}
+        worktreeLineageById={worktreeLineageById}
+        repoOrder={repoOrder}
+        allRepoIds={allRepoIds}
+        reorderRepos={(orderedIds) => {
+          void reorderReposAction(orderedIds)
+        }}
+        prCache={prCache}
+        workspaceStatuses={workspaceStatuses}
+        projectGroups={projectGroups}
+        onMoveWorktreeToStatus={moveWorktreeToStatus}
+        onMoveWorktreesToStatus={moveWorktreesToStatus}
+        onPinWorktree={pinWorktree}
+        onPinWorktrees={pinWorktrees}
+        onReorderWorktrees={reorderWorktrees}
+        showInlineAgentCards={cardProps.includes('inline-agents')}
+        scrollOffsetRef={scrollOffsetRef}
+        scrollAnchorRef={scrollAnchorRef}
+      />
+    </>
   )
 })
 

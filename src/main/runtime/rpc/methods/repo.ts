@@ -153,7 +153,7 @@ export const REPO_METHODS: RpcMethod[] = [
     name: 'projectGroup.moveProject',
     params: ProjectGroupMoveProject,
     handler: async (params, { runtime }) => ({
-      project: await runtime.moveProjectToGroup(params.repo, params.groupId ?? null, params.order)
+      repo: await runtime.moveProjectToGroup(params.repo, params.groupId ?? null, params.order)
     })
   }),
   defineMethod({
@@ -207,7 +207,7 @@ export const REPO_METHODS: RpcMethod[] = [
   defineMethod({
     name: 'repo.show',
     params: RepoSelector,
-    handler: async (params, { runtime }) => ({ project: await runtime.showRepo(params.repo) })
+    handler: async (params, { runtime }) => ({ repo: await runtime.showRepo(params.repo) })
   }),
   defineMethod({
     name: 'repo.update',

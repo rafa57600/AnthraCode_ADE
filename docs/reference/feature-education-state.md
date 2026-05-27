@@ -2,7 +2,7 @@
 
 Orca uses local persisted UI state to decide which education surfaces should appear for a user. Keep these concepts separate; they answer different questions and should not be collapsed into one flag.
 
-For retention analysis and dashboard construction, see [`feature-education-retention-analytics.md`](./feature-education-retention-analytics.md).
+For the feature-interaction catalog, see [`feature-discovery-interaction-tracking.md`](./feature-discovery-interaction-tracking.md). For retention analysis and dashboard construction, see [`feature-education-retention-analytics.md`](./feature-education-retention-analytics.md).
 
 ## State Types
 

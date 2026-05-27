@@ -25,6 +25,7 @@ import {
   GLOBAL_AGENT_SKILL_SOURCE_KINDS,
   useInstalledAgentSkill
 } from '@/hooks/useInstalledAgentSkills'
+import { useAppStore } from '@/store'
 import { Button } from '../ui/button'
 import { AgentSkillSetupPanel } from './AgentSkillSetupPanel'
 import type { SettingsSearchEntry } from './settings-search'
@@ -136,6 +137,7 @@ export function ComputerUsePane(): React.JSX.Element {
   }, [refresh])
 
   const openPermission = async (id: ComputerUsePermissionId): Promise<void> => {
+    useAppStore.getState().recordFeatureInteraction('computer-use')
     setPendingId(id)
     try {
       const result = await window.api.computerUsePermissions.openSetup({ id })
@@ -239,6 +241,7 @@ export function ComputerUsePane(): React.JSX.Element {
         icon={<MonitorCog className="size-5" />}
         preInstallNotice={AGENT_SKILL_CLI_PREREQUISITE_NOTICE}
         onBeforeOpenTerminal={async () => {
+          useAppStore.getState().recordFeatureInteraction('computer-use')
           await ensureOrcaCliAvailableForAgentSkillTerminal()
         }}
         onRecheck={refreshComputerUseSkill}

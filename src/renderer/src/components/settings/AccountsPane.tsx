@@ -111,6 +111,7 @@ function getClaudeAccountErrorDescription(error: unknown): string {
 
 export function AccountsPane({ settings, updateSettings }: AccountsPaneProps): React.JSX.Element {
   const searchQuery = useAppStore((s) => s.settingsSearchQuery)
+  const recordFeatureInteraction = useAppStore((s) => s.recordFeatureInteraction)
   const fetchSettings = useAppStore((s) => s.fetchSettings)
   const localPreflightContext = useAppStore(getLocalPreflightContext)
   const activeWslDistro = localPreflightContext?.wslDistro?.trim() || null
@@ -657,11 +658,12 @@ export function AccountsPane({ settings, updateSettings }: AccountsPaneProps): R
           <button
             role="switch"
             aria-checked={settings.geminiCliOAuthEnabled}
-            onClick={() =>
+            onClick={() => {
+              recordFeatureInteraction('usage-tracking')
               updateSettings({
                 geminiCliOAuthEnabled: !settings.geminiCliOAuthEnabled
               })
-            }
+            }}
             className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-transparent transition-colors ${
               settings.geminiCliOAuthEnabled ? 'bg-foreground' : 'bg-muted-foreground/30'
             }`}
@@ -696,7 +698,10 @@ export function AccountsPane({ settings, updateSettings }: AccountsPaneProps): R
             <Input
               type="password"
               value={settings.opencodeSessionCookie}
-              onChange={(e) => updateSettings({ opencodeSessionCookie: e.target.value })}
+              onChange={(e) => {
+                recordFeatureInteraction('usage-tracking')
+                updateSettings({ opencodeSessionCookie: e.target.value })
+              }}
               placeholder="Fe26.2**… token or auth=Fe26.2**… header"
               spellCheck={false}
               className="flex-1 text-xs"
@@ -705,7 +710,10 @@ export function AccountsPane({ settings, updateSettings }: AccountsPaneProps): R
               <Button
                 variant="ghost"
                 size="xs"
-                onClick={() => updateSettings({ opencodeSessionCookie: '' })}
+                onClick={() => {
+                  recordFeatureInteraction('usage-tracking')
+                  updateSettings({ opencodeSessionCookie: '' })
+                }}
                 className="h-7 shrink-0 text-xs text-muted-foreground hover:text-foreground"
               >
                 Clear
@@ -730,7 +738,10 @@ export function AccountsPane({ settings, updateSettings }: AccountsPaneProps): R
             <Input
               type="text"
               value={settings.opencodeWorkspaceId}
-              onChange={(e) => updateSettings({ opencodeWorkspaceId: e.target.value })}
+              onChange={(e) => {
+                recordFeatureInteraction('usage-tracking')
+                updateSettings({ opencodeWorkspaceId: e.target.value })
+              }}
               placeholder="wrk_…  (leave blank for automatic lookup)"
               spellCheck={false}
               className="flex-1 text-xs"
@@ -739,7 +750,10 @@ export function AccountsPane({ settings, updateSettings }: AccountsPaneProps): R
               <Button
                 variant="ghost"
                 size="xs"
-                onClick={() => updateSettings({ opencodeWorkspaceId: '' })}
+                onClick={() => {
+                  recordFeatureInteraction('usage-tracking')
+                  updateSettings({ opencodeWorkspaceId: '' })
+                }}
                 className="h-7 shrink-0 text-xs text-muted-foreground hover:text-foreground"
               >
                 Clear

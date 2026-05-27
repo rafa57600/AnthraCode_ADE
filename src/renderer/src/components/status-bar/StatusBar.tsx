@@ -671,8 +671,17 @@ function ProviderDetailsMenu({
   onOpenChange?: (open: boolean) => void
   children?: React.ReactNode
 }): React.JSX.Element {
+  const recordFeatureInteraction = useAppStore((s) => s.recordFeatureInteraction)
+
+  const handleOpenChange = (nextOpen: boolean): void => {
+    if (nextOpen) {
+      recordFeatureInteraction('usage-tracking')
+    }
+    onOpenChange?.(nextOpen)
+  }
+
   return (
-    <DropdownMenu open={open} onOpenChange={onOpenChange}>
+    <DropdownMenu open={open} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
@@ -726,6 +735,7 @@ function StatusBarInner({ floatingTerminalOpen }: StatusBarProps): React.JSX.Ele
   const refreshRateLimits = useAppStore((s) => s.refreshRateLimits)
   const statusBarVisible = useAppStore((s) => s.statusBarVisible)
   const statusBarItems = useAppStore((s) => s.statusBarItems)
+  const recordFeatureInteraction = useAppStore((s) => s.recordFeatureInteraction)
   const floatingTerminalEnabled = useAppStore((s) => s.settings?.floatingTerminalEnabled === true)
   const floatingTerminalTriggerLocation = useAppStore(
     (s) => s.settings?.floatingTerminalTriggerLocation ?? 'floating-button'
@@ -953,7 +963,10 @@ function StatusBarInner({ floatingTerminalOpen }: StatusBarProps): React.JSX.Ele
           {isStatusBarItemAvailable('claude', detectedAgentIds) && (
             <DropdownMenuCheckboxItem
               checked={statusBarItems.includes('claude')}
-              onCheckedChange={() => toggleStatusBarItem('claude')}
+              onCheckedChange={() => {
+                recordFeatureInteraction('usage-tracking')
+                toggleStatusBarItem('claude')
+              }}
             >
               <ClaudeIcon size={14} />
               Claude Usage
@@ -962,7 +975,10 @@ function StatusBarInner({ floatingTerminalOpen }: StatusBarProps): React.JSX.Ele
           {isStatusBarItemAvailable('codex', detectedAgentIds) && (
             <DropdownMenuCheckboxItem
               checked={statusBarItems.includes('codex')}
-              onCheckedChange={() => toggleStatusBarItem('codex')}
+              onCheckedChange={() => {
+                recordFeatureInteraction('usage-tracking')
+                toggleStatusBarItem('codex')
+              }}
             >
               <OpenAIIcon size={14} />
               Codex Usage
@@ -971,7 +987,10 @@ function StatusBarInner({ floatingTerminalOpen }: StatusBarProps): React.JSX.Ele
           {isStatusBarItemAvailable('gemini', detectedAgentIds) && (
             <DropdownMenuCheckboxItem
               checked={statusBarItems.includes('gemini')}
-              onCheckedChange={() => toggleStatusBarItem('gemini')}
+              onCheckedChange={() => {
+                recordFeatureInteraction('usage-tracking')
+                toggleStatusBarItem('gemini')
+              }}
             >
               <GeminiIcon size={14} />
               Gemini Usage
@@ -979,7 +998,10 @@ function StatusBarInner({ floatingTerminalOpen }: StatusBarProps): React.JSX.Ele
           )}
           <DropdownMenuCheckboxItem
             checked={statusBarItems.includes('opencode-go')}
-            onCheckedChange={() => toggleStatusBarItem('opencode-go')}
+            onCheckedChange={() => {
+              recordFeatureInteraction('usage-tracking')
+              toggleStatusBarItem('opencode-go')
+            }}
           >
             <OpenCodeGoIcon size={14} />
             OpenCode Go Usage
@@ -993,7 +1015,10 @@ function StatusBarInner({ floatingTerminalOpen }: StatusBarProps): React.JSX.Ele
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
             checked={statusBarItems.includes('resource-usage')}
-            onCheckedChange={() => toggleStatusBarItem('resource-usage')}
+            onCheckedChange={() => {
+              recordFeatureInteraction('resource-manager')
+              toggleStatusBarItem('resource-usage')
+            }}
           >
             <Activity className="size-3.5" />
             Resource Manager

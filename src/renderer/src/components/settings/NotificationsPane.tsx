@@ -17,6 +17,7 @@ import {
 import { BellRing, Bot, FileAudio, Siren, Upload, Volume2 } from 'lucide-react'
 import type { SettingsSearchEntry } from './settings-search'
 import { getNotificationSoundOptions } from '@/components/notification-sound-options'
+import { useAppStore } from '@/store'
 
 export const NOTIFICATIONS_PANE_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   {
@@ -225,6 +226,7 @@ export function NotificationsPane({
   }
 
   const handleSendTestNotification = async (): Promise<void> => {
+    useAppStore.getState().recordFeatureInteraction('notifications')
     await sendNotificationSettingsTestNotification(notificationSettings, volumeDraft)
   }
 
@@ -274,7 +276,12 @@ export function NotificationsPane({
         label="Enable Notifications"
         description="Native system notifications for background events."
         checked={notificationSettings.enabled}
-        onToggle={() => void updateNotificationSettings({ enabled: !notificationSettings.enabled })}
+        onToggle={() => {
+          if (!notificationSettings.enabled) {
+            useAppStore.getState().recordFeatureInteraction('notifications')
+          }
+          void updateNotificationSettings({ enabled: !notificationSettings.enabled })
+        }}
       />
 
       <Separator />

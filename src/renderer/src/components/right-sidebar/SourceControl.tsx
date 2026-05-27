@@ -1746,6 +1746,7 @@ function SourceControlInner(): React.JSX.Element {
         }
         return writeCommitDraftForWorktree(prev, activeWorktreeId, result.message)
       })
+      useAppStore.getState().recordFeatureInteraction('ai-commit-pr')
       setGenerateErrors((prev) => ({ ...prev, [activeWorktreeId]: null }))
     } catch (error) {
       setGenerateErrors((prev) => ({
@@ -2030,6 +2031,7 @@ function SourceControlInner(): React.JSX.Element {
           if (!nextRecord) {
             return prev
           }
+          useAppStore.getState().recordFeatureInteraction('ai-commit-pr')
           return {
             ...prev,
             [generationKey]: nextRecord

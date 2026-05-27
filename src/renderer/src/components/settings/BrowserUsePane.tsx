@@ -1,3 +1,4 @@
+/* eslint-disable max-lines -- Why: Browser Use setup keeps enablement, CLI registration, skill install, cookie import, examples, and interaction tracking in one pane so the three-step setup state stays coherent. */
 import { useEffect, useState } from 'react'
 import { Import, Loader2, MousePointerClick } from 'lucide-react'
 import { toast } from 'sonner'
@@ -69,6 +70,9 @@ export function BrowserUseSetup({
   const toggleBrowserUse = (value: boolean): void => {
     setBrowserUseEnabled(value)
     localStorage.setItem(BROWSER_USE_ENABLED_STORAGE_KEY, value ? '1' : '0')
+    if (value) {
+      useAppStore.getState().recordFeatureInteraction('agent-browser-use')
+    }
   }
 
   const refreshCli = async (): Promise<void> => {
@@ -136,6 +140,7 @@ export function BrowserUseSetup({
       .getState()
       .importCookiesFromBrowser(profileId, browserFamily, browserProfile)
     if (result.ok) {
+      useAppStore.getState().recordFeatureInteraction('agent-browser-use')
       const browser = detectedBrowsers.find((b) => b.family === browserFamily)
       toast.success(
         `Imported ${result.summary.importedCookies} cookies from ${browser?.label ?? browserFamily}${browserProfile ? ` (${browserProfile})` : ''}.`
@@ -148,6 +153,7 @@ export function BrowserUseSetup({
   const handleImportFromFile = async (): Promise<void> => {
     const result = await useAppStore.getState().importCookiesToProfile('default')
     if (result.ok) {
+      useAppStore.getState().recordFeatureInteraction('agent-browser-use')
       toast.success(`Imported ${result.summary.importedCookies} cookies from file.`)
     } else if (result.reason !== 'canceled') {
       toast.error(result.reason)
@@ -323,6 +329,7 @@ export function BrowserUseSetup({
             disabled={!cliEnabled}
             preInstallNotice={AGENT_SKILL_CLI_PREREQUISITE_NOTICE}
             onBeforeOpenTerminal={async () => {
+              useAppStore.getState().recordFeatureInteraction('agent-browser-use')
               await ensureOrcaCliAvailableForAgentSkillTerminal({ onStatusChange: setCliStatus })
             }}
             onRecheck={refreshSkill}

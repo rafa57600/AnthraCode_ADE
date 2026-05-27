@@ -891,6 +891,9 @@ export default function AutomationsPage(): React.JSX.Element {
         await refresh()
         setCreateOpen(false)
         setEditingExternalTarget(null)
+        if (!editingExternalTarget) {
+          useAppStore.getState().recordFeatureInteraction('automation-created')
+        }
         setSelectedExternalKey(
           editingExternalTarget
             ? getExternalAutomationKey(editingExternalTarget.manager, editingExternalTarget.job)
@@ -971,6 +974,9 @@ export default function AutomationsPage(): React.JSX.Element {
       await refresh()
       setSelectedId(automation.id)
       setCreateOpen(false)
+      if (!editingAutomationId) {
+        useAppStore.getState().recordFeatureInteraction('automation-created')
+      }
       toast.success(editingAutomationId ? 'Automation updated.' : 'Automation saved.')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save automation.')
@@ -1038,6 +1044,7 @@ export default function AutomationsPage(): React.JSX.Element {
 
   const runNow = async (automation: Automation): Promise<void> => {
     await window.api.automations.runNow({ id: automation.id })
+    useAppStore.getState().recordFeatureInteraction('automation-run')
     await refresh()
     toast.message('Automation run queued.')
   }
@@ -1057,6 +1064,9 @@ export default function AutomationsPage(): React.JSX.Element {
         jobId: job.id,
         action
       })
+      if (action === 'run') {
+        useAppStore.getState().recordFeatureInteraction('automation-run')
+      }
       await refresh()
       toast.success(
         action === 'delete'

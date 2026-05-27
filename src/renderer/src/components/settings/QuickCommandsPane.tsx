@@ -160,6 +160,7 @@ export function QuickCommandsPane({
     const nextList = isEdit
       ? latest.map((command) => (command.id === next.id ? next : command))
       : [...latest, next]
+    useAppStore.getState().recordFeatureInteraction('quick-commands')
     updateSettings({ terminalQuickCommands: nextList })
   }
 

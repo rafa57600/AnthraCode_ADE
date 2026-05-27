@@ -369,6 +369,7 @@ function App(): React.JSX.Element {
       setFloatingTerminalOpen((currentOpen) => {
         const resolvedOpen = typeof nextOpen === 'function' ? nextOpen(currentOpen) : nextOpen
         if (resolvedOpen && !currentOpen) {
+          useAppStore.getState().recordFeatureInteraction('floating-workspace')
           rememberFloatingTerminalReturnFocus()
         } else if (!resolvedOpen && currentOpen) {
           restoreFloatingTerminalReturnFocus()

@@ -256,6 +256,7 @@ export const createDiffCommentsSlice: StateCreator<AppState, [], [], DiffComment
       // latest store snapshot at dequeue time, so it will reflect any newer
       // mutation that landed after this one was enqueued.
       await enqueuePersist(input.worktreeId, get)
+      get().recordFeatureInteraction('review-notes')
       return comment
     } catch (err) {
       console.error('Failed to persist diff comments:', err)
@@ -316,6 +317,7 @@ export const createDiffCommentsSlice: StateCreator<AppState, [], [], DiffComment
     }
     try {
       await enqueuePersist(worktreeId, get)
+      get().recordFeatureInteraction('review-notes')
       return true
     } catch (err) {
       console.error('Failed to persist diff comments:', err)

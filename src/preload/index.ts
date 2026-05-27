@@ -460,6 +460,7 @@ const api = {
     create: (args: {
       name: string
       parentPath?: string | null
+      parentGroupId?: string | null
       createdFrom?: 'manual' | 'folder-scan' | 'migration'
     }): Promise<unknown> => ipcRenderer.invoke('repoGroups:create', args),
     update: (args: { groupId: string; updates: Record<string, unknown> }): Promise<unknown> =>

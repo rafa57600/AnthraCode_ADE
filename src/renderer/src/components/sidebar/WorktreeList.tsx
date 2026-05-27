@@ -930,7 +930,8 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
           repoMap,
           prCache,
           workspaceStatuses,
-          settings
+          settings,
+          repoGroups
         )
         for (const groupKey of groupKeys) {
           if (collapsedGroups.has(groupKey)) {
@@ -980,7 +981,8 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
     toggleGroup,
     collapsedGroups,
     workspaceStatuses,
-    settings
+    settings,
+    repoGroups
   ])
 
   const prCacheLen = useAppStore((s) => countRecordKeysByReference(s.prCache))
@@ -1858,6 +1860,7 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
                       : null
                   })
                 : null
+              const repoGroupDepth = row.repoGroupDepth ?? 0
               return (
                 <div
                   key={vItem.key}
@@ -1892,7 +1895,7 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
                     data-workspace-status={headerWorkspaceStatus ?? undefined}
                     data-workspace-pin-drop-target={isPinnedHeader ? '' : undefined}
                     className={cn(
-                      'group flex h-7 w-full items-center gap-1.5 pl-3 pr-1 text-left transition-all',
+                      'group flex h-7 w-full items-center gap-1.5 pr-1 text-left transition-all',
                       'cursor-pointer',
                       isDraggingThis &&
                         'bg-accent/80 ring-1 ring-ring/40 shadow-md rounded-md scale-[1.01]',
@@ -1904,6 +1907,7 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
                         'rounded-md bg-sidebar-accent ring-1 ring-sidebar-ring/40',
                       row.repo && 'overflow-hidden'
                     )}
+                    style={{ paddingLeft: 12 + Math.min(repoGroupDepth, 6) * 14 }}
                     onDragOver={
                       isPinnedHeader
                         ? handleWorkspacePinDragOver

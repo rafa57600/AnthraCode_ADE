@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { NestedRepoTreePreview } from '@/components/repo/NestedRepoTreePreview'
 import { track } from '@/lib/telemetry'
 import { RemoteStep, CloneStep, useRemoteRepo } from './AddRepoSteps'
 import { CreateStep, useCreateRepo } from './AddRepoCreateStep'
@@ -778,9 +779,11 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
         ) : step === 'nested' && nestedScan ? (
           <>
             <DialogHeader>
-              <DialogTitle>Import repositories</DialogTitle>
+              <DialogTitle>Import as repo group</DialogTitle>
               <DialogDescription>
-                Orca found Git repositories inside the selected folder.
+                {`Found ${nestedScan.repos.length} git ${
+                  nestedScan.repos.length === 1 ? 'repository' : 'repositories'
+                } in this folder.`}
               </DialogDescription>
             </DialogHeader>
 
@@ -808,60 +811,37 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
                 />
               </div>
 
-              <div className="scrollbar-sleek max-h-64 space-y-1 overflow-y-auto rounded-md border border-border p-1">
-                {nestedScan.repos.map((repo) => {
-                  const checked = nestedSelectedPaths.has(repo.path)
-                  return (
-                    <label
-                      key={repo.path}
-                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(event) => {
-                          setNestedSelectedPaths((previous) => {
-                            const next = new Set(previous)
-                            if (event.target.checked) {
-                              next.add(repo.path)
-                            } else {
-                              next.delete(repo.path)
-                            }
-                            return next
-                          })
-                        }}
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-medium text-foreground">
-                          {repo.displayName}
-                        </span>
-                        <span className="block truncate text-[11px] text-muted-foreground">
-                          {repo.path}
-                        </span>
-                      </span>
-                    </label>
-                  )
-                })}
-              </div>
+              <NestedRepoTreePreview
+                scan={nestedScan}
+                selectedPaths={nestedSelectedPaths}
+                onSelectedPathsChange={setNestedSelectedPaths}
+                disabled={isAdding}
+              />
               {nestedScan.truncated || nestedScan.timedOut ? (
                 <div className="text-[11px] text-muted-foreground">
                   Showing partial results from a bounded scan.
                 </div>
               ) : null}
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  onClick={() => void handleImportNestedRepos('group')}
-                  disabled={isAdding || nestedSelectedPaths.size === 0 || !nestedGroupName.trim()}
-                >
-                  Group selected
+              <div className="flex items-center gap-2">
+                <Button onClick={handleBack} disabled={isAdding} variant="ghost">
+                  <ArrowLeft className="size-3.5" />
+                  Back
                 </Button>
-                <Button
-                  onClick={() => void handleImportNestedRepos('separate')}
-                  disabled={isAdding || nestedSelectedPaths.size === 0}
-                  variant="outline"
-                >
-                  Import separately
-                </Button>
+                <div className="ml-auto flex items-center gap-2">
+                  <Button
+                    onClick={() => void handleImportNestedRepos('separate')}
+                    disabled={isAdding || nestedSelectedPaths.size === 0}
+                    variant="outline"
+                  >
+                    Import separately
+                  </Button>
+                  <Button
+                    onClick={() => void handleImportNestedRepos('group')}
+                    disabled={isAdding || nestedSelectedPaths.size === 0 || !nestedGroupName.trim()}
+                  >
+                    Import as repo group
+                  </Button>
+                </div>
               </div>
             </div>
           </>

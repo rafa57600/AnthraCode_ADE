@@ -75,12 +75,12 @@ test.describe('Folder setup', () => {
     await expect(dialog).toBeVisible()
     await dialog.getByRole('button', { name: /Browse folder/i }).click()
 
-    const importDialog = orcaPage.getByRole('dialog', { name: /Import repositories/i })
-    await expect(importDialog.getByRole('heading', { name: /Import repositories/i })).toBeVisible()
+    const importDialog = orcaPage.getByRole('dialog', { name: /Import as repo group/i })
+    await expect(importDialog.getByRole('heading', { name: /Import as repo group/i })).toBeVisible()
     await expect(importDialog.getByText('api-service', { exact: true })).toBeVisible()
     await expect(importDialog.getByText('web-client', { exact: true })).toBeVisible()
-    await expect(importDialog.getByRole('button', { name: /Group selected/i })).toBeEnabled()
-    await importDialog.getByRole('button', { name: /Group selected/i }).click()
+    await expect(importDialog.getByRole('button', { name: /Import as repo group/i })).toBeEnabled()
+    await importDialog.getByRole('button', { name: /Import as repo group/i }).click()
 
     await expect
       .poll(

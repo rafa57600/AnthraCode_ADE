@@ -243,7 +243,7 @@ export default function OnboardingFlow({
         <div
           className={cn(
             'flex-1 transition-[margin-top] duration-[760ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
-            isInlineTourRunning ? 'mt-7 min-h-0' : 'mt-10'
+            isInlineTourRunning ? 'mt-7 min-h-0' : currentStep.id === 'repo' ? 'mt-6' : 'mt-10'
           )}
         >
           {currentStep.id === 'agent' && (
@@ -294,6 +294,7 @@ export default function OnboardingFlow({
               nestedGroupName={flow.nestedGroupName}
               onNestedGroupNameChange={flow.setNestedGroupName}
               onImportNested={(mode) => void flow.importNested(mode)}
+              onCancelNested={flow.cancelNested}
               onOpenFolder={() => void flow.openFolder()}
               onOpenServerFolder={(kind) => void flow.openFolder(kind)}
               onClone={() => void flow.clone()}

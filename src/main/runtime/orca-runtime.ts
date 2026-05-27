@@ -372,6 +372,7 @@ import type { VoiceSettings } from '../../shared/speech-types'
 import { getSpeechModelManager, getSpeechSttService } from '../speech/speech-runtime-service'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
 import { scanNestedRepos } from '../repo-groups/nested-repo-discovery'
+import { createNestedRepoGroupResolver } from '../repo-groups/nested-repo-import'
 
 type RuntimeAccountServices = {
   claudeAccounts: ClaudeAccountService
@@ -5050,6 +5051,7 @@ export class OrcaRuntimeService {
   async createRepoGroup(input: {
     name: string
     parentPath?: string | null
+    parentGroupId?: string | null
     createdFrom?: RepoGroup['createdFrom']
   }): Promise<RepoGroup> {
     if (!this.store?.createRepoGroup) {
@@ -5058,6 +5060,7 @@ export class OrcaRuntimeService {
     const group = this.store.createRepoGroup({
       name: input.name,
       parentPath: input.parentPath ?? null,
+      parentGroupId: input.parentGroupId ?? null,
       createdFrom: input.createdFrom ?? 'manual'
     })
     this.notifier?.reposChanged()
@@ -5119,14 +5122,12 @@ export class OrcaRuntimeService {
     if (!this.store?.createRepoGroup || !this.store?.moveRepoToGroup) {
       throw new Error('runtime_unavailable')
     }
-    const group =
-      args.mode === 'group'
-        ? this.store.createRepoGroup({
-            name: args.groupName,
-            parentPath: args.parentPath,
-            createdFrom: 'folder-scan'
-          })
-        : undefined
+    const groupResolver = createNestedRepoGroupResolver({
+      parentPath: args.parentPath,
+      groupName: args.groupName,
+      mode: args.mode,
+      createGroup: (input) => this.store!.createRepoGroup!(input)
+    })
     const results: RepoGroupImportResult['repos'] = []
     for (const repoPath of args.repoPaths) {
       try {
@@ -5137,6 +5138,7 @@ export class OrcaRuntimeService {
         const existing = this.store
           .getRepos()
           .find((repo) => runtimePathsEqual(repo.path, repoPath))
+        const group = groupResolver.getGroupForRepo(repoPath)
         if (existing) {
           if (group) {
             this.store.moveRepoToGroup(existing.id, group.id)
@@ -5173,13 +5175,16 @@ export class OrcaRuntimeService {
     const importedCount = results.filter((entry) => entry.status === 'imported').length
     const alreadyKnownCount = results.filter((entry) => entry.status === 'already-known').length
     const failedCount = results.filter((entry) => entry.status === 'failed').length
-    if (group && importedCount + alreadyKnownCount === 0) {
-      this.store.deleteRepoGroup?.(group.id)
+    if (importedCount + alreadyKnownCount === 0) {
+      for (const group of groupResolver.getCreatedGroups().reverse()) {
+        this.store.deleteRepoGroup?.(group.id)
+      }
     }
     this.invalidateResolvedWorktreeCache()
     this.notifier?.reposChanged()
+    const rootGroup = groupResolver.getRootGroup()
     return {
-      ...(group && importedCount + alreadyKnownCount > 0 ? { group } : {}),
+      ...(rootGroup && importedCount + alreadyKnownCount > 0 ? { group: rootGroup } : {}),
       repos: results,
       importedCount,
       alreadyKnownCount,

@@ -670,6 +670,7 @@ export type PreloadApi = {
     create: (args: {
       name: string
       parentPath?: string | null
+      parentGroupId?: string | null
       createdFrom?: RepoGroup['createdFrom']
     }) => Promise<RepoGroup>
     update: (args: {

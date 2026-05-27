@@ -427,6 +427,7 @@ describe('repo groups', () => {
       id: 'group-1',
       name: 'Platform',
       parentPath: null,
+      parentGroupId: null,
       createdFrom: 'manual',
       tabOrder: 0,
       isCollapsed: false,
@@ -467,6 +468,7 @@ describe('repo groups', () => {
       id: 'group-1',
       name: 'Platform',
       parentPath: '/platform',
+      parentGroupId: null,
       createdFrom: 'folder-scan',
       tabOrder: 0,
       isCollapsed: false,
@@ -520,6 +522,67 @@ describe('repo groups', () => {
       'repo:repo-b',
       'repo:repo-a'
     ])
+  })
+
+  it('renders nested Repo Groups before repos assigned to their leaf group', () => {
+    const rootGroup: RepoGroup = {
+      id: 'group-root',
+      name: 'Services',
+      parentPath: '/monorepo',
+      parentGroupId: null,
+      createdFrom: 'folder-scan',
+      tabOrder: 0,
+      isCollapsed: false,
+      color: null,
+      createdAt: 1,
+      updatedAt: 1
+    }
+    const childGroup: RepoGroup = {
+      ...rootGroup,
+      id: 'group-payments',
+      name: 'payments',
+      parentPath: '/monorepo/services/payments',
+      parentGroupId: rootGroup.id,
+      tabOrder: 1
+    }
+    const groupedRepo: Repo = {
+      ...repo,
+      id: 'repo-payments-api',
+      displayName: 'api',
+      repoGroupId: childGroup.id,
+      repoGroupOrder: 0
+    }
+    const groupedWorktree: Worktree = {
+      ...worktree,
+      id: 'wt-payments-api',
+      repoId: groupedRepo.id
+    }
+
+    const rows = buildRows(
+      'repo',
+      [groupedWorktree],
+      new Map([[groupedRepo.id, groupedRepo]]),
+      null,
+      new Set(),
+      new Map([[groupedRepo.id, 0]]),
+      undefined,
+      'manual',
+      undefined,
+      undefined,
+      false,
+      undefined,
+      [rootGroup, childGroup]
+    )
+
+    expect(rows.filter((row) => row.type === 'header').map((row) => row.key)).toEqual([
+      'repo-group:group-root',
+      'repo-group:group-payments',
+      'repo:repo-payments-api'
+    ])
+    expect(rows.filter((row) => row.type === 'header').map((row) => row.repoGroupDepth)).toEqual([
+      0, 1, 2
+    ])
+    expect(rows[0]).toMatchObject({ count: 1 })
   })
 
   it('returns both parent Repo Group and repo keys for grouped repo reveals', () => {

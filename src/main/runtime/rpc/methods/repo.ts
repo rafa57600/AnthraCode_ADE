@@ -64,6 +64,7 @@ const RepoReorder = z.object({
 const RepoGroupCreate = z.object({
   name: requiredString('Missing group name'),
   parentPath: OptionalString,
+  parentGroupId: OptionalString.nullable().optional(),
   createdFrom: z.enum(['manual', 'folder-scan', 'migration']).optional()
 })
 

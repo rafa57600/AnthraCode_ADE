@@ -19,6 +19,7 @@ const repoGroup: RepoGroup = {
   id: 'group-1',
   name: 'Platform',
   parentPath: null,
+  parentGroupId: null,
   createdFrom: 'manual',
   tabOrder: 0,
   isCollapsed: false,

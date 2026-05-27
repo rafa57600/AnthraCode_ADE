@@ -2014,6 +2014,7 @@ export class Store {
   createRepoGroup(input: {
     name: string
     parentPath?: string | null
+    parentGroupId?: string | null
     createdFrom: RepoGroup['createdFrom']
   }): RepoGroup {
     const maxOrder = Math.max(-1, ...(this.state.repoGroups ?? []).map((group) => group.tabOrder))
@@ -2061,6 +2062,9 @@ export class Store {
     // repos or worktrees, so contained repos are moved to Ungrouped.
     this.state.repos = this.state.repos.map((repo) =>
       repo.repoGroupId === groupId ? { ...repo, repoGroupId: null } : repo
+    )
+    this.state.repoGroups = (this.state.repoGroups ?? []).map((group) =>
+      group.parentGroupId === groupId ? { ...group, parentGroupId: null } : group
     )
     this.scheduleSave()
     return true

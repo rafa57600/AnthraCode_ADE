@@ -112,6 +112,7 @@ export type RepoGroup = {
   id: string
   name: string
   parentPath: string | null
+  parentGroupId: string | null
   createdFrom: RepoGroupCreatedFrom
   tabOrder: number
   isCollapsed: boolean

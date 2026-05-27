@@ -26,6 +26,7 @@ import { basename, isAbsolute, join } from 'path'
 import { normalizeRuntimePathForComparison } from '../../shared/cross-platform-path'
 import { getNextRepoGroupOrder } from '../../shared/repo-groups'
 import { scanNestedRepos } from '../repo-groups/nested-repo-discovery'
+import { createNestedRepoGroupResolver } from '../repo-groups/nested-repo-import'
 import {
   isGitRepo,
   getGitUsername,
@@ -113,11 +114,17 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
     'repoGroups:create',
     (
       _event,
-      args: { name: string; parentPath?: string | null; createdFrom?: RepoGroup['createdFrom'] }
+      args: {
+        name: string
+        parentPath?: string | null
+        parentGroupId?: string | null
+        createdFrom?: RepoGroup['createdFrom']
+      }
     ): RepoGroup => {
       const group = store.createRepoGroup({
         name: args.name,
         parentPath: args.parentPath ?? null,
+        parentGroupId: args.parentGroupId ?? null,
         createdFrom: args.createdFrom ?? 'manual'
       })
       notifyReposChanged(mainWindow)
@@ -182,14 +189,12 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
       const normalizedSelected = new Set(
         selectedPaths.map((entry) => normalizeRuntimePathForComparison(entry))
       )
-      const group =
-        args.mode === 'group'
-          ? store.createRepoGroup({
-              name: args.groupName,
-              parentPath: args.parentPath,
-              createdFrom: 'folder-scan'
-            })
-          : undefined
+      const groupResolver = createNestedRepoGroupResolver({
+        parentPath: args.parentPath,
+        groupName: args.groupName,
+        mode: args.mode,
+        createGroup: (input) => store.createRepoGroup(input)
+      })
       const results: RepoGroupImportResult['repos'] = []
 
       for (const repoPath of selectedPaths) {
@@ -209,6 +214,7 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
                 normalizeRuntimePathForComparison(repo.path) ===
                   normalizeRuntimePathForComparison(repoPath)
             )
+          const group = groupResolver.getGroupForRepo(repoPath)
           if (existing) {
             if (group) {
               store.moveRepoToGroup(existing.id, group.id)
@@ -247,13 +253,16 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
       const importedCount = results.filter((entry) => entry.status === 'imported').length
       const alreadyKnownCount = results.filter((entry) => entry.status === 'already-known').length
       const failedCount = results.filter((entry) => entry.status === 'failed').length
-      if (group && importedCount + alreadyKnownCount === 0) {
-        store.deleteRepoGroup(group.id)
+      if (importedCount + alreadyKnownCount === 0) {
+        for (const group of groupResolver.getCreatedGroups().reverse()) {
+          store.deleteRepoGroup(group.id)
+        }
       }
       invalidateAuthorizedRootsCache()
       notifyReposChanged(mainWindow)
+      const rootGroup = groupResolver.getRootGroup()
       return {
-        ...(group && importedCount + alreadyKnownCount > 0 ? { group } : {}),
+        ...(rootGroup && importedCount + alreadyKnownCount > 0 ? { group: rootGroup } : {}),
         repos: results,
         importedCount,
         alreadyKnownCount,

@@ -668,6 +668,18 @@ export function useOnboardingFlow(
     [busyLabel, completeRepo, importNestedRepos, nestedGroupName, nestedScan, nestedSelectedPaths]
   )
 
+  // Why: lets the user back out of the nested-repo step in onboarding to
+  // re-pick a folder/clone target. Mirrors the dialog's left-aligned Back.
+  const cancelNested = useCallback(() => {
+    if (busyLabel !== null) {
+      return
+    }
+    setNestedScan(null)
+    setNestedSelectedPaths(new Set())
+    setNestedGroupName('')
+    setError(null)
+  }, [busyLabel])
+
   const clone = useCallback(async () => {
     // Why: re-entry guard — prevents Enter spamming from triggering duplicate clones.
     if (busyLabel !== null) {
@@ -1017,6 +1029,7 @@ export function useOnboardingFlow(
     nestedGroupName,
     setNestedGroupName,
     importNested,
+    cancelNested,
     hasExistingProject,
     serverPath,
     setServerPath,

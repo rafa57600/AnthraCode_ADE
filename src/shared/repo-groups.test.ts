@@ -33,6 +33,7 @@ describe('repo-groups', () => {
     expect(group).toMatchObject({
       name: 'Platform',
       parentPath: '/srv/platform',
+      parentGroupId: null,
       createdFrom: 'folder-scan',
       tabOrder: 3,
       isCollapsed: false,
@@ -49,13 +50,24 @@ describe('repo-groups', () => {
   it('normalizes persisted groups and drops malformed entries', () => {
     const groups = normalizeRepoGroups([
       { id: 'b', name: 'B', tabOrder: 2 },
-      { id: 'a', name: 'A', tabOrder: 1, createdFrom: 'folder-scan', isCollapsed: true },
+      {
+        id: 'a',
+        name: 'A',
+        tabOrder: 1,
+        parentGroupId: 'missing',
+        createdFrom: 'folder-scan',
+        isCollapsed: true
+      },
       { id: 'a', name: 'duplicate' },
       { name: 'missing id' }
     ])
 
     expect(groups.map((group) => group.id)).toEqual(['a', 'b'])
-    expect(groups[0]).toMatchObject({ createdFrom: 'folder-scan', isCollapsed: true })
+    expect(groups[0]).toMatchObject({
+      createdFrom: 'folder-scan',
+      isCollapsed: true,
+      parentGroupId: null
+    })
   })
 
   it('clears repo memberships whose group no longer exists', () => {

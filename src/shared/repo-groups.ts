@@ -18,6 +18,7 @@ export function normalizeRepoGroupName(name: string, fallback = 'Untitled group'
 export function createRepoGroup(input: {
   name: string
   parentPath?: string | null
+  parentGroupId?: string | null
   createdFrom: RepoGroupCreatedFrom
   tabOrder: number
   now?: number
@@ -27,6 +28,7 @@ export function createRepoGroup(input: {
     id: createRepoGroupId(),
     name: normalizeRepoGroupName(input.name),
     parentPath: input.parentPath ?? null,
+    parentGroupId: input.parentGroupId ?? null,
     createdFrom: input.createdFrom,
     tabOrder: input.tabOrder,
     isCollapsed: false,
@@ -56,6 +58,7 @@ export function normalizeRepoGroups(value: unknown): RepoGroup[] {
       id: raw.id,
       name: normalizeRepoGroupName(typeof raw.name === 'string' ? raw.name : ''),
       parentPath: typeof raw.parentPath === 'string' ? raw.parentPath : null,
+      parentGroupId: typeof raw.parentGroupId === 'string' ? raw.parentGroupId : null,
       createdFrom:
         raw.createdFrom === 'manual' ||
         raw.createdFrom === 'folder-scan' ||
@@ -75,6 +78,12 @@ export function normalizeRepoGroups(value: unknown): RepoGroup[] {
   groups.sort(
     (left, right) => left.tabOrder - right.tabOrder || left.name.localeCompare(right.name)
   )
+  const groupIds = new Set(groups.map((group) => group.id))
+  for (const group of groups) {
+    if (group.parentGroupId === group.id || !groupIds.has(group.parentGroupId ?? '')) {
+      group.parentGroupId = null
+    }
+  }
   return groups
 }
 

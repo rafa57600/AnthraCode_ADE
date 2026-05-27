@@ -1,5 +1,5 @@
 /* eslint-disable max-lines -- Why: sidebar row construction keeps every grouping mode in one pure module so reveal, virtualized rendering, and tests share the same flat row contract. */
-import { CircleX, Folder, List, Pin } from 'lucide-react'
+import { CircleX, FolderTree, List, Pin } from 'lucide-react'
 import type React from 'react'
 import type {
   Repo,
@@ -46,6 +46,7 @@ export type GroupHeaderRow = {
   icon?: React.ComponentType<{ className?: string }>
   repo?: Repo
   repoGroup?: RepoGroup | { id: null; name: 'Ungrouped'; tabOrder: number }
+  repoGroupDepth?: number
 }
 
 export type WorktreeRow = {
@@ -97,7 +98,7 @@ export const PR_GROUP_META: Record<
 
 export const REPO_GROUP_META = {
   tone: 'text-foreground',
-  icon: Folder
+  icon: FolderTree
 } as const
 
 export function getRepoGroupHeaderKey(groupId: string | null): string {
@@ -461,7 +462,8 @@ export function buildRows(
   }
 
   const appendOrderedGroups = (
-    groupsToAppend: [string, { label: string; items: Worktree[]; repo?: Repo }][]
+    groupsToAppend: [string, { label: string; items: Worktree[]; repo?: Repo }][],
+    repoGroupDepth = 0
   ): void => {
     for (const [key, group] of groupsToAppend) {
       const isCollapsed = collapsedGroups.has(key)
@@ -475,7 +477,8 @@ export function buildRows(
               count: group.items.length,
               tone: REPO_GROUP_META.tone,
               icon: REPO_GROUP_META.icon,
-              repo
+              repo,
+              repoGroupDepth
             }
           : groupBy === 'workspace-status'
             ? (() => {
@@ -555,25 +558,55 @@ export function buildRows(
     })
   }
 
-  const sortedRepoGroups = [...repoGroups].sort(
-    (left, right) => left.tabOrder - right.tabOrder || left.name.localeCompare(right.name)
-  )
-  for (const repoGroup of sortedRepoGroups) {
+  const repoGroupsById = new Map(repoGroups.map((group) => [group.id, group]))
+  const childGroupsByParentId = new Map<string | null, RepoGroup[]>()
+  for (const group of repoGroups) {
+    const parentId =
+      group.parentGroupId && repoGroupsById.has(group.parentGroupId) ? group.parentGroupId : null
+    const children = childGroupsByParentId.get(parentId) ?? []
+    children.push(group)
+    childGroupsByParentId.set(parentId, children)
+  }
+  for (const groups of childGroupsByParentId.values()) {
+    groups.sort(
+      (left, right) => left.tabOrder - right.tabOrder || left.name.localeCompare(right.name)
+    )
+  }
+
+  const getRepoGroupSubtreeCount = (groupId: string): number => {
+    const directCount = groupByRepoGroupId.get(groupId)?.length ?? 0
+    const children = childGroupsByParentId.get(groupId) ?? []
+    return children.reduce(
+      (count, child) => count + getRepoGroupSubtreeCount(child.id),
+      directCount
+    )
+  }
+
+  const appendRepoGroup = (repoGroup: RepoGroup, depth: number): void => {
     const repoEntries = sortRepoEntriesWithinGroup(groupByRepoGroupId.get(repoGroup.id) ?? [])
+    const childGroups = childGroupsByParentId.get(repoGroup.id) ?? []
     const key = getRepoGroupHeaderKey(repoGroup.id)
     result.push({
       type: 'header',
       key,
       label: repoGroup.name,
-      count: repoEntries.length,
+      count: getRepoGroupSubtreeCount(repoGroup.id),
       tone: REPO_GROUP_META.tone,
       icon: REPO_GROUP_META.icon,
-      repoGroup
+      repoGroup,
+      repoGroupDepth: depth
     })
-    if (!collapsedGroups.has(key) && repoEntries.length > 0) {
-      appendOrderedGroups(repoEntries)
+    if (!collapsedGroups.has(key)) {
+      appendOrderedGroups(repoEntries, depth + 1)
+      for (const childGroup of childGroups) {
+        appendRepoGroup(childGroup, depth + 1)
+      }
     }
     groupByRepoGroupId.delete(repoGroup.id)
+  }
+
+  for (const repoGroup of childGroupsByParentId.get(null) ?? []) {
+    appendRepoGroup(repoGroup, 0)
   }
 
   const ungrouped = sortRepoEntriesWithinGroup(groupByRepoGroupId.get(null) ?? [])
@@ -589,7 +622,7 @@ export function buildRows(
       repoGroup: { id: null, name: 'Ungrouped', tabOrder: Number.MAX_SAFE_INTEGER }
     })
     if (!collapsedGroups.has(key)) {
-      appendOrderedGroups(ungrouped)
+      appendOrderedGroups(ungrouped, 1)
     }
   }
 
@@ -622,7 +655,8 @@ export function getGroupKeysForWorktree(
   repoMap: Map<string, Repo>,
   prCache: Record<string, unknown> | null,
   workspaceStatuses: readonly WorkspaceStatusDefinition[] = cloneDefaultWorkspaceStatuses(),
-  settings?: AppState['settings']
+  settings?: AppState['settings'],
+  repoGroups: readonly RepoGroup[] = []
 ): string[] {
   const groupKey = getGroupKeyForWorktree(
     groupBy,
@@ -639,5 +673,20 @@ export function getGroupKeysForWorktree(
     return [groupKey]
   }
   const repo = repoMap.get(worktree.repoId)
-  return [getRepoGroupHeaderKey(repo?.repoGroupId ?? null), groupKey]
+  const groupIds: string[] = []
+  const groupsById = new Map(repoGroups.map((group) => [group.id, group]))
+  const visited = new Set<string>()
+  let currentGroupId = repo?.repoGroupId ?? null
+  while (currentGroupId && !visited.has(currentGroupId)) {
+    visited.add(currentGroupId)
+    groupIds.unshift(currentGroupId)
+    const parentId = groupsById.get(currentGroupId)?.parentGroupId ?? null
+    currentGroupId = parentId && groupsById.has(parentId) ? parentId : null
+  }
+  return [
+    ...(groupIds.length > 0
+      ? groupIds.map((id) => getRepoGroupHeaderKey(id))
+      : [getRepoGroupHeaderKey(null)]),
+    groupKey
+  ]
 }

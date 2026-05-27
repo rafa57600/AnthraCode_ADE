@@ -14,6 +14,7 @@ function renderRepoStep(overrides: Partial<ComponentProps<typeof RepoStep>> = {}
       nestedGroupName=""
       onNestedGroupNameChange={vi.fn()}
       onImportNested={vi.fn()}
+      onCancelNested={vi.fn()}
       onOpenFolder={vi.fn()}
       onOpenServerFolder={vi.fn()}
       onClone={vi.fn()}

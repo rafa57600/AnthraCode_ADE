@@ -284,7 +284,6 @@ describe('repo RPC methods', () => {
     const response = await dispatcher.dispatch(
       makeRequest('repoGroup.importNested', {
         parentPath: '/srv/platform',
-        groupName: '',
         repoPaths: ['/srv/platform/api'],
         mode: 'separate'
       })

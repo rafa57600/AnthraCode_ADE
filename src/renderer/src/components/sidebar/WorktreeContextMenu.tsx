@@ -17,6 +17,7 @@ import {
   Copy,
   Bell,
   BellOff,
+  CircleX,
   Moon,
   Pencil,
   Pin,
@@ -24,7 +25,9 @@ import {
   Kanban,
   Trash2,
   Unlink,
-  Workflow
+  Workflow,
+  FolderInput,
+  FolderPlus
 } from 'lucide-react'
 import { useAppStore } from '@/store'
 import { useRepoById, useRepoMap, useWorktreeMap } from '@/store/selectors'
@@ -188,6 +191,9 @@ const WorktreeContextMenu = React.memo(function WorktreeContextMenu({
   const updateWorktreeMeta = useAppStore((s) => s.updateWorktreeMeta)
   const workspaceStatuses = useAppStore((s) => s.workspaceStatuses)
   const openModal = useAppStore((s) => s.openModal)
+  const repoGroups = useAppStore((s) => s.repoGroups)
+  const createRepoGroup = useAppStore((s) => s.createRepoGroup)
+  const moveRepoToGroup = useAppStore((s) => s.moveRepoToGroup)
   const repo = useRepoById(worktree.repoId)
   const deleteState = useAppStore((s) => s.deleteStateByWorktreeId[worktree.id])
   const [menuOpen, setMenuOpen] = useState(false)
@@ -280,6 +286,37 @@ const WorktreeContextMenu = React.memo(function WorktreeContextMenu({
   const handleTogglePin = useCallback(() => {
     updateWorktreeMeta(worktree.id, { isPinned: !worktree.isPinned })
   }, [worktree.id, worktree.isPinned, updateWorktreeMeta])
+
+  const handleCreateGroupFromRepo = useCallback(async () => {
+    if (!repo) {
+      return
+    }
+    const nextName = window.prompt('New group from repo', `${repo.displayName} group`)
+    if (nextName === null) {
+      return
+    }
+    const group = await createRepoGroup(nextName)
+    if (group) {
+      await moveRepoToGroup(repo.id, group.id)
+    }
+  }, [createRepoGroup, moveRepoToGroup, repo])
+
+  const handleMoveRepoToGroup = useCallback(
+    (groupId: string) => {
+      if (!repo || repo.repoGroupId === groupId) {
+        return
+      }
+      void moveRepoToGroup(repo.id, groupId)
+    },
+    [moveRepoToGroup, repo]
+  )
+
+  const handleRemoveRepoFromGroup = useCallback(() => {
+    if (!repo) {
+      return
+    }
+    void moveRepoToGroup(repo.id, null)
+  }, [moveRepoToGroup, repo])
 
   const handleAssignWorkspaceStatus = useCallback(
     (status: string) => {
@@ -480,6 +517,40 @@ const WorktreeContextMenu = React.memo(function WorktreeContextMenu({
                 )}
                 {worktree.isUnread ? 'Mark Read' : 'Mark Unread'}
               </DropdownMenuItem>
+              {repo ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={handleCreateGroupFromRepo} disabled={isDeleting}>
+                    <FolderPlus className="size-3.5" />
+                    New group from repo
+                  </DropdownMenuItem>
+                  {repoGroups.length > 0 ? (
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger disabled={isDeleting}>
+                        <FolderInput className="size-3.5" />
+                        Move to group
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent>
+                        {repoGroups.map((group) => (
+                          <DropdownMenuItem
+                            key={group.id}
+                            disabled={repo.repoGroupId === group.id}
+                            onSelect={() => handleMoveRepoToGroup(group.id)}
+                          >
+                            <span className="max-w-48 truncate">{group.name}</span>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  ) : null}
+                  {repo.repoGroupId ? (
+                    <DropdownMenuItem onSelect={handleRemoveRepoFromGroup} disabled={isDeleting}>
+                      <CircleX className="size-3.5" />
+                      Remove from group
+                    </DropdownMenuItem>
+                  ) : null}
+                </>
+              ) : null}
               <DropdownMenuSeparator />
               {(validParentWorktreeId || lineage) && (
                 <>

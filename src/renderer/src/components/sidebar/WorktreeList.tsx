@@ -325,7 +325,7 @@ type VirtualizedWorktreeViewportProps = {
   reorderRepos: (orderedIds: string[]) => void
   prCache: Record<string, unknown> | null
   workspaceStatuses: readonly WorkspaceStatusDefinition[]
-  repoGroups: readonly RepoGroup[]
+  repoGroups?: readonly RepoGroup[]
   onMoveWorktreeToStatus: (worktreeId: string, status: WorkspaceStatus) => void
   onMoveWorktreesToStatus: (worktreeIds: readonly string[], status: WorkspaceStatus) => void
   onPinWorktree: (worktreeId: string) => void
@@ -623,7 +623,7 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
   reorderRepos,
   prCache,
   workspaceStatuses,
-  repoGroups,
+  repoGroups = [],
   onMoveWorktreeToStatus,
   onMoveWorktreesToStatus,
   onPinWorktree,

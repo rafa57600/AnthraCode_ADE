@@ -198,6 +198,9 @@ export function RepoStep({
             <div className="mt-0.5 text-[13px] text-muted-foreground">
               Choose any local directory, git repo or not.
             </div>
+            <div className="mt-1 text-[12px] text-muted-foreground">
+              Working with microservices? Choose the parent folder and Orca will find each repo.
+            </div>
           </div>
           <span className="shrink-0 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition group-hover:border-foreground/40">
             Browse...

@@ -1649,6 +1649,7 @@ function createAgentHooksApi(): NonNullable<Partial<PreloadApi>['agentHooks']> {
       | 'antigravity'
       | 'cursor'
       | 'droid'
+      | 'command-code'
       | 'grok'
       | 'copilot'
       | 'hermes'
@@ -1667,6 +1668,7 @@ function createAgentHooksApi(): NonNullable<Partial<PreloadApi>['agentHooks']> {
     antigravityStatus: () => status('antigravity'),
     cursorStatus: () => status('cursor'),
     droidStatus: () => status('droid'),
+    commandCodeStatus: () => status('command-code'),
     grokStatus: () => status('grok'),
     copilotStatus: () => status('copilot'),
     hermesStatus: () => status('hermes')
@@ -1700,6 +1702,14 @@ function createComputerUsePermissionsApi(): NonNullable<
         openedSettings: false,
         launchedHelper: false,
         nextStep: 'Computer-use permissions are managed on the Orca server.'
+      }),
+    reset: () =>
+      Promise.resolve({
+        platform: getBrowserPlatform(),
+        helperAppPath: null,
+        helperUnavailableReason: 'web_client',
+        bundleId: null,
+        permissions: []
       })
   }
 }
@@ -1801,6 +1811,7 @@ function createPtyApi(): NonNullable<Partial<PreloadApi>['pty']> {
     getForegroundProcess: () => Promise.resolve(null),
     getCwd: () => Promise.resolve('~'),
     listSessions: () => Promise.resolve([]),
+    getMainBufferSnapshot: () => Promise.resolve(null),
     onData: () => noopUnsubscribe,
     onReplay: () => noopUnsubscribe,
     onExit: () => noopUnsubscribe,
@@ -2016,10 +2027,18 @@ function closeWebOnboarding(base: OnboardingState): OnboardingState {
 }
 
 function readLocalWebUIState(): PersistedUIState {
-  return mergeWebUIState(
-    getDefaultUIState(),
-    readJson<Partial<PersistedUIState>>(UI_STORAGE_KEY, {})
-  )
+  const defaults = getDefaultUIState()
+  const stored = readJson<Partial<PersistedUIState>>(UI_STORAGE_KEY, {})
+  if (typeof stored.rightSidebarOpen === 'boolean') {
+    return mergeWebUIState(defaults, stored)
+  }
+  const storedSettings = getStoredSettings()
+  return mergeWebUIState(defaults, {
+    ...stored,
+    // Why: web fallback lacks main-process normalization, so migrate the
+    // retired setting only when the local UI preference is still absent.
+    rightSidebarOpen: storedSettings.rightSidebarOpenByDefault
+  })
 }
 
 function mergeWebUIState(

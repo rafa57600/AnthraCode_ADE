@@ -487,6 +487,36 @@ export function useOnboardingFlow(
   // step. A ref flips synchronously so re-entries bail immediately.
   const nextInFlightRef = useRef(false)
   const featureSetupStepCompletedTrackedRef = useRef(false)
+  const trackCurrentStepCompleted = useCallback(
+    (advancedVia: 'button' | 'keyboard'): void => {
+      if (currentStep.id === 'agentSetup') {
+        if (featureSetupStepCompletedTrackedRef.current) {
+          return
+        }
+        // Why: feature setup can keep the user on this already-persisted
+        // step to review a terminal command; later checklist edits must
+        // not double-count the same step completion.
+        featureSetupStepCompletedTrackedRef.current = true
+      }
+      const durationMs = consumeStepDurationMs()
+      track('onboarding_step_completed', {
+        step: currentStep.stepNumber,
+        value_kind: currentStep.valueKind,
+        duration_ms: durationMs,
+        advanced_via: advancedVia
+      })
+      if (currentStep.id === 'integrations') {
+        trackTaskSourcesSnapshot('continue', durationMs, advancedVia)
+      }
+    },
+    [
+      consumeStepDurationMs,
+      currentStep.id,
+      currentStep.stepNumber,
+      currentStep.valueKind,
+      trackTaskSourcesSnapshot
+    ]
+  )
   const next = useCallback(
     async (advancedVia: 'button' | 'keyboard' = 'button') => {
       if (nextInFlightRef.current || busyLabel || currentStep.id === 'repo') {
@@ -497,61 +527,30 @@ export function useOnboardingFlow(
         return
       }
       nextInFlightRef.current = true
-      if (currentStep.id === 'agentSetup' && hasSelectedFeatureSetup) {
-        setBusyLabel('Setting up features…')
-      }
       try {
-        const trackCurrentStepCompleted = (): void => {
-          if (currentStep.id === 'agentSetup') {
-            if (featureSetupStepCompletedTrackedRef.current) {
-              return
-            }
-            // Why: feature setup can keep the user on this already-persisted
-            // step to review a terminal command; later checklist edits must
-            // not double-count the same step completion.
-            featureSetupStepCompletedTrackedRef.current = true
-          }
-          const durationMs = consumeStepDurationMs()
-          track('onboarding_step_completed', {
-            step: currentStep.stepNumber,
-            value_kind: currentStep.valueKind,
-            duration_ms: durationMs,
-            advanced_via: advancedVia
-          })
-          if (currentStep.id === 'integrations') {
-            trackTaskSourcesSnapshot('continue', durationMs, advancedVia)
-          }
-        }
         const result = await persistCurrentStep()
         const nextCommand = result.featureSetupResult?.skillInstallCommand ?? null
         if (currentStep.id === 'agentSetup' && nextCommand) {
-          trackCurrentStepCompleted()
+          trackCurrentStepCompleted(advancedVia)
           setFeatureSetupTerminalSelection(featureSetupSelection)
           setFeatureSetupTerminalCommand(nextCommand)
           return
         }
         if (result.ok) {
-          trackCurrentStepCompleted()
+          trackCurrentStepCompleted(advancedVia)
           setStepIndex((idx) => Math.min(idx + 1, STEPS.length - 1))
         }
       } finally {
-        if (currentStep.id === 'agentSetup') {
-          setBusyLabel(null)
-        }
         nextInFlightRef.current = false
       }
     },
     [
       busyLabel,
-      consumeStepDurationMs,
       currentStep.id,
-      currentStep.stepNumber,
-      currentStep.valueKind,
       featureSetupSelection,
       featureSetupTerminalCommand,
-      hasSelectedFeatureSetup,
       persistCurrentStep,
-      trackTaskSourcesSnapshot
+      trackCurrentStepCompleted
     ]
   )
 
@@ -560,6 +559,42 @@ export function useOnboardingFlow(
     setNestedSelectedPaths(new Set(scan.repos.map((repo) => repo.path)))
     setNestedGroupName(defaultRepoGroupNameForPath(selectedPath))
   }, [])
+
+  const startFeatureSetup = useCallback(async () => {
+    if (
+      nextInFlightRef.current ||
+      busyLabel ||
+      currentStep.id !== 'agentSetup' ||
+      featureSetupTerminalCommand ||
+      !hasSelectedFeatureSetup
+    ) {
+      return
+    }
+    nextInFlightRef.current = true
+    setBusyLabel('Setting up features…')
+    try {
+      const result = await persistCurrentStep({ runFeatureSetup: true })
+      const nextCommand = result.featureSetupResult?.skillInstallCommand ?? null
+      if (result.ok) {
+        trackCurrentStepCompleted('button')
+      }
+      if (nextCommand) {
+        setFeatureSetupTerminalSelection(featureSetupSelection)
+        setFeatureSetupTerminalCommand(nextCommand)
+      }
+    } finally {
+      setBusyLabel(null)
+      nextInFlightRef.current = false
+    }
+  }, [
+    busyLabel,
+    currentStep.id,
+    featureSetupSelection,
+    featureSetupTerminalCommand,
+    hasSelectedFeatureSetup,
+    persistCurrentStep,
+    trackCurrentStepCompleted
+  ])
 
   const openFolder = useCallback(
     async (kind: 'git' | 'folder' = 'git') => {
@@ -824,6 +859,24 @@ export function useOnboardingFlow(
     updateSettings
   ])
 
+  const dismissOnboarding = useCallback(
+    async (advancedVia: 'button' | 'keyboard' = 'button'): Promise<boolean> => {
+      if (busyLabel) {
+        return false
+      }
+      setError(null)
+      const closed = await closeWith('dismissed', {}, currentStep.stepNumber, undefined, {
+        durationMs: consumeStepDurationMs(),
+        advancedVia
+      })
+      if (closed) {
+        emitPendingTourOutcome()
+      }
+      return closed
+    },
+    [busyLabel, closeWith, consumeStepDurationMs, currentStep.stepNumber, emitPendingTourOutcome]
+  )
+
   const startTour = useCallback(() => {
     if (busyLabel) {
       return
@@ -1041,8 +1094,10 @@ export function useOnboardingFlow(
     detectedSet,
     isDetectingAgents,
     next,
+    startFeatureSetup,
     skipAgentSetup,
     skipToRepo,
+    dismissOnboarding,
     startTour,
     completeTour,
     skipTourToRepo,

@@ -1,5 +1,6 @@
 /* eslint-disable max-lines */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
 import { Info } from 'lucide-react'
 import type { OrcaHooks } from '../../../../shared/types'
 import { isFolderRepo } from '../../../../shared/repo-kind'
@@ -43,6 +44,7 @@ import { PrivacyPane } from './PrivacyPane'
 import { SettingsSidebar } from './SettingsSidebar'
 import { ActiveSettingsSectionProvider, SettingsSection } from './SettingsSection'
 import { matchesSettingsSearch } from './settings-search'
+import { cn } from '@/lib/utils'
 import { checkRuntimeHooks } from '@/runtime/runtime-hooks-client'
 import { useWindowsTerminalCapabilities } from '@/lib/windows-terminal-capabilities'
 import { getShortcutPlatform } from '@/lib/shortcut-platform'
@@ -72,6 +74,9 @@ const SETTINGS_NAV_GROUPS = [
   { id: 'safety', title: 'Safety' },
   { id: 'experimental', title: 'Experimental' }
 ] as const
+
+const SHORTCUTS_ESCAPE_CONFIRM_TOAST_ID = 'shortcuts-escape-confirm'
+const SHORTCUTS_ESCAPE_CONFIRM_WINDOW_MS = 2200
 
 function getSettingsSectionId(pane: SettingsNavTarget, repoId: string | null): string {
   if (pane === 'repo' && repoId) {
@@ -195,6 +200,7 @@ function Settings(): React.JSX.Element {
   const pendingScrollTargetRef = useRef<string | null>(null)
   const repoHooksRequestSeqRef = useRef(0)
   const repoHooksRuntimeIdentityRef = useRef<string>('local')
+  const shortcutsEscapeConfirmUntilRef = useRef(0)
 
   const confirmDiscardCommitPromptChanges = useCallback(async (): Promise<boolean> => {
     if (!hasUnsavedCommitPromptChanges) {
@@ -263,12 +269,29 @@ function Settings(): React.JSX.Element {
       if (isEditableTarget(event.target)) {
         return
       }
+      if (activeSectionId === 'shortcuts') {
+        event.preventDefault()
+        const now = Date.now()
+        if (now <= shortcutsEscapeConfirmUntilRef.current) {
+          shortcutsEscapeConfirmUntilRef.current = 0
+          toast.dismiss(SHORTCUTS_ESCAPE_CONFIRM_TOAST_ID)
+          void closeSettingsPageWithPromptGuard()
+          return
+        }
+        shortcutsEscapeConfirmUntilRef.current = now + SHORTCUTS_ESCAPE_CONFIRM_WINDOW_MS
+        toast.info('Press ESC again to exit settings', {
+          id: SHORTCUTS_ESCAPE_CONFIRM_TOAST_ID,
+          duration: SHORTCUTS_ESCAPE_CONFIRM_WINDOW_MS,
+          className: 'whitespace-nowrap'
+        })
+        return
+      }
       void closeSettingsPageWithPromptGuard()
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [closeSettingsPageWithPromptGuard])
+  }, [activeSectionId, closeSettingsPageWithPromptGuard])
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent): void => {
@@ -655,6 +678,8 @@ function Settings(): React.JSX.Element {
       return { ...section, badgeColor: repo?.badgeColor, isRemote: !!repo?.connectionId }
     })
   const isSectionMounted = (sectionId: string): boolean => neededSectionIds.has(sectionId)
+  const isFocusedShortcutsPane =
+    activeSectionId === 'shortcuts' && settingsSearchQuery.trim() === ''
 
   return (
     <div className="settings-view-shell flex min-h-0 flex-1 overflow-hidden bg-background">
@@ -671,8 +696,19 @@ function Settings(): React.JSX.Element {
       />
 
       <div className="flex min-h-0 flex-1 flex-col">
-        <div ref={contentScrollRef} className="min-h-0 flex-1 overflow-y-auto scrollbar-sleek">
-          <div className="flex w-full max-w-4xl flex-col gap-10 px-8 pb-24 pt-10">
+        <div
+          ref={contentScrollRef}
+          className={cn(
+            'min-h-0 flex-1',
+            isFocusedShortcutsPane ? 'overflow-hidden' : 'overflow-y-auto scrollbar-sleek'
+          )}
+        >
+          <div
+            className={cn(
+              'mx-auto flex w-full max-w-4xl flex-col gap-10 px-8 pt-10',
+              isFocusedShortcutsPane ? 'h-full pb-6' : 'pb-24'
+            )}
+          >
             {visibleNavSections.length === 0 ? (
               <div className="flex min-h-[24rem] items-center justify-center rounded-2xl border border-dashed border-border/60 bg-card/30 text-sm text-muted-foreground">
                 No settings found for &quot;{settingsSearchQuery.trim()}&quot;
@@ -877,6 +913,14 @@ function Settings(): React.JSX.Element {
                   title="Shortcuts"
                   description="Keyboard shortcuts for common actions."
                   searchEntries={getSectionSearchEntries('shortcuts')}
+                  className={
+                    isFocusedShortcutsPane
+                      ? 'flex min-h-0 flex-1 flex-col space-y-0 gap-6'
+                      : undefined
+                  }
+                  bodyClassName={
+                    isFocusedShortcutsPane ? 'min-h-0 flex-1 overflow-hidden' : undefined
+                  }
                 >
                   {isSectionMounted('shortcuts') ? <ShortcutsPane /> : null}
                 </SettingsSection>

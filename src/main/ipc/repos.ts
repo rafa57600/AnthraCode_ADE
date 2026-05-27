@@ -4,12 +4,12 @@ boundary. Splitting by line count would scatter tightly coupled repo behavior. *
 import type { BrowserWindow } from 'electron'
 import { dialog, ipcMain } from 'electron'
 import { randomUUID } from 'crypto'
+import { z } from 'zod'
 import type { Store } from '../persistence'
 import type {
   BaseRefSearchResult,
   Repo,
   RepoGroup,
-  RepoGroupImportMode,
   RepoGroupImportResult,
   NestedRepoScanResult,
   BaseRefDefaultResult,
@@ -22,11 +22,14 @@ import { invalidateAuthorizedRootsCache } from './filesystem-auth'
 import type { ChildProcess } from 'child_process'
 import { access, mkdir, readdir, rm } from 'fs/promises'
 import { gitExecFileAsync, gitSpawn } from '../git/runner'
-import { basename, isAbsolute, join } from 'path'
+import { basename, isAbsolute, join, posix } from 'path'
 import { normalizeRuntimePathForComparison } from '../../shared/cross-platform-path'
 import { getNextRepoGroupOrder } from '../../shared/repo-groups'
 import { scanNestedRepos } from '../repo-groups/nested-repo-discovery'
-import { createNestedRepoGroupResolver } from '../repo-groups/nested-repo-import'
+import {
+  createNestedRepoGroupResolver,
+  resolveNestedRepoSelection
+} from '../repo-groups/nested-repo-import'
 import {
   isGitRepo,
   getGitUsername,
@@ -41,6 +44,7 @@ import {
   searchBaseRefDetails
 } from '../git/repo'
 import { getSshGitProvider } from '../providers/ssh-git-dispatch'
+import { getSshFilesystemProvider } from '../providers/ssh-filesystem-dispatch'
 import { getSshGitUsername } from '../git/git-username'
 import { getActiveMultiplexer } from './ssh'
 import { normalizeSparseDirectories } from './sparse-checkout-directories'
@@ -74,6 +78,132 @@ function emitRepoAdded(method: RepoMethod, alreadyExisted: boolean): void {
 // and a function-scoped variable would lose the reference to an in-flight clone.
 let activeCloneProc: ChildProcess | null = null
 let activeClonePath: string | null = null
+
+const RepoGroupCreateArgs = z.object({
+  name: z.string().min(1),
+  parentPath: z.string().nullable().optional(),
+  parentGroupId: z.string().nullable().optional(),
+  createdFrom: z.enum(['manual', 'folder-scan', 'migration']).optional()
+})
+
+const RepoGroupUpdateArgs = z.object({
+  groupId: z.string().min(1),
+  updates: z.object({
+    name: z.string().optional(),
+    isCollapsed: z.boolean().optional(),
+    tabOrder: z.number().finite().optional(),
+    color: z.string().nullable().optional()
+  })
+})
+
+const RepoGroupSelectorArgs = z.object({
+  groupId: z.string().min(1)
+})
+
+const RepoGroupMoveRepoArgs = z.object({
+  repoId: z.string().min(1),
+  groupId: z.string().nullable(),
+  order: z.number().finite().optional()
+})
+
+const RepoGroupScanNestedArgs = z.object({
+  path: z.string().min(1),
+  connectionId: z.string().min(1).optional(),
+  options: z.unknown().optional()
+})
+
+const RepoGroupImportNestedArgs = z.discriminatedUnion('mode', [
+  z.object({
+    parentPath: z.string().min(1),
+    groupName: z.string().min(1),
+    repoPaths: z.array(z.string()),
+    connectionId: z.string().min(1).optional(),
+    mode: z.literal('group')
+  }),
+  z.object({
+    parentPath: z.string().min(1),
+    groupName: z.string().optional().default(''),
+    repoPaths: z.array(z.string()),
+    connectionId: z.string().min(1).optional(),
+    mode: z.literal('separate')
+  })
+])
+
+function parseRepoGroupIpcArgs<T>(schema: z.ZodType<T>, value: unknown, errorCode: string): T {
+  const result = schema.safeParse(value)
+  if (result.success) {
+    return result.data
+  }
+  throw new Error(errorCode)
+}
+
+function validateNestedRepoScanRoot(path: string, connectionId?: string): void {
+  if (connectionId) {
+    return
+  }
+  if (!isAbsolute(path)) {
+    throw new Error('Repo path must be an absolute path')
+  }
+}
+
+function sanitizeNestedRepoImportError(context: string, error: unknown): string {
+  console.warn(`[repo-groups] ${context}`, error)
+  return 'Repository could not be imported'
+}
+
+async function resolveSshRepoGroupPath(connectionId: string, path: string): Promise<string> {
+  if (path === '~' || path === '~/' || path.startsWith('~/')) {
+    const mux = getActiveMultiplexer(connectionId)
+    if (mux) {
+      try {
+        const result = (await mux.request('session.resolveHome', { path })) as {
+          resolvedPath: string
+        }
+        return result.resolvedPath
+      } catch {
+        return path
+      }
+    }
+  }
+  return path
+}
+
+async function scanNestedReposForIpc(args: {
+  path: string
+  connectionId?: string
+  options?: unknown
+}): Promise<NestedRepoScanResult> {
+  validateNestedRepoScanRoot(args.path, args.connectionId)
+  if (!args.connectionId) {
+    return scanNestedRepos({ path: args.path, options: args.options })
+  }
+  const gitProvider = getSshGitProvider(args.connectionId)
+  const fsProvider = getSshFilesystemProvider(args.connectionId)
+  if (!gitProvider || !fsProvider) {
+    throw new Error('ssh_connection_unavailable')
+  }
+  const resolvedPath = await resolveSshRepoGroupPath(args.connectionId, args.path)
+  return scanNestedRepos({
+    path: resolvedPath,
+    options: args.options,
+    filesystem: {
+      readDirectory: async (dirPath) =>
+        (await fsProvider.readDir(dirPath)).map((entry) => ({
+          name: entry.name,
+          isDirectory: entry.isDirectory
+        })),
+      joinPath: (parentPath, childName) => posix.join(parentPath, childName),
+      basename: (path) => posix.basename(path),
+      isGitRepoPath: async (path) => {
+        try {
+          return (await gitProvider.isGitRepoAsync(path)).isRepo
+        } catch {
+          return false
+        }
+      }
+    }
+  })
+}
 
 export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): void {
   // Remove any previously registered handlers so we can re-register them
@@ -110,46 +240,41 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
 
   ipcMain.handle('repoGroups:list', () => store.getRepoGroups())
 
-  ipcMain.handle(
-    'repoGroups:create',
-    (
-      _event,
-      args: {
-        name: string
-        parentPath?: string | null
-        parentGroupId?: string | null
-        createdFrom?: RepoGroup['createdFrom']
-      }
-    ): RepoGroup => {
-      const group = store.createRepoGroup({
-        name: args.name,
-        parentPath: args.parentPath ?? null,
-        parentGroupId: args.parentGroupId ?? null,
-        createdFrom: args.createdFrom ?? 'manual'
-      })
+  ipcMain.handle('repoGroups:create', (_event, rawArgs: unknown): RepoGroup => {
+    const args = parseRepoGroupIpcArgs(
+      RepoGroupCreateArgs,
+      rawArgs,
+      'invalid_repo_group_create_args'
+    )
+    const group = store.createRepoGroup({
+      name: args.name,
+      parentPath: args.parentPath ?? null,
+      parentGroupId: args.parentGroupId ?? null,
+      createdFrom: args.createdFrom ?? 'manual'
+    })
+    notifyReposChanged(mainWindow)
+    return group
+  })
+
+  ipcMain.handle('repoGroups:update', (_event, rawArgs: unknown): RepoGroup | null => {
+    const args = parseRepoGroupIpcArgs(
+      RepoGroupUpdateArgs,
+      rawArgs,
+      'invalid_repo_group_update_args'
+    )
+    const updated = store.updateRepoGroup(args.groupId, args.updates)
+    if (updated) {
       notifyReposChanged(mainWindow)
-      return group
     }
-  )
+    return updated
+  })
 
-  ipcMain.handle(
-    'repoGroups:update',
-    (
-      _event,
-      args: {
-        groupId: string
-        updates: Partial<Pick<RepoGroup, 'name' | 'isCollapsed' | 'tabOrder' | 'color'>>
-      }
-    ): RepoGroup | null => {
-      const updated = store.updateRepoGroup(args.groupId, args.updates)
-      if (updated) {
-        notifyReposChanged(mainWindow)
-      }
-      return updated
-    }
-  )
-
-  ipcMain.handle('repoGroups:delete', (_event, args: { groupId: string }): boolean => {
+  ipcMain.handle('repoGroups:delete', (_event, rawArgs: unknown): boolean => {
+    const args = parseRepoGroupIpcArgs(
+      RepoGroupSelectorArgs,
+      rawArgs,
+      'invalid_repo_group_delete_args'
+    )
     const deleted = store.deleteRepoGroup(args.groupId)
     if (deleted) {
       notifyReposChanged(mainWindow)
@@ -157,52 +282,70 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
     return deleted
   })
 
+  ipcMain.handle('repoGroups:moveRepo', (_event, rawArgs: unknown): Repo | null => {
+    const args = parseRepoGroupIpcArgs(
+      RepoGroupMoveRepoArgs,
+      rawArgs,
+      'invalid_repo_group_move_repo_args'
+    )
+    const moved = store.moveRepoToGroup(args.repoId, args.groupId, args.order)
+    if (moved) {
+      notifyReposChanged(mainWindow)
+    }
+    return moved
+  })
+
   ipcMain.handle(
-    'repoGroups:moveRepo',
-    (_event, args: { repoId: string; groupId: string | null; order?: number }): Repo | null => {
-      const moved = store.moveRepoToGroup(args.repoId, args.groupId, args.order)
-      if (moved) {
-        notifyReposChanged(mainWindow)
-      }
-      return moved
+    'repoGroups:scanNested',
+    async (_event, rawArgs: unknown): Promise<NestedRepoScanResult> => {
+      const args = parseRepoGroupIpcArgs(
+        RepoGroupScanNestedArgs,
+        rawArgs,
+        'invalid_repo_group_scan_nested_args'
+      )
+      return scanNestedReposForIpc(args)
     }
   )
 
   ipcMain.handle(
-    'repoGroups:scanNested',
-    async (_event, args: { path: string; options?: unknown }): Promise<NestedRepoScanResult> =>
-      scanNestedRepos({ path: args.path, options: args.options })
-  )
-
-  ipcMain.handle(
     'repoGroups:importNested',
-    async (
-      _event,
-      args: {
-        parentPath: string
-        groupName: string
-        repoPaths: string[]
-        mode: RepoGroupImportMode
-      }
-    ): Promise<RepoGroupImportResult> => {
-      const selectedPaths = Array.isArray(args.repoPaths) ? args.repoPaths : []
-      const normalizedSelected = new Set(
-        selectedPaths.map((entry) => normalizeRuntimePathForComparison(entry))
+    async (_event, rawArgs: unknown): Promise<RepoGroupImportResult> => {
+      const args = parseRepoGroupIpcArgs(
+        RepoGroupImportNestedArgs,
+        rawArgs,
+        'invalid_repo_group_import_nested_args'
       )
+      const requestedPaths = args.repoPaths
+      const scan = await scanNestedReposForIpc({
+        path: args.parentPath,
+        connectionId: args.connectionId
+      })
+      const selection = resolveNestedRepoSelection({ scan, repoPaths: requestedPaths })
       const groupResolver = createNestedRepoGroupResolver({
-        parentPath: args.parentPath,
-        groupName: args.groupName,
+        parentPath: scan.selectedPath,
+        groupName: args.groupName ?? '',
         mode: args.mode,
         createGroup: (input) => store.createRepoGroup(input)
       })
-      const results: RepoGroupImportResult['repos'] = []
+      const results: RepoGroupImportResult['repos'] = selection.rejectedPaths.map((repoPath) => ({
+        path: repoPath,
+        status: 'failed',
+        error: 'Repository was not found in the nested repo scan result'
+      }))
 
-      for (const repoPath of selectedPaths) {
+      for (const repoPath of selection.selectedPaths) {
         try {
-          if (!normalizedSelected.has(normalizeRuntimePathForComparison(repoPath))) {
-            continue
-          }
-          if (!isGitRepo(repoPath)) {
+          if (args.connectionId) {
+            const gitProvider = getSshGitProvider(args.connectionId)
+            if (!gitProvider || !(await gitProvider.isGitRepoAsync(repoPath)).isRepo) {
+              results.push({
+                path: repoPath,
+                status: 'failed',
+                error: 'Not a valid git repository'
+              })
+              continue
+            }
+          } else if (!isGitRepo(repoPath)) {
             results.push({ path: repoPath, status: 'failed', error: 'Not a valid git repository' })
             continue
           }
@@ -210,7 +353,7 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
             .getRepos()
             .find(
               (repo) =>
-                !repo.connectionId &&
+                (repo.connectionId ?? null) === (args.connectionId ?? null) &&
                 normalizeRuntimePathForComparison(repo.path) ===
                   normalizeRuntimePathForComparison(repoPath)
             )
@@ -229,6 +372,7 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
             badgeColor: DEFAULT_REPO_BADGE_COLOR,
             addedAt: Date.now(),
             kind: 'git',
+            ...(args.connectionId ? { connectionId: args.connectionId } : {}),
             externalWorktreeVisibility: 'hide',
             externalWorktreeVisibilityLegacy: false,
             ...(group
@@ -239,13 +383,18 @@ export function registerRepoHandlers(mainWindow: BrowserWindow, store: Store): v
               : {})
           }
           store.addRepo(repo)
+          if (args.connectionId) {
+            getActiveMultiplexer(args.connectionId)?.notify('session.registerRoot', {
+              rootPath: repoPath
+            })
+          }
           results.push({ path: repoPath, repoId: repo.id, status: 'imported' })
           emitRepoAdded('folder_picker', false)
         } catch (error) {
           results.push({
             path: repoPath,
             status: 'failed',
-            error: error instanceof Error ? error.message : String(error)
+            error: sanitizeNestedRepoImportError('Failed to import nested repository', error)
           })
         }
       }

@@ -1,4 +1,8 @@
-import type { RepoGroup, RepoGroupImportMode } from '../../shared/types'
+import type { NestedRepoScanResult, RepoGroup, RepoGroupImportMode } from '../../shared/types'
+import {
+  normalizeRuntimePathForComparison,
+  relativePathInsideRoot
+} from '../../shared/cross-platform-path'
 
 type CreateGroupInput = {
   name: string
@@ -13,7 +17,18 @@ type NestedRepoGroupResolver = {
   getCreatedGroups: () => RepoGroup[]
 }
 
+export type ResolvedNestedRepoSelection = {
+  selectedPaths: string[]
+  rejectedPaths: string[]
+}
+
 function trimPathSeparators(path: string): string {
+  if (path === '/' || /^[A-Za-z]:[\\/]?$/.test(path)) {
+    return path.replace(/\\/g, '/')
+  }
+  if (/^\/\/[^/]+\/[^/]+\/?$/.test(path.replace(/\\/g, '/'))) {
+    return path.replace(/\\/g, '/').replace(/\/$/, '')
+  }
   return path.replace(/[\\/]+$/g, '')
 }
 
@@ -25,13 +40,21 @@ function splitPath(path: string): string[] {
 
 function joinPath(parentPath: string, segments: readonly string[]): string {
   const trimmedParent = trimPathSeparators(parentPath)
-  const separator = parentPath.includes('\\') && !parentPath.includes('/') ? '\\' : '/'
+  const separator = trimmedParent.includes('\\') && !trimmedParent.includes('/') ? '\\' : '/'
   return segments.length === 0
     ? trimmedParent
-    : `${trimmedParent}${separator}${segments.join(separator)}`
+    : trimmedParent === '/'
+      ? `/${segments.join('/')}`
+      : trimmedParent.endsWith(separator)
+        ? `${trimmedParent}${segments.join(separator)}`
+        : `${trimmedParent}${separator}${segments.join(separator)}`
 }
 
 function getRelativeSegments(parentPath: string, repoPath: string): string[] {
+  const relativePath = relativePathInsideRoot(parentPath, repoPath)
+  if (relativePath !== null) {
+    return splitPath(relativePath)
+  }
   const normalizedParent = trimPathSeparators(parentPath)
   const normalizedRepo = trimPathSeparators(repoPath)
   const parentWithSeparator = `${normalizedParent}/`
@@ -88,4 +111,34 @@ export function createNestedRepoGroupResolver(args: {
     getRootGroup: () => groupsByRelativeDir.get(''),
     getCreatedGroups: () => [...createdGroups]
   }
+}
+
+export function resolveNestedRepoSelection(args: {
+  scan: NestedRepoScanResult
+  repoPaths: readonly string[]
+}): ResolvedNestedRepoSelection {
+  const candidatesByPath = new Map(
+    args.scan.repos.map((repo) => [normalizeRuntimePathForComparison(repo.path), repo.path])
+  )
+  const selectedPaths: string[] = []
+  const rejectedPaths: string[] = []
+  const seen = new Set<string>()
+
+  for (const repoPath of args.repoPaths) {
+    const normalizedPath = normalizeRuntimePathForComparison(repoPath)
+    if (seen.has(normalizedPath)) {
+      continue
+    }
+    seen.add(normalizedPath)
+    const canonicalPath = candidatesByPath.get(normalizedPath)
+    if (canonicalPath) {
+      selectedPaths.push(canonicalPath)
+    } else {
+      // Why: imports are derived from a bounded scan of this parent folder;
+      // callers must not smuggle unrelated paths into the group hierarchy.
+      rejectedPaths.push(repoPath)
+    }
+  }
+
+  return { selectedPaths, rejectedPaths }
 }

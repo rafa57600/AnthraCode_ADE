@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createNestedRepoGroupResolver } from './nested-repo-import'
+import { createNestedRepoGroupResolver, resolveNestedRepoSelection } from './nested-repo-import'
 import type { RepoGroup } from '../../shared/types'
 
 describe('createNestedRepoGroupResolver', () => {
@@ -54,5 +54,86 @@ describe('createNestedRepoGroupResolver', () => {
 
     expect(resolver.getGroupForRepo('/workspace/services/api')).toBeUndefined()
     expect(resolver.getCreatedGroups()).toEqual([])
+  })
+
+  it('preserves filesystem root parent paths when creating groups', () => {
+    const groups: RepoGroup[] = []
+    const resolver = createNestedRepoGroupResolver({
+      parentPath: '/',
+      groupName: 'root',
+      mode: 'group',
+      createGroup: (input) => {
+        const group: RepoGroup = {
+          id: `group-${groups.length}`,
+          name: input.name,
+          parentPath: input.parentPath ?? null,
+          parentGroupId: input.parentGroupId ?? null,
+          createdFrom: input.createdFrom,
+          tabOrder: groups.length,
+          isCollapsed: false,
+          color: null,
+          createdAt: 1,
+          updatedAt: 1
+        }
+        groups.push(group)
+        return group
+      }
+    })
+
+    resolver.getGroupForRepo('/api')
+    resolver.getGroupForRepo('/services/api')
+
+    expect(groups.map((group) => group.parentPath)).toEqual(['/', '/services'])
+  })
+
+  it('preserves Windows drive roots when creating groups', () => {
+    const groups: RepoGroup[] = []
+    const resolver = createNestedRepoGroupResolver({
+      parentPath: 'C:\\',
+      groupName: 'C',
+      mode: 'group',
+      createGroup: (input) => {
+        const group: RepoGroup = {
+          id: `group-${groups.length}`,
+          name: input.name,
+          parentPath: input.parentPath ?? null,
+          parentGroupId: input.parentGroupId ?? null,
+          createdFrom: input.createdFrom,
+          tabOrder: groups.length,
+          isCollapsed: false,
+          color: null,
+          createdAt: 1,
+          updatedAt: 1
+        }
+        groups.push(group)
+        return group
+      }
+    })
+
+    resolver.getGroupForRepo('C:\\api')
+    resolver.getGroupForRepo('C:\\services\\api')
+
+    expect(groups.map((group) => group.parentPath)).toEqual(['C:/', 'C:/services'])
+  })
+
+  it('resolves Windows-style repo paths back to canonical scan output', () => {
+    const selection = resolveNestedRepoSelection({
+      scan: {
+        selectedPath: 'C:\\workspace',
+        selectedPathKind: 'non_git_folder',
+        repos: [
+          { path: 'C:\\workspace\\Services\\API', displayName: 'API', depth: 2 },
+          { path: 'C:\\workspace\\tools', displayName: 'tools', depth: 1 }
+        ],
+        truncated: false,
+        timedOut: false,
+        durationMs: 1,
+        maxDepth: 3
+      },
+      repoPaths: ['c:/workspace/services/api', 'C:/workspace/services/api', 'D:/other/repo']
+    })
+
+    expect(selection.selectedPaths).toEqual(['C:\\workspace\\Services\\API'])
+    expect(selection.rejectedPaths).toEqual(['D:/other/repo'])
   })
 })

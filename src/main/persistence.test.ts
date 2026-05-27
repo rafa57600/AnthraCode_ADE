@@ -1309,6 +1309,41 @@ describe('Store', () => {
     expect(fetched!.gitUsername).toBe('testuser')
   })
 
+  it('deleteRepoGroup ungroups repos from the deleted group subtree', async () => {
+    const store = await createStore()
+    const root = store.createRepoGroup({ name: 'Platform', createdFrom: 'folder-scan' })
+    const child = store.createRepoGroup({
+      name: 'Services',
+      parentGroupId: root.id,
+      createdFrom: 'folder-scan'
+    })
+    const sibling = store.createRepoGroup({ name: 'Tools', createdFrom: 'manual' })
+    store.addRepo(makeRepo({ id: 'direct', path: '/direct', repoGroupId: root.id }))
+    store.addRepo(makeRepo({ id: 'nested', path: '/nested', repoGroupId: child.id }))
+    store.addRepo(makeRepo({ id: 'sibling', path: '/sibling', repoGroupId: sibling.id }))
+
+    expect(store.deleteRepoGroup(root.id)).toBe(true)
+
+    expect(store.getRepoGroups().map((group) => group.id)).toEqual([sibling.id])
+    expect(store.getRepo('direct')?.repoGroupId).toBeNull()
+    expect(store.getRepo('nested')?.repoGroupId).toBeNull()
+    expect(store.getRepo('sibling')?.repoGroupId).toBe(sibling.id)
+  })
+
+  it('sanitizes invalid repo group updates before persisting a repo', async () => {
+    const store = await createStore()
+    const group = store.createRepoGroup({ name: 'Platform', createdFrom: 'manual' })
+    store.addRepo(makeRepo({ id: 'r1', repoGroupId: group.id, repoGroupOrder: 1 }))
+
+    const updated = store.updateRepo('r1', {
+      repoGroupId: '',
+      repoGroupOrder: Number.POSITIVE_INFINITY
+    } as never)
+
+    expect(updated?.repoGroupId).toBeNull()
+    expect(updated?.repoGroupOrder).toBe(1)
+  })
+
   it('getRepo returns undefined for nonexistent id', async () => {
     const store = await createStore()
     expect(store.getRepo('nonexistent')).toBeUndefined()

@@ -667,7 +667,9 @@ const VirtualizedWorktreeViewport = React.memo(function VirtualizedWorktreeViewp
     })
   }, [])
   const suppressWorktreeClickUntilRef = useRef(0)
-  const canReorderRepoHeaders = groupBy === 'repo' && repoGroupOrdering === 'manual'
+  const hasRepoGroups = repoGroups.length > 0
+  const canReorderRepoHeaders =
+    groupBy === 'repo' && repoGroupOrdering === 'manual' && !hasRepoGroups
   const lastVisibleRefreshKeyRef = useRef('')
   const reportVisibleGitHubPRRefreshCandidates = useAppStore(
     (s) => s.reportVisibleGitHubPRRefreshCandidates

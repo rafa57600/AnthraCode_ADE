@@ -99,6 +99,7 @@ import {
   clearMissingRepoGroupMemberships,
   createRepoGroup,
   getNextRepoGroupOrder,
+  getRepoGroupSubtreeIds,
   normalizeRepoGroupName,
   normalizeRepoGroups
 } from '../shared/repo-groups'
@@ -2080,17 +2081,19 @@ export class Store {
 
   deleteRepoGroup(groupId: string): boolean {
     const before = this.state.repoGroups?.length ?? 0
-    this.state.repoGroups = (this.state.repoGroups ?? []).filter((group) => group.id !== groupId)
+    const deletedGroupIds = getRepoGroupSubtreeIds(this.state.repoGroups ?? [], groupId)
+    this.state.repoGroups = (this.state.repoGroups ?? []).filter(
+      (group) => !deletedGroupIds.has(group.id)
+    )
     if ((this.state.repoGroups?.length ?? 0) === before) {
       return false
     }
     // Why: groups are sidebar organization only. Deleting one must not delete
-    // repos or worktrees, so contained repos are moved to Ungrouped.
+    // repos or worktrees, so contained repos from the full subtree are ungrouped.
     this.state.repos = this.state.repos.map((repo) =>
-      repo.repoGroupId === groupId ? { ...repo, repoGroupId: null } : repo
-    )
-    this.state.repoGroups = (this.state.repoGroups ?? []).map((group) =>
-      group.parentGroupId === groupId ? { ...group, parentGroupId: null } : group
+      repo.repoGroupId && deletedGroupIds.has(repo.repoGroupId)
+        ? { ...repo, repoGroupId: null }
+        : repo
     )
     this.scheduleSave()
     return true
@@ -2196,12 +2199,22 @@ export class Store {
       return null
     }
     const sanitizedUpdates = sanitizeRepoUpdatesForPersistence(updates)
+    if ('repoGroupId' in sanitizedUpdates) {
+      const nextGroupId = sanitizedUpdates.repoGroupId
+      if (
+        typeof nextGroupId !== 'string' ||
+        nextGroupId.trim().length === 0 ||
+        !this.state.repoGroups.some((group) => group.id === nextGroupId)
+      ) {
+        sanitizedUpdates.repoGroupId = null
+      }
+    }
     if (
-      'repoGroupId' in sanitizedUpdates &&
-      sanitizedUpdates.repoGroupId &&
-      !this.state.repoGroups.some((group) => group.id === sanitizedUpdates.repoGroupId)
+      'repoGroupOrder' in sanitizedUpdates &&
+      (typeof sanitizedUpdates.repoGroupOrder !== 'number' ||
+        !Number.isFinite(sanitizedUpdates.repoGroupOrder))
     ) {
-      sanitizedUpdates.repoGroupId = null
+      delete sanitizedUpdates.repoGroupOrder
     }
     const externalWorktreeVisibilityLegacy =
       'externalWorktreeVisibility' in sanitizedUpdates &&

@@ -82,6 +82,7 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
   const [nestedScan, setNestedScan] = useState<NestedRepoScanResult | null>(null)
   const [nestedSelectedPaths, setNestedSelectedPaths] = useState<Set<string>>(new Set())
   const [nestedGroupName, setNestedGroupName] = useState('')
+  const [nestedConnectionId, setNestedConnectionId] = useState<string | null>(null)
 
   // Why: monotonic ID so stale clone callbacks can detect they were superseded.
   const cloneGenRef = useRef(0)
@@ -102,7 +103,21 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
     handleOpenRemoteStep,
     handleAddRemoteRepo,
     handleConnectTarget
-  } = useRemoteRepo(fetchWorktrees, setStep, setAddedRepo, closeModal, setExistingWorkspaceSource)
+  } = useRemoteRepo(
+    fetchWorktrees,
+    setStep,
+    setAddedRepo,
+    closeModal,
+    setExistingWorkspaceSource,
+    scanNestedRepos,
+    (scan, selectedPath, connectionId) => {
+      setNestedScan(scan)
+      setNestedSelectedPaths(new Set(scan.repos.map((repo) => repo.path)))
+      setNestedGroupName(defaultRepoGroupNameForPath(scan.selectedPath || selectedPath))
+      setNestedConnectionId(connectionId)
+      setStep('nested')
+    }
+  )
 
   const {
     createName,
@@ -201,6 +216,7 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
     setNestedScan(null)
     setNestedSelectedPaths(new Set())
     setNestedGroupName('')
+    setNestedConnectionId(null)
     resetCreateState()
     resetRemoteState()
   }, [resetRemoteState, resetCreateState])
@@ -231,6 +247,7 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
         setNestedScan(scan)
         setNestedSelectedPaths(new Set(scan.repos.map((repo) => repo.path)))
         setNestedGroupName(defaultRepoGroupNameForPath(path))
+        setNestedConnectionId(null)
         setStep('nested')
         return
       }
@@ -261,24 +278,32 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
           parentPath: nestedScan.selectedPath,
           groupName: nestedGroupName,
           repoPaths: [...nestedSelectedPaths],
+          ...(nestedConnectionId ? { connectionId: nestedConnectionId } : {}),
           mode
         })
         if (!result) {
           return
         }
-        const firstRepoId = result.repos.find((entry) => entry.repoId)?.repoId
+        const importedRepoIds = result.repos
+          .map((entry) => entry.repoId)
+          .filter((repoId): repoId is string => typeof repoId === 'string')
+        const firstRepoId = importedRepoIds[0]
         if (!firstRepoId) {
           toast.error('No repositories imported')
           return
         }
-        await fetchWorktrees(firstRepoId)
+        for (const repoId of importedRepoIds) {
+          await fetchWorktrees(repoId)
+        }
         const repo = useAppStore.getState().repos.find((entry) => entry.id === firstRepoId)
         if (repo) {
           setAddedRepo(repo)
           setExistingWorkspaceSource(
-            settings?.activeRuntimeEnvironmentId?.trim()
-              ? 'runtime_server_path'
-              : 'local_folder_picker'
+            nestedConnectionId
+              ? 'ssh_remote_path'
+              : settings?.activeRuntimeEnvironmentId?.trim()
+                ? 'runtime_server_path'
+                : 'local_folder_picker'
           )
           setStep('setup')
         }
@@ -297,6 +322,7 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
       nestedGroupName,
       nestedScan,
       nestedSelectedPaths,
+      nestedConnectionId,
       settings?.activeRuntimeEnvironmentId
     ]
   )
@@ -315,6 +341,7 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
             setNestedScan(scan)
             setNestedSelectedPaths(new Set(scan.repos.map((repo) => repo.path)))
             setNestedGroupName(defaultRepoGroupNameForPath(path))
+            setNestedConnectionId(null)
             setStep('nested')
             return
           }
@@ -568,7 +595,8 @@ const AddRepoDialog = React.memo(function AddRepoDialog() {
           )}
           {step === 'nested' && (
             <button
-              className="absolute left-6 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              className="absolute left-6 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer disabled:cursor-default disabled:opacity-40"
+              disabled={isAdding}
               onClick={handleBack}
             >
               <ArrowLeft className="size-3" />

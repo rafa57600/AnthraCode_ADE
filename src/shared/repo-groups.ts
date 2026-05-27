@@ -94,6 +94,34 @@ export function clearMissingRepoGroupMemberships(repos: Repo[], groups: RepoGrou
   )
 }
 
+export function getRepoGroupSubtreeIds(
+  groups: readonly Pick<RepoGroup, 'id' | 'parentGroupId'>[],
+  rootGroupId: string
+): Set<string> {
+  const childGroupsByParentId = new Map<string, string[]>()
+  for (const group of groups) {
+    if (!group.parentGroupId) {
+      continue
+    }
+    childGroupsByParentId.set(group.parentGroupId, [
+      ...(childGroupsByParentId.get(group.parentGroupId) ?? []),
+      group.id
+    ])
+  }
+
+  const subtreeIds = new Set<string>()
+  const pending = [rootGroupId]
+  while (pending.length > 0) {
+    const groupId = pending.pop()!
+    if (subtreeIds.has(groupId)) {
+      continue
+    }
+    subtreeIds.add(groupId)
+    pending.push(...(childGroupsByParentId.get(groupId) ?? []))
+  }
+  return subtreeIds
+}
+
 export function getNextRepoGroupOrder(repos: readonly Repo[], groupId: string | null): number {
   let max = -1
   for (const repo of repos) {

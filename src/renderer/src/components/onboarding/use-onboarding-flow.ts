@@ -688,9 +688,16 @@ export function useOnboardingFlow(
           repoPaths: [...nestedSelectedPaths],
           mode
         })
-        const repoId = result?.repos.find((entry) => entry.repoId)?.repoId
+        const importedRepoIds =
+          result?.repos
+            .map((entry) => entry.repoId)
+            .filter((repoId): repoId is string => typeof repoId === 'string') ?? []
+        const repoId = importedRepoIds[0]
         if (!repoId) {
           throw new Error('No repositories imported')
+        }
+        for (const importedRepoId of importedRepoIds) {
+          await fetchWorktrees(importedRepoId)
         }
         await completeRepo(repoId, true, 'open_folder')
       } catch (err) {
@@ -700,7 +707,15 @@ export function useOnboardingFlow(
         setBusyLabel(null)
       }
     },
-    [busyLabel, completeRepo, importNestedRepos, nestedGroupName, nestedScan, nestedSelectedPaths]
+    [
+      busyLabel,
+      completeRepo,
+      fetchWorktrees,
+      importNestedRepos,
+      nestedGroupName,
+      nestedScan,
+      nestedSelectedPaths
+    ]
   )
 
   // Why: lets the user back out of the nested-repo step in onboarding to

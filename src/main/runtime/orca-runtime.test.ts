@@ -616,6 +616,26 @@ computeWorktreePathMock.mockImplementation(
 ensurePathWithinWorkspaceMock.mockImplementation((targetPath: string) => targetPath)
 
 describe('OrcaRuntimeService', () => {
+  it('rejects relative paths for runtime nested repo scan/import', async () => {
+    const runtime = new OrcaRuntimeService({
+      ...store,
+      createRepoGroup: vi.fn(),
+      moveRepoToGroup: vi.fn()
+    } as never)
+
+    await expect(runtime.scanNestedRepos('relative/project')).rejects.toThrow(
+      'Repo path must be an absolute path'
+    )
+    await expect(
+      runtime.importNestedRepos({
+        parentPath: 'relative/project',
+        groupName: 'Project',
+        repoPaths: ['relative/project/api'],
+        mode: 'group'
+      })
+    ).rejects.toThrow('Repo path must be an absolute path')
+  })
+
   it('starts unavailable with no authoritative window', () => {
     const runtime = createRuntime()
 

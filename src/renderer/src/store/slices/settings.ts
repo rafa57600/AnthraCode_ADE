@@ -35,6 +35,7 @@ function createOpenInApplicationId(): string {
 function runtimeScopedStateReset(): Partial<AppState> {
   return {
     repos: [],
+    repoGroups: [],
     activeRepoId: null,
     sparsePresetsByRepo: {},
     sparsePresetsLoadingByRepo: {},

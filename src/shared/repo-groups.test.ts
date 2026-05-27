@@ -3,6 +3,7 @@ import {
   clearMissingRepoGroupMemberships,
   createRepoGroup,
   getNextRepoGroupOrder,
+  getRepoGroupSubtreeIds,
   normalizeRepoGroupName,
   normalizeRepoGroups
 } from './repo-groups'
@@ -91,5 +92,21 @@ describe('repo-groups', () => {
         'g'
       )
     ).toBe(3)
+  })
+
+  it('collects descendant group ids for subtree deletion', () => {
+    expect(
+      [
+        ...getRepoGroupSubtreeIds(
+          [
+            { id: 'root', parentGroupId: null },
+            { id: 'child', parentGroupId: 'root' },
+            { id: 'grandchild', parentGroupId: 'child' },
+            { id: 'sibling', parentGroupId: null }
+          ],
+          'root'
+        )
+      ].sort()
+    ).toEqual(['child', 'grandchild', 'root'])
   })
 })

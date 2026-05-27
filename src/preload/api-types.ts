@@ -679,15 +679,21 @@ export type PreloadApi = {
       updates: Partial<Pick<RepoGroup, 'name' | 'isCollapsed' | 'tabOrder' | 'color'>>
     }) => Promise<RepoGroup | null>
     delete: (args: { groupId: string }) => Promise<boolean>
-    moveRepo: (args: { repoId: string; groupId: string | null; order?: number }) => Promise<Repo>
+    moveRepo: (args: {
+      repoId: string
+      groupId: string | null
+      order?: number
+    }) => Promise<Repo | null>
     scanNested: (args: {
       path: string
+      connectionId?: string
       options?: Record<string, unknown>
     }) => Promise<NestedRepoScanResult>
     importNested: (args: {
       parentPath: string
       groupName: string
       repoPaths: string[]
+      connectionId?: string
       mode: RepoGroupImportMode
     }) => Promise<RepoGroupImportResult>
   }

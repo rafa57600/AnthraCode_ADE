@@ -7,6 +7,18 @@ import type {
 } from '../../shared/types'
 import { isGitRepo } from '../git/repo'
 
+type NestedRepoDirectoryEntry = {
+  name: string
+  isDirectory: boolean
+}
+
+type NestedRepoScanFilesystem = {
+  readDirectory: (dirPath: string) => Promise<NestedRepoDirectoryEntry[]>
+  joinPath: (parentPath: string, childName: string) => string
+  basename: (path: string) => string
+  isGitRepoPath: (path: string) => Promise<boolean> | boolean
+}
+
 const DEFAULT_MAX_DEPTH = 3
 const DEFAULT_MAX_REPOS = 100
 const DEFAULT_TIMEOUT_MS = 8_000
@@ -57,17 +69,34 @@ async function hasGitMarker(dirPath: string): Promise<boolean> {
   }
 }
 
+async function readLocalDirectory(dirPath: string): Promise<NestedRepoDirectoryEntry[]> {
+  const entries = await readdir(dirPath)
+  const result: NestedRepoDirectoryEntry[] = []
+  for (const name of entries) {
+    const childStat = await stat(join(dirPath, name)).catch(() => null)
+    result.push({ name, isDirectory: childStat?.isDirectory() === true })
+  }
+  return result
+}
+
 export async function scanNestedRepos(args: {
   path: string
   options?: unknown
+  filesystem?: NestedRepoScanFilesystem
 }): Promise<NestedRepoScanResult> {
   const startedAt = Date.now()
   const options = normalizeScanOptions(args.options)
   const repos: NestedRepoCandidate[] = []
   let truncated = false
   let timedOut = false
+  const filesystem = args.filesystem ?? {
+    readDirectory: readLocalDirectory,
+    joinPath: join,
+    basename,
+    isGitRepoPath: async (path: string) => isGitRepo(path) || (await hasGitMarker(path))
+  }
 
-  if (isGitRepo(args.path)) {
+  if (await filesystem.isGitRepoPath(args.path)) {
     return {
       selectedPath: args.path,
       selectedPathKind: 'git_repo',
@@ -92,15 +121,18 @@ export async function scanNestedRepos(args: {
       return
     }
 
-    let entries: string[]
+    let entries: NestedRepoDirectoryEntry[]
     try {
-      entries = await readdir(dirPath)
+      entries = await filesystem.readDirectory(dirPath)
     } catch {
       return
     }
 
-    const dirs = entries.sort((left, right) => left.localeCompare(right))
-    for (const name of dirs) {
+    const dirs = entries
+      .filter((entry) => entry.isDirectory)
+      .sort((left, right) => left.name.localeCompare(right.name))
+    for (const entry of dirs) {
+      const name = entry.name
       if (repos.length >= options.maxRepos) {
         truncated = true
         return
@@ -112,15 +144,11 @@ export async function scanNestedRepos(args: {
       if (shouldSkipDirectory(name, depth)) {
         continue
       }
-      const childPath = join(dirPath, name)
-      const childStat = await stat(childPath).catch(() => null)
-      if (!childStat?.isDirectory()) {
-        continue
-      }
-      if (await hasGitMarker(childPath)) {
+      const childPath = filesystem.joinPath(dirPath, name)
+      if (await filesystem.isGitRepoPath(childPath)) {
         repos.push({
           path: childPath,
-          displayName: basename(childPath),
+          displayName: filesystem.basename(childPath),
           depth: depth + 1
         })
         // Repo Groups organize sibling repos; nested repos stay hidden until a

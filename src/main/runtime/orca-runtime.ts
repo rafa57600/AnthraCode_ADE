@@ -373,7 +373,15 @@ import type { VoiceSettings } from '../../shared/speech-types'
 import { getSpeechModelManager, getSpeechSttService } from '../speech/speech-runtime-service'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
 import { scanNestedRepos } from '../repo-groups/nested-repo-discovery'
-import { createNestedRepoGroupResolver } from '../repo-groups/nested-repo-import'
+import {
+  createNestedRepoGroupResolver,
+  resolveNestedRepoSelection
+} from '../repo-groups/nested-repo-import'
+
+function sanitizeNestedRepoRuntimeImportError(context: string, error: unknown): string {
+  console.warn(`[repo-groups] ${context}`, error)
+  return 'Repository could not be imported'
+}
 
 type RuntimeAccountServices = {
   claudeAccounts: ClaudeAccountService
@@ -5138,6 +5146,9 @@ export class OrcaRuntimeService {
   }
 
   async scanNestedRepos(path: string): Promise<NestedRepoScanResult> {
+    if (!isAbsolute(path)) {
+      throw new Error('Repo path must be an absolute path')
+    }
     return scanNestedRepos({ path })
   }
 
@@ -5150,14 +5161,23 @@ export class OrcaRuntimeService {
     if (!this.store?.createRepoGroup || !this.store?.moveRepoToGroup) {
       throw new Error('runtime_unavailable')
     }
+    if (!isAbsolute(args.parentPath)) {
+      throw new Error('Repo path must be an absolute path')
+    }
+    const scan = await scanNestedRepos({ path: args.parentPath })
+    const selection = resolveNestedRepoSelection({ scan, repoPaths: args.repoPaths })
     const groupResolver = createNestedRepoGroupResolver({
-      parentPath: args.parentPath,
+      parentPath: scan.selectedPath,
       groupName: args.groupName,
       mode: args.mode,
       createGroup: (input) => this.store!.createRepoGroup!(input)
     })
-    const results: RepoGroupImportResult['repos'] = []
-    for (const repoPath of args.repoPaths) {
+    const results: RepoGroupImportResult['repos'] = selection.rejectedPaths.map((repoPath) => ({
+      path: repoPath,
+      status: 'failed',
+      error: 'Repository was not found in the nested repo scan result'
+    }))
+    for (const repoPath of selection.selectedPaths) {
       try {
         if (!isGitRepo(repoPath)) {
           results.push({ path: repoPath, status: 'failed', error: 'Not a valid git repository' })
@@ -5196,7 +5216,10 @@ export class OrcaRuntimeService {
         results.push({
           path: repoPath,
           status: 'failed',
-          error: error instanceof Error ? error.message : String(error)
+          error: sanitizeNestedRepoRuntimeImportError(
+            'Failed to import nested repository in runtime',
+            error
+          )
         })
       }
     }

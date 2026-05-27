@@ -141,6 +141,30 @@ describe('repo group store routing', () => {
     expect(store.getState().repos).toEqual([movedRepo])
   })
 
+  it('removes local repo group subtrees from renderer state after delete', async () => {
+    const childGroup: RepoGroup = { ...repoGroup, id: 'child', parentGroupId: repoGroup.id }
+    const siblingGroup: RepoGroup = { ...repoGroup, id: 'sibling', name: 'Tools', tabOrder: 1 }
+    repoGroupsDelete.mockResolvedValue(true)
+    const store = createTestStore()
+    store.setState({
+      repoGroups: [repoGroup, childGroup, siblingGroup],
+      repos: [
+        { ...remoteRepo, id: 'direct', repoGroupId: repoGroup.id },
+        { ...remoteRepo, id: 'nested', repoGroupId: childGroup.id },
+        { ...remoteRepo, id: 'sibling', repoGroupId: siblingGroup.id }
+      ]
+    })
+
+    await expect(store.getState().deleteRepoGroup(repoGroup.id)).resolves.toBe(true)
+
+    expect(store.getState().repoGroups.map((group) => group.id)).toEqual([siblingGroup.id])
+    expect(store.getState().repos).toMatchObject([
+      { id: 'direct', repoGroupId: null },
+      { id: 'nested', repoGroupId: null },
+      { id: 'sibling', repoGroupId: siblingGroup.id }
+    ])
+  })
+
   it('uses the remote delete response shape before mutating local state', async () => {
     runtimeEnvironmentCall.mockResolvedValue({
       id: 'rpc-delete-group',

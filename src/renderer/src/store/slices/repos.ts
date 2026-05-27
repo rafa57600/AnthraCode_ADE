@@ -13,6 +13,7 @@ import type {
 } from '../../../../shared/types'
 import { isGitRepoKind } from '../../../../shared/repo-kind'
 import { sanitizeRepoIcon } from '../../../../shared/repo-icon'
+import { getRepoGroupSubtreeIds } from '../../../../shared/repo-groups'
 import { getRepoIdFromWorktreeId } from './worktree-helpers'
 import { callRuntimeRpc, getActiveRuntimeTarget } from '../../runtime/runtime-rpc-client'
 import { buildDismissedOnboardingFolderAgentStartup } from '@/lib/onboarding-folder-agent-startup'
@@ -81,11 +82,12 @@ export type RepoSlice = {
   addRepo: () => Promise<Repo | null>
   addRepoPath: (path: string, kind?: 'git' | 'folder') => Promise<Repo | null>
   addNonGitFolder: (path: string) => Promise<Repo | null>
-  scanNestedRepos: (path: string) => Promise<NestedRepoScanResult | null>
+  scanNestedRepos: (path: string, connectionId?: string) => Promise<NestedRepoScanResult | null>
   importNestedRepos: (args: {
     parentPath: string
     groupName: string
     repoPaths: string[]
+    connectionId?: string
     mode: 'group' | 'separate'
   }) => Promise<RepoGroupImportResult | null>
   createRepoGroup: (name: string) => Promise<RepoGroup | null>
@@ -156,11 +158,11 @@ export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set, 
     }
   },
 
-  scanNestedRepos: async (path) => {
+  scanNestedRepos: async (path, connectionId) => {
     try {
       const target = getActiveRuntimeTarget(get().settings)
       return target.kind === 'local'
-        ? ((await window.api.repoGroups.scanNested({ path })) as NestedRepoScanResult)
+        ? ((await window.api.repoGroups.scanNested({ path, connectionId })) as NestedRepoScanResult)
         : await callRuntimeRpc<NestedRepoScanResult>(
             target,
             'repoGroup.scanNested',
@@ -179,9 +181,17 @@ export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set, 
       const result =
         target.kind === 'local'
           ? ((await window.api.repoGroups.importNested(args)) as RepoGroupImportResult)
-          : await callRuntimeRpc<RepoGroupImportResult>(target, 'repoGroup.importNested', args, {
-              timeoutMs: 60_000
-            })
+          : await callRuntimeRpc<RepoGroupImportResult>(
+              target,
+              'repoGroup.importNested',
+              {
+                parentPath: args.parentPath,
+                groupName: args.groupName,
+                repoPaths: args.repoPaths,
+                mode: args.mode
+              },
+              { timeoutMs: 60_000 }
+            )
       await get().fetchRepoGroups()
       await get().fetchRepos()
       return result
@@ -263,12 +273,17 @@ export const createRepoSlice: StateCreator<AppState, [], [], RepoSlice> = (set, 
       if (!deleted) {
         return false
       }
-      set((s) => ({
-        repoGroups: s.repoGroups.filter((group) => group.id !== groupId),
-        repos: s.repos.map((repo) =>
-          repo.repoGroupId === groupId ? { ...repo, repoGroupId: null } : repo
-        )
-      }))
+      set((s) => {
+        const deletedGroupIds = getRepoGroupSubtreeIds(s.repoGroups, groupId)
+        return {
+          repoGroups: s.repoGroups.filter((group) => !deletedGroupIds.has(group.id)),
+          repos: s.repos.map((repo) =>
+            repo.repoGroupId && deletedGroupIds.has(repo.repoGroupId)
+              ? { ...repo, repoGroupId: null }
+              : repo
+          )
+        }
+      })
       return true
     } catch (err) {
       console.error('Failed to delete repo group:', err)

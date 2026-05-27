@@ -472,12 +472,16 @@ const api = {
       groupId: string | null
       order?: number
     }): Promise<unknown> => ipcRenderer.invoke('repoGroups:moveRepo', args),
-    scanNested: (args: { path: string; options?: Record<string, unknown> }): Promise<unknown> =>
-      ipcRenderer.invoke('repoGroups:scanNested', args),
+    scanNested: (args: {
+      path: string
+      connectionId?: string
+      options?: Record<string, unknown>
+    }): Promise<unknown> => ipcRenderer.invoke('repoGroups:scanNested', args),
     importNested: (args: {
       parentPath: string
       groupName: string
       repoPaths: string[]
+      connectionId?: string
       mode: 'group' | 'separate'
     }): Promise<unknown> => ipcRenderer.invoke('repoGroups:importNested', args)
   },

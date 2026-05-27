@@ -352,9 +352,13 @@ import {
   areWorktreePathsEqual
 } from '../ipc/worktree-logic'
 import {
+  assertWorktreeDoesNotContainRegisteredWorktree,
+  canCleanupUnregisteredOrcaWorktreeDirectory,
   canSafelyRemoveOrphanedWorktreeDirectory,
   findRegisteredDeletableWorktree,
-  isWorktreePathMissing
+  isWorktreePathMissing,
+  ORPHANED_WORKTREE_DIRECTORY_MESSAGE,
+  stripOrcaProvenanceMetaUpdates
 } from '../worktree-removal-safety'
 import { invalidateAuthorizedRootsCache } from '../ipc/filesystem-auth'
 import { HeadlessEmulator } from '../daemon/headless-emulator'
@@ -8379,7 +8383,10 @@ export class OrcaRuntimeService {
         createdAt: Date.now()
       })
     }
-    this.store.setWorktreeMeta(worktree.id, omitUndefinedProperties(metaUpdates))
+    this.store.setWorktreeMeta(
+      worktree.id,
+      stripOrcaProvenanceMetaUpdates(omitUndefinedProperties(metaUpdates))
+    )
     // Why: unlike renderer-initiated optimistic updates, CLI callers need an
     // explicit push so the editor refreshes metadata changed outside the UI.
     this.invalidateResolvedWorktreeCache()
@@ -8682,6 +8689,13 @@ export class OrcaRuntimeService {
     }
   }
 
+  private removeWorktreeMetadataAndHistory(store: RuntimeStore, worktreeId: string): void {
+    // Why: terminal history is keyed by worktree ID, so metadata cleanup must
+    // also purge history before the same path-derived ID can be recreated.
+    store.removeWorktreeMeta(worktreeId)
+    deleteWorktreeHistoryDir(worktreeId)
+  }
+
   async removeManagedWorktree(
     worktreeSelector: string,
     force = false,
@@ -8725,13 +8739,13 @@ export class OrcaRuntimeService {
             console.warn(`[worktree-teardown] failed for ${removalTarget.id}:`, err)
           })
         }
-        store.removeWorktreeMeta(removalTarget.id)
-        deleteWorktreeHistoryDir(removalTarget.id)
+        this.removeWorktreeMetadataAndHistory(store, removalTarget.id)
         this.invalidateResolvedWorktreeCache()
         this.notifier?.worktreesChanged(repo.id)
         return {}
       }
       const provider = repo.connectionId ? requireSshGitProvider(repo.connectionId) : null
+      const fsProvider = repo.connectionId ? getSshFilesystemProvider(repo.connectionId) : null
       const registeredWorktrees = repo.connectionId
         ? await provider!.listWorktrees(repo.path)
         : await listWorktrees(repo.path)
@@ -8743,6 +8757,68 @@ export class OrcaRuntimeService {
         registeredWorktrees
       )
       if (!registeredWorktree) {
+        let canCleanOrphanedDirectory = false
+        const knownOrcaLayouts = repo.connectionId
+          ? []
+          : buildKnownOrcaWorkspaceLayouts(store.getSettings(), repo)
+        if (
+          canCleanupUnregisteredOrcaWorktreeDirectory({
+            meta: removedMeta,
+            worktreePath: removalTarget.path,
+            repo,
+            knownOrcaLayouts
+          })
+        ) {
+          if (repo.connectionId) {
+            if (!fsProvider) {
+              throw new Error('SSH filesystem provider unavailable')
+            }
+            if (!fsProvider.lstat) {
+              throw new Error('SSH filesystem provider lstat unavailable')
+            }
+            canCleanOrphanedDirectory = await canSafelyRemoveOrphanedWorktreeDirectory(
+              removalTarget.path,
+              repo.path,
+              (path) => fsProvider.lstat!(path),
+              (path) => fsProvider.readFile(path)
+            )
+          } else {
+            canCleanOrphanedDirectory = await canSafelyRemoveOrphanedWorktreeDirectory(
+              removalTarget.path,
+              repo.path
+            )
+          }
+        }
+        if (canCleanOrphanedDirectory) {
+          assertWorktreeDoesNotContainRegisteredWorktree(removalTarget.path, registeredWorktrees)
+          if (!force) {
+            throw new Error(ORPHANED_WORKTREE_DIRECTORY_MESSAGE)
+          }
+          if (repo.connectionId) {
+            await fsProvider!.deletePath(removalTarget.path, true)
+            await cleanupUnusedWorktreePushTargetRemoteSsh(
+              provider!,
+              repo.path,
+              removalTarget.id,
+              removedPushTarget,
+              store
+            )
+          } else {
+            await rm(removalTarget.path, { recursive: true, force: true })
+            await cleanupUnusedWorktreePushTargetRemote(
+              repo.path,
+              removalTarget.id,
+              removedPushTarget,
+              store
+            )
+          }
+          this.clearOptimisticReconcileToken(removalTarget.id)
+          this.removeWorktreeMetadataAndHistory(store, removalTarget.id)
+          this.invalidateResolvedWorktreeCache()
+          invalidateAuthorizedRootsCache()
+          this.notifier?.worktreesChanged(repo.id)
+          return {}
+        }
         if (force && (await isRuntimeWorktreePathMissing(repo, removalTarget.path))) {
           // Why: runtime clients can retry a force delete after another surface
           // already removed the worktree. Finish Orca cleanup without touching
@@ -8762,7 +8838,7 @@ export class OrcaRuntimeService {
                 store
               ))
           this.clearOptimisticReconcileToken(removalTarget.id)
-          store.removeWorktreeMeta(removalTarget.id)
+          this.removeWorktreeMetadataAndHistory(store, removalTarget.id)
           this.invalidateResolvedWorktreeCache()
           invalidateAuthorizedRootsCache()
           this.notifier?.worktreesChanged(repo.id)
@@ -8784,7 +8860,7 @@ export class OrcaRuntimeService {
           store
         )
         this.clearOptimisticReconcileToken(removalTarget.id)
-        store.removeWorktreeMeta(removalTarget.id)
+        this.removeWorktreeMetadataAndHistory(store, removalTarget.id)
         this.invalidateResolvedWorktreeCache()
         invalidateAuthorizedRootsCache()
         this.notifier?.worktreesChanged(repo.id)
@@ -8868,7 +8944,7 @@ export class OrcaRuntimeService {
             store
           )
           this.clearOptimisticReconcileToken(removalTarget.id)
-          store.removeWorktreeMeta(removalTarget.id)
+          this.removeWorktreeMetadataAndHistory(store, removalTarget.id)
           this.invalidateResolvedWorktreeCache()
           invalidateAuthorizedRootsCache()
           this.notifier?.worktreesChanged(repo.id)
@@ -8886,7 +8962,7 @@ export class OrcaRuntimeService {
         store
       )
       this.clearOptimisticReconcileToken(removalTarget.id)
-      store.removeWorktreeMeta(removalTarget.id)
+      this.removeWorktreeMetadataAndHistory(store, removalTarget.id)
       this.invalidateResolvedWorktreeCache()
       invalidateAuthorizedRootsCache()
       this.notifier?.worktreesChanged(repo.id)
@@ -10692,6 +10768,7 @@ export class OrcaRuntimeService {
         leafId: tab.leafId,
         title: leaf?.paneTitle ?? syncedTab?.title ?? pty?.title ?? tab.title,
         ...(tab.ptyId ? { ptyId: tab.ptyId } : {}),
+        ...(tab.terminalTheme ? { terminalTheme: tab.terminalTheme } : {}),
         ...(tab.agentStatus ? { agentStatus: tab.agentStatus } : {}),
         ...(tab.parentLayout ? { parentLayout: tab.parentLayout } : {}),
         isActive: tab.isActive,
@@ -11609,11 +11686,18 @@ export class OrcaRuntimeService {
     description?: string,
     workspaceId?: string,
     parentIssueId?: string,
-    projectId?: string | null
+    projectId?: string | null,
+    options?: {
+      stateId?: string
+      priority?: number
+      assigneeId?: string | null
+      labelIds?: string[]
+    }
   ): ReturnType<typeof createLinearIssue> {
     return createLinearIssue(teamId, title, description, workspaceId, {
       parentId: parentIssueId,
-      projectId
+      projectId,
+      ...options
     })
   }
 

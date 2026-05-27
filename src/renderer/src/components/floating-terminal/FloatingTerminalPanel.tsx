@@ -722,9 +722,6 @@ export function FloatingTerminalPanel({
 
       const state = useAppStore.getState()
       const platform = getShortcutPlatform()
-      const shortcutEvent =
-        (event as React.KeyboardEvent<HTMLDivElement> & { nativeEvent?: KeyboardEvent })
-          .nativeEvent ?? event
       const context: KeybindingContext = isFloatingWorkspaceTerminalInputTarget(event.target)
         ? 'terminal'
         : 'app'
@@ -732,18 +729,13 @@ export function FloatingTerminalPanel({
         context,
         terminalShortcutPolicy: state.settings?.terminalShortcutPolicy
       }
+      const nativeEvent = event.nativeEvent
       const matches = (actionId: KeybindingActionId): boolean =>
-        keybindingMatchesAction(
-          actionId,
-          shortcutEvent,
-          platform,
-          state.keybindings,
-          matchOptions
-        )
+        keybindingMatchesAction(actionId, nativeEvent, platform, state.keybindings, matchOptions)
 
       if (
         !isFloatingWorkspacePanelShortcut(
-          shortcutEvent,
+          nativeEvent,
           platform,
           panelRef.current,
           state.keybindings,

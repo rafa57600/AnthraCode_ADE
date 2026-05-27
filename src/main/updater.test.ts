@@ -131,7 +131,12 @@ const { fetchNewerReleaseTagsMock } = vi.hoisted(() => ({
 }))
 
 vi.mock('./updater-prerelease-feed', () => ({
-  fetchNewerReleaseTags: fetchNewerReleaseTagsMock,
+  fetchNewerReleaseTagsWithReadiness: async (...args: unknown[]) => {
+    const result = await fetchNewerReleaseTagsMock(...args)
+    return Array.isArray(result)
+      ? { tags: result, state: result.length > 0 ? 'ready' : 'no-newer' }
+      : result
+  },
   getReleaseDownloadUrl: (tag: string) =>
     `https://github.com/stablyai/orca/releases/download/${tag}`
 }))
@@ -742,6 +747,39 @@ describe('updater', () => {
     expect(setPendingUpdateNudgeId).toHaveBeenCalledWith(null)
   })
 
+  it('does not preserve a pending nudge for ordinary manifest transition errors', async () => {
+    const sendMock = vi.fn()
+    const mainWindow = { webContents: { send: sendMock } }
+    const setPendingUpdateNudgeId = vi.fn()
+    const setDismissedUpdateNudgeId = vi.fn()
+    const missingManifest = new Error(
+      'Cannot find channel "latest-mac.yml" update info: HttpError: 404'
+    )
+
+    fetchNudgeMock.mockResolvedValue({ id: 'campaign-1', minVersion: '1.0.0' })
+    shouldApplyNudgeMock.mockReturnValue(true)
+    autoUpdaterMock.checkForUpdates.mockImplementation(() => {
+      autoUpdaterMock.emit('checking-for-update')
+      return Promise.reject(missingManifest)
+    })
+
+    const { setupAutoUpdater } = await import('./updater')
+
+    setupAutoUpdater(mainWindow as never, {
+      getLastUpdateCheckAt: () => Date.now(),
+      setPendingUpdateNudgeId,
+      getPendingUpdateNudgeId: () => null,
+      getDismissedUpdateNudgeId: () => null,
+      setDismissedUpdateNudgeId
+    })
+
+    await vi.waitFor(() => {
+      expect(setPendingUpdateNudgeId).toHaveBeenCalledWith(null)
+    })
+
+    expect(setDismissedUpdateNudgeId).toHaveBeenCalledWith('campaign-1')
+  })
+
   it('moves pending nudge to dismissed when dismissNudge is called', async () => {
     const sendMock = vi.fn()
     const mainWindow = { webContents: { send: sendMock } }
@@ -893,6 +931,390 @@ describe('updater', () => {
     expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
       provider: 'generic',
       url: 'https://github.com/stablyai/orca/releases/latest/download'
+    })
+  })
+
+  it('uses last-good concrete feed when a user-initiated check lands during publishing', async () => {
+    appMock.getVersion.mockReturnValue('1.4.26')
+    fetchNewerReleaseTagsMock.mockResolvedValue({
+      tags: [],
+      state: 'not-ready',
+      lastGoodTag: 'v1.4.26'
+    })
+    autoUpdaterMock.checkForUpdates.mockImplementation(() => {
+      autoUpdaterMock.emit('checking-for-update')
+      queueMicrotask(() => {
+        autoUpdaterMock.emit('update-not-available')
+      })
+      return Promise.resolve(undefined)
+    })
+
+    const sendMock = vi.fn()
+    const mainWindow = { webContents: { send: sendMock } }
+
+    const { setupAutoUpdater, checkForUpdatesFromMenu } = await import('./updater')
+
+    setupAutoUpdater(mainWindow as never, { getLastUpdateCheckAt: () => Date.now() })
+    const feedCallsBeforeCheck = autoUpdaterMock.setFeedURL.mock.calls.length
+
+    checkForUpdatesFromMenu()
+
+    await vi.waitFor(() => {
+      const statuses = sendMock.mock.calls
+        .filter(([channel]) => channel === 'updater:status')
+        .map(([, status]) => status)
+      expect(statuses).toContainEqual({ state: 'checking', userInitiated: true })
+      expect(statuses).toContainEqual({ state: 'not-available', userInitiated: true })
+    })
+    expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1)
+    expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
+      provider: 'generic',
+      url: 'https://github.com/stablyai/orca/releases/download/v1.4.26'
+    })
+    expect(autoUpdaterMock.setFeedURL).not.toHaveBeenCalledWith({
+      provider: 'generic',
+      url: 'https://github.com/stablyai/orca/releases/download/v1.4.27'
+    })
+    expect(autoUpdaterMock.setFeedURL.mock.calls.slice(feedCallsBeforeCheck)).not.toContainEqual([
+      {
+        provider: 'generic',
+        url: 'https://github.com/stablyai/orca/releases/latest/download'
+      }
+    ])
+    expect(sendMock).not.toHaveBeenCalledWith(
+      'updater:status',
+      expect.objectContaining({ state: 'error' })
+    )
+  })
+
+  it('can offer an older fully published update while the newest release is publishing', async () => {
+    appMock.getVersion.mockReturnValue('1.4.25')
+    fetchNewerReleaseTagsMock.mockResolvedValue({
+      tags: [],
+      state: 'not-ready',
+      lastGoodTag: 'v1.4.26'
+    })
+    autoUpdaterMock.checkForUpdates.mockImplementation(() => {
+      autoUpdaterMock.emit('checking-for-update')
+      queueMicrotask(() => {
+        autoUpdaterMock.emit('update-available', { version: '1.4.26' })
+      })
+      return Promise.resolve(undefined)
+    })
+
+    const sendMock = vi.fn()
+    const mainWindow = { webContents: { send: sendMock } }
+
+    const { setupAutoUpdater, checkForUpdatesFromMenu } = await import('./updater')
+
+    setupAutoUpdater(mainWindow as never, { getLastUpdateCheckAt: () => Date.now() })
+
+    checkForUpdatesFromMenu()
+
+    await vi.waitFor(() => {
+      expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1)
+      expect(sendMock).toHaveBeenCalledWith('updater:status', {
+        state: 'available',
+        version: '1.4.26',
+        changelog: null
+      })
+    })
+    expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
+      provider: 'generic',
+      url: 'https://github.com/stablyai/orca/releases/download/v1.4.26'
+    })
+  })
+
+  it('keeps background publishing-window fallback on the short retry cadence', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-24T21:40:00Z'))
+    appMock.getVersion.mockReturnValue('1.4.26')
+    fetchNewerReleaseTagsMock
+      .mockResolvedValueOnce({
+        tags: [],
+        state: 'not-ready',
+        lastGoodTag: 'v1.4.26'
+      })
+      .mockResolvedValueOnce(['v1.4.27'])
+    autoUpdaterMock.checkForUpdates.mockImplementation(() => {
+      autoUpdaterMock.emit('checking-for-update')
+      return new Promise(() => {})
+    })
+    const setLastUpdateCheckAt = vi.fn()
+    const sendMock = vi.fn()
+    const mainWindow = { webContents: { send: sendMock } }
+
+    const { setupAutoUpdater } = await import('./updater')
+
+    setupAutoUpdater(mainWindow as never, {
+      getLastUpdateCheckAt: () => null,
+      setLastUpdateCheckAt
+    })
+
+    await vi.waitFor(() => {
+      expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1)
+    })
+    expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
+      provider: 'generic',
+      url: 'https://github.com/stablyai/orca/releases/download/v1.4.26'
+    })
+    expect(setLastUpdateCheckAt).not.toHaveBeenCalled()
+
+    autoUpdaterMock.emit('update-not-available')
+
+    await vi.waitFor(() => {
+      expect(sendMock).toHaveBeenCalledWith('updater:status', { state: 'not-available' })
+    })
+    expect(setLastUpdateCheckAt).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(59 * 60 * 1000)
+    expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(60 * 1000)
+    await vi.waitFor(() => {
+      expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(2)
+    })
+    expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
+      provider: 'generic',
+      url: 'https://github.com/stablyai/orca/releases/download/v1.4.27'
+    })
+  })
+
+  it('keeps background checks retryable while newer release assets are still publishing', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-24T21:40:00Z'))
+    appMock.getVersion.mockReturnValue('1.4.26')
+    fetchNewerReleaseTagsMock
+      .mockResolvedValueOnce({ tags: [], state: 'not-ready' })
+      .mockResolvedValueOnce(['v1.4.27'])
+    autoUpdaterMock.checkForUpdates.mockResolvedValue(undefined)
+    const setLastUpdateCheckAt = vi.fn()
+    const sendMock = vi.fn()
+    const mainWindow = { webContents: { send: sendMock } }
+
+    const { setupAutoUpdater } = await import('./updater')
+
+    setupAutoUpdater(mainWindow as never, {
+      getLastUpdateCheckAt: () => null,
+      setLastUpdateCheckAt
+    })
+
+    await vi.waitFor(() => {
+      expect(fetchNewerReleaseTagsMock).toHaveBeenCalledTimes(1)
+    })
+    expect(autoUpdaterMock.checkForUpdates).not.toHaveBeenCalled()
+    expect(setLastUpdateCheckAt).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+
+    await vi.waitFor(() => {
+      expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1)
+    })
+    expect(autoUpdaterMock.setFeedURL).toHaveBeenLastCalledWith({
+      provider: 'generic',
+      url: 'https://github.com/stablyai/orca/releases/download/v1.4.27'
+    })
+  })
+
+  it('keeps a nudge campaign pending when release assets are still publishing', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-24T21:40:00Z'))
+    appMock.getVersion.mockReturnValue('1.4.26')
+    fetchNudgeMock.mockResolvedValueOnce({ id: 'campaign-1', minVersion: '1.0.0' })
+    fetchNudgeMock.mockResolvedValue(null)
+    shouldApplyNudgeMock.mockReturnValue(true)
+    fetchNewerReleaseTagsMock
+      .mockResolvedValueOnce({ tags: [], state: 'not-ready' })
+      .mockResolvedValueOnce(['v1.4.27'])
+    autoUpdaterMock.checkForUpdates.mockImplementation(() => {
+      autoUpdaterMock.emit('checking-for-update')
+      return Promise.resolve(undefined)
+    })
+    let pendingNudgeId: string | null = null
+    const setPendingUpdateNudgeId = vi.fn((id: string | null) => {
+      pendingNudgeId = id
+    })
+    const setDismissedUpdateNudgeId = vi.fn()
+    const sendMock = vi.fn()
+    const mainWindow = { webContents: { send: sendMock } }
+
+    const { setupAutoUpdater } = await import('./updater')
+
+    setupAutoUpdater(mainWindow as never, {
+      getLastUpdateCheckAt: () => Date.now(),
+      getPendingUpdateNudgeId: () => pendingNudgeId,
+      getDismissedUpdateNudgeId: () => null,
+      setPendingUpdateNudgeId,
+      setDismissedUpdateNudgeId
+    })
+
+    await vi.waitFor(() => {
+      expect(fetchNewerReleaseTagsMock).toHaveBeenCalledTimes(1)
+    })
+    expect(setPendingUpdateNudgeId).toHaveBeenCalledWith('campaign-1')
+    expect(setPendingUpdateNudgeId).not.toHaveBeenCalledWith(null)
+    expect(setDismissedUpdateNudgeId).not.toHaveBeenCalled()
+    expect(pendingNudgeId).toBe('campaign-1')
+
+    await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+
+    await vi.waitFor(() => {
+      expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1)
+    })
+    autoUpdaterMock.emit('update-available', { version: '1.4.27' })
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(sendMock).toHaveBeenCalledWith('updater:status', {
+      state: 'available',
+      version: '1.4.27',
+      changelog: null,
+      activeNudgeId: 'campaign-1'
+    })
+    expect(setDismissedUpdateNudgeId).not.toHaveBeenCalled()
+  })
+
+  it('does not dismiss a nudge when last-good fallback is current during publishing', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-24T21:40:00Z'))
+    appMock.getVersion.mockReturnValue('1.4.26')
+    fetchNudgeMock.mockResolvedValue({ id: 'campaign-1', minVersion: '1.0.0' })
+    shouldApplyNudgeMock.mockReturnValue(true)
+    fetchNewerReleaseTagsMock
+      .mockResolvedValueOnce({
+        tags: [],
+        state: 'not-ready',
+        lastGoodTag: 'v1.4.26'
+      })
+      .mockResolvedValueOnce(['v1.4.27'])
+    autoUpdaterMock.checkForUpdates.mockImplementation(() => {
+      autoUpdaterMock.emit('checking-for-update')
+      if (autoUpdaterMock.checkForUpdates.mock.calls.length === 1) {
+        queueMicrotask(() => {
+          autoUpdaterMock.emit('update-not-available')
+        })
+      }
+      return Promise.resolve(undefined)
+    })
+    let pendingNudgeId: string | null = null
+    const setPendingUpdateNudgeId = vi.fn((id: string | null) => {
+      pendingNudgeId = id
+    })
+    const setDismissedUpdateNudgeId = vi.fn()
+    const sendMock = vi.fn()
+    const mainWindow = { webContents: { send: sendMock } }
+
+    const { setupAutoUpdater } = await import('./updater')
+
+    setupAutoUpdater(mainWindow as never, {
+      getLastUpdateCheckAt: () => Date.now(),
+      getPendingUpdateNudgeId: () => pendingNudgeId,
+      getDismissedUpdateNudgeId: () => null,
+      setPendingUpdateNudgeId,
+      setDismissedUpdateNudgeId
+    })
+
+    await vi.waitFor(() => {
+      expect(autoUpdaterMock.checkForUpdates).toHaveBeenCalledTimes(1)
+      expect(sendMock).toHaveBeenCalledWith('updater:status', { state: 'not-available' })
+    })
+
+    expect(setPendingUpdateNudgeId).toHaveBeenCalledWith('campaign-1')
+    expect(setPendingUpdateNudgeId).not.toHaveBeenCalledWith(null)
+    expect(setDismissedUpdateNudgeId).not.toHaveBeenCalled()
+    expect(pendingNudgeId).toBe('campaign-1')
+
+    await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+
+    await vi.waitFor(() => {
+      expect(autoUpdaterMock.checkForUpdates.mock.calls.length).toBeGreaterThanOrEqual(2)
+    })
+    autoUpdaterMock.emit('update-available', { version: '1.4.27' })
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(sendMock).toHaveBeenCalledWith('updater:status', {
+      state: 'available',
+      version: '1.4.27',
+      changelog: null,
+      activeNudgeId: 'campaign-1'
+    })
+  })
+
+  it('does not attach nudge dismissal to an older last-good available update', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-24T21:40:00Z'))
+    appMock.getVersion.mockReturnValue('1.4.25')
+    fetchNudgeMock.mockResolvedValueOnce({ id: 'campaign-1', minVersion: '1.0.0' })
+    fetchNudgeMock.mockResolvedValue(null)
+    shouldApplyNudgeMock.mockReturnValue(true)
+    fetchNewerReleaseTagsMock
+      .mockResolvedValueOnce({
+        tags: [],
+        state: 'not-ready',
+        lastGoodTag: 'v1.4.26'
+      })
+      .mockResolvedValueOnce(['v1.4.27'])
+    autoUpdaterMock.checkForUpdates.mockImplementation(() => {
+      autoUpdaterMock.emit('checking-for-update')
+      if (autoUpdaterMock.checkForUpdates.mock.calls.length === 1) {
+        queueMicrotask(() => {
+          autoUpdaterMock.emit('update-available', { version: '1.4.26' })
+        })
+      }
+      return Promise.resolve(undefined)
+    })
+    let pendingNudgeId: string | null = null
+    const setPendingUpdateNudgeId = vi.fn((id: string | null) => {
+      pendingNudgeId = id
+    })
+    const setDismissedUpdateNudgeId = vi.fn()
+    const sendMock = vi.fn()
+    const mainWindow = { webContents: { send: sendMock } }
+
+    const { setupAutoUpdater, dismissNudge } = await import('./updater')
+
+    setupAutoUpdater(mainWindow as never, {
+      getLastUpdateCheckAt: () => Date.now(),
+      getPendingUpdateNudgeId: () => pendingNudgeId,
+      getDismissedUpdateNudgeId: () => null,
+      setPendingUpdateNudgeId,
+      setDismissedUpdateNudgeId
+    })
+
+    await vi.waitFor(() => {
+      expect(sendMock).toHaveBeenCalledWith('updater:status', {
+        state: 'available',
+        version: '1.4.26',
+        changelog: null
+      })
+    })
+    const statuses = sendMock.mock.calls
+      .filter(([channel]) => channel === 'updater:status')
+      .map(([, status]) => status)
+    const lastGoodStatus = statuses.find(
+      (status) => status.state === 'available' && status.version === '1.4.26'
+    )
+    if (lastGoodStatus && 'activeNudgeId' in lastGoodStatus) {
+      dismissNudge()
+    }
+
+    expect(setPendingUpdateNudgeId).toHaveBeenCalledWith('campaign-1')
+    expect(setPendingUpdateNudgeId).not.toHaveBeenCalledWith(null)
+    expect(setDismissedUpdateNudgeId).not.toHaveBeenCalled()
+    expect(pendingNudgeId).toBe('campaign-1')
+
+    await vi.advanceTimersByTimeAsync(60 * 60 * 1000)
+
+    await vi.waitFor(() => {
+      expect(autoUpdaterMock.checkForUpdates.mock.calls.length).toBeGreaterThanOrEqual(2)
+    })
+    autoUpdaterMock.emit('update-available', { version: '1.4.27' })
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(sendMock).toHaveBeenCalledWith('updater:status', {
+      state: 'available',
+      version: '1.4.27',
+      changelog: null,
+      activeNudgeId: 'campaign-1'
     })
   })
 

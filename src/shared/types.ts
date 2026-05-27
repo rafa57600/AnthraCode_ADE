@@ -1127,6 +1127,7 @@ export type GitHubPullRequestStateUpdate = {
 export type LinearIssueUpdate = {
   stateId?: string
   title?: string
+  description?: string
   assigneeId?: string | null
   estimate?: number | null
   priority?: number
@@ -1274,6 +1275,7 @@ export type LinearTeam = {
   workspaceName?: string
   name: string
   key: string
+  url?: string
 }
 
 // ─── Hooks (orca.yaml) ──────────────────────────────────────────────

@@ -4,8 +4,8 @@ import type { CliInstallStatus } from '../../../shared/cli-install-types'
 import {
   CLI_PREREQUISITE_REGISTRATION_TOAST,
   CLI_PREREQUISITE_REGISTRATION_TOAST_DESCRIPTION,
-  ensureOrcaCliAvailableForAgentSkillTerminal,
-  isOrcaCliAvailableOnPath
+  ensureAnthraSpaceCliAvailableForAgentSkillTerminal,
+  isAnthraSpaceCliAvailableOnPath
 } from './agent-skill-cli-prerequisite'
 
 vi.mock('sonner', () => ({
@@ -34,15 +34,15 @@ function cliStatus(overrides: Partial<CliInstallStatus> = {}): CliInstallStatus 
   }
 }
 
-describe('isOrcaCliAvailableOnPath', () => {
+describe('isAnthraSpaceCliAvailableOnPath', () => {
   it('requires the installed CLI command to be visible on PATH', () => {
-    expect(isOrcaCliAvailableOnPath(cliStatus())).toBe(true)
-    expect(isOrcaCliAvailableOnPath(cliStatus({ pathConfigured: false }))).toBe(false)
-    expect(isOrcaCliAvailableOnPath(cliStatus({ state: 'not_installed' }))).toBe(false)
+    expect(isAnthraSpaceCliAvailableOnPath(cliStatus())).toBe(true)
+    expect(isAnthraSpaceCliAvailableOnPath(cliStatus({ pathConfigured: false }))).toBe(false)
+    expect(isAnthraSpaceCliAvailableOnPath(cliStatus({ state: 'not_installed' }))).toBe(false)
   })
 })
 
-describe('ensureOrcaCliAvailableForAgentSkillTerminal', () => {
+describe('ensureAnthraSpaceCliAvailableForAgentSkillTerminal', () => {
   afterEach(() => {
     vi.useRealTimers()
     vi.unstubAllGlobals()
@@ -69,7 +69,7 @@ describe('ensureOrcaCliAvailableForAgentSkillTerminal', () => {
     })
 
     await expect(
-      ensureOrcaCliAvailableForAgentSkillTerminal({
+      ensureAnthraSpaceCliAvailableForAgentSkillTerminal({
         onStatusChange,
         registrationPromptDelayMs: 0
       })
@@ -100,7 +100,9 @@ describe('ensureOrcaCliAvailableForAgentSkillTerminal', () => {
       }
     })
 
-    const pending = ensureOrcaCliAvailableForAgentSkillTerminal({ registrationPromptDelayMs: 700 })
+    const pending = ensureAnthraSpaceCliAvailableForAgentSkillTerminal({
+      registrationPromptDelayMs: 700
+    })
     await vi.waitFor(() => {
       expect(toast.message).toHaveBeenCalledWith(CLI_PREREQUISITE_REGISTRATION_TOAST, {
         description: CLI_PREREQUISITE_REGISTRATION_TOAST_DESCRIPTION

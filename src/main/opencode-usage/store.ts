@@ -431,7 +431,7 @@ export class OpenCodeUsageStore {
   ): OpenCodeUsageDailyAggregate[] {
     const cutoff = getRangeCutoff(range)
     return this.state.dailyAggregates.filter((row) => {
-      if (scope === 'orca' && !row.worktreeId) {
+      if (scope === 'anthraspace' && !row.worktreeId) {
         return false
       }
       if (cutoff && row.day < cutoff) {
@@ -444,7 +444,7 @@ export class OpenCodeUsageStore {
   private getFilteredSessions(scope: OpenCodeUsageScope, range: OpenCodeUsageRange) {
     const cutoff = getRangeCutoff(range)
     return this.state.sessions.filter((session) => {
-      if (scope === 'orca' && !session.primaryWorktreeId) {
+      if (scope === 'anthraspace' && !session.primaryWorktreeId) {
         return false
       }
       if (cutoff) {

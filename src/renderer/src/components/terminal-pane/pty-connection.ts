@@ -905,6 +905,9 @@ export function connectPanePty(
   // and agentStatusByPaneKey. Treat it as opaque outside Orca.
   const paneEnv = {
     ...paneStartup?.env,
+    ...(paneStartup?.initialAgentStatus?.agent === 'anthraspace'
+      ? { ORCA_TUI_AGENT_TYPE: 'anthraspace' }
+      : {}),
     ORCA_PANE_KEY: cacheKey,
     ORCA_TAB_ID: deps.tabId,
     ORCA_WORKTREE_ID: deps.worktreeId

@@ -6,7 +6,7 @@ type Props = {
   color?: string
 }
 
-export function OrcaLogo({ size = 24, color = colors.textPrimary }: Props) {
+export function AnthraSpaceLogo({ size = 24, color = colors.textPrimary }: Props) {
   const aspectRatio = 318.6 / 202.67
   const width = size * aspectRatio
   return (

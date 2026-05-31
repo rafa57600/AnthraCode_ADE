@@ -44,8 +44,8 @@ let previousUserDataPath: string | undefined
 beforeEach(() => {
   tmpHome = mkdtempSync(join(tmpdir(), 'orca-codex-home-'))
   userDataDir = mkdtempSync(join(tmpdir(), 'orca-codex-user-data-'))
-  previousUserDataPath = process.env.ORCA_USER_DATA_PATH
-  process.env.ORCA_USER_DATA_PATH = userDataDir
+  previousUserDataPath = process.env.ANTHRASPACE_USER_DATA_PATH
+  process.env.ANTHRASPACE_USER_DATA_PATH = userDataDir
   homedirMock.mockReturnValue(tmpHome)
   getPathMock.mockImplementation((name: string) => {
     if (name === 'userData') {
@@ -59,9 +59,9 @@ afterEach(() => {
   rmSync(tmpHome, { recursive: true, force: true })
   rmSync(userDataDir, { recursive: true, force: true })
   if (previousUserDataPath === undefined) {
-    delete process.env.ORCA_USER_DATA_PATH
+    delete process.env.ANTHRASPACE_USER_DATA_PATH
   } else {
-    process.env.ORCA_USER_DATA_PATH = previousUserDataPath
+    process.env.ANTHRASPACE_USER_DATA_PATH = previousUserDataPath
   }
   vi.clearAllMocks()
 })
@@ -143,7 +143,7 @@ describe('CodexHookService', () => {
         }
         throw new Error(`unexpected app.getPath(${name})`)
       })
-      process.env.ORCA_USER_DATA_PATH = devUserDataDir
+      process.env.ANTHRASPACE_USER_DATA_PATH = devUserDataDir
       expect(new CodexHookService().install().state).toBe('installed')
 
       getPathMock.mockImplementation((name: string) => {
@@ -152,7 +152,7 @@ describe('CodexHookService', () => {
         }
         throw new Error(`unexpected app.getPath(${name})`)
       })
-      process.env.ORCA_USER_DATA_PATH = prodUserDataDir
+      process.env.ANTHRASPACE_USER_DATA_PATH = prodUserDataDir
       expect(new CodexHookService().install().state).toBe('installed')
 
       const devHooksPath = join(devUserDataDir, 'codex-runtime-home', 'home', 'hooks.json')
@@ -179,7 +179,7 @@ describe('CodexHookService', () => {
       ).toBe(true)
       expect(readFileSync(systemHooksPath, 'utf-8')).toBe(existingSystemHooks)
     } finally {
-      process.env.ORCA_USER_DATA_PATH = userDataDir
+      process.env.ANTHRASPACE_USER_DATA_PATH = userDataDir
       rmSync(devUserDataDir, { recursive: true, force: true })
       rmSync(prodUserDataDir, { recursive: true, force: true })
     }
@@ -726,7 +726,7 @@ describe('CodexHookService', () => {
   it('removes managed trust entries when userData resolves through a symlink', () => {
     const linkedUserDataDir = join(tmpHome, 'linked-user-data')
     symlinkSync(userDataDir, linkedUserDataDir, process.platform === 'win32' ? 'junction' : 'dir')
-    process.env.ORCA_USER_DATA_PATH = linkedUserDataDir
+    process.env.ANTHRASPACE_USER_DATA_PATH = linkedUserDataDir
 
     const service = new CodexHookService()
     expect(service.install().state).toBe('installed')

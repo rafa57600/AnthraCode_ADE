@@ -344,7 +344,10 @@ async function fetchViaPty(options?: FetchCodexRateLimitsOptions): Promise<Provi
         ...process.env,
         TERM: 'xterm-256color',
         ...(options?.codexHomePath ? { CODEX_HOME: options.codexHomePath } : {})
-      }
+      },
+      // Why: hidden Windows PTYs are killed on timeout; the bundled ConPTY DLL
+      // avoids node-pty's AttachConsole-based process-list helper crash.
+      ...(isWin32 ? { useConptyDll: true } : {})
     })
     const termDisposables: { dispose: () => void }[] = []
 
@@ -457,6 +460,18 @@ export async function fetchCodexRateLimits(
   }
 
   // Path B: PTY fallback
+  if (process.platform === 'win32') {
+    // Why: node-pty's hidden Windows ConPTY fallback can terminate the dev app
+    // with native heap errors; quota display is cosmetic, so keep startup safe.
+    return {
+      provider: 'codex',
+      session: null,
+      weekly: null,
+      updatedAt: Date.now(),
+      error: 'Codex usage PTY fallback is disabled on Windows.',
+      status: 'unavailable'
+    }
+  }
   try {
     return await fetchViaPty(options)
   } catch (err) {

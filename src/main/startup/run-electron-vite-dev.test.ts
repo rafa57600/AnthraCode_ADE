@@ -40,7 +40,7 @@ async function waitFor(predicate: () => boolean, timeoutMs = 5000): Promise<void
 function devWrapperTestEnv(extra: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const env = { ...process.env }
   for (const key of Object.keys(env)) {
-    if (key.startsWith('ORCA_DEV_')) {
+    if (key.startsWith('ANTHRASPACE_DEV_')) {
       delete env[key]
     }
   }
@@ -78,7 +78,7 @@ describe('run-electron-vite-dev', () => {
           ORCA_SKIP_DEV_CLI_PREPARE: '1',
           ORCA_SKIP_DEV_ELECTRON_APP_PREPARE: '1',
           ORCA_SKIP_DEV_WEB_PREPARE: '1',
-          ORCA_DEV_WRAPPER_TEST_PID_FILE: pidFile
+          ANTHRASPACE_DEV_WRAPPER_TEST_PID_FILE: pidFile
         }),
         stdio: 'ignore'
       })
@@ -129,10 +129,10 @@ describe('run-electron-vite-dev', () => {
         ORCA_SKIP_DEV_CLI_PREPARE: '1',
         ORCA_SKIP_DEV_ELECTRON_APP_PREPARE: '1',
         ORCA_SKIP_DEV_WEB_PREPARE: '1',
-        ORCA_DEV_WRAPPER_TEST_PID_FILE: pidFile,
-        ORCA_DEV_WRAPPER_TEST_ENV_FILE: envFile,
-        ORCA_DEV_BRANCH: 'feature/billing-shell',
-        ORCA_DEV_WORKTREE_NAME: 'payment-ui'
+        ANTHRASPACE_DEV_WRAPPER_TEST_PID_FILE: pidFile,
+        ANTHRASPACE_DEV_WRAPPER_TEST_ENV_FILE: envFile,
+        ANTHRASPACE_DEV_BRANCH: 'feature/billing-shell',
+        ANTHRASPACE_DEV_WORKTREE_NAME: 'payment-ui'
       }),
       stdio: 'ignore'
     })
@@ -193,10 +193,10 @@ describe('run-electron-vite-dev', () => {
           ORCA_ELECTRON_VITE_CLI: fakeCliPath,
           ORCA_SKIP_DEV_CLI_PREPARE: '1',
           ORCA_SKIP_DEV_WEB_PREPARE: '1',
-          ORCA_DEV_WRAPPER_TEST_PID_FILE: pidFile,
-          ORCA_DEV_WRAPPER_TEST_ENV_FILE: envFile,
-          ORCA_DEV_BRANCH: 'feature/stable-name',
-          ORCA_DEV_WORKTREE_NAME: 'stable-ui'
+          ANTHRASPACE_DEV_WRAPPER_TEST_PID_FILE: pidFile,
+          ANTHRASPACE_DEV_WRAPPER_TEST_ENV_FILE: envFile,
+          ANTHRASPACE_DEV_BRANCH: 'feature/stable-name',
+          ANTHRASPACE_DEV_WORKTREE_NAME: 'stable-ui'
         }),
         stdio: 'ignore'
       }
@@ -241,8 +241,8 @@ describe('run-electron-vite-dev', () => {
         ORCA_ELECTRON_VITE_CLI: fakeCliPath,
         ORCA_SKIP_DEV_CLI_PREPARE: '1',
         ORCA_SKIP_DEV_WEB_PREPARE: '1',
-        ORCA_DEV_BRANCH: 'feature/rebuild-electron-app',
-        ORCA_DEV_WORKTREE_NAME: 'electron-app-rebuild'
+        ANTHRASPACE_DEV_BRANCH: 'feature/rebuild-electron-app',
+        ANTHRASPACE_DEV_WORKTREE_NAME: 'electron-app-rebuild'
       })
 
       async function runWrapper(runId: string): Promise<{ electronExecPath: string }> {
@@ -252,8 +252,8 @@ describe('run-electron-vite-dev', () => {
           cwd: resolve('.'),
           env: {
             ...baseEnv,
-            ORCA_DEV_WRAPPER_TEST_PID_FILE: pidFile,
-            ORCA_DEV_WRAPPER_TEST_ENV_FILE: envFile
+            ANTHRASPACE_DEV_WRAPPER_TEST_PID_FILE: pidFile,
+            ANTHRASPACE_DEV_WRAPPER_TEST_ENV_FILE: envFile
           },
           stdio: 'ignore'
         })
@@ -327,10 +327,10 @@ describe('run-electron-vite-dev', () => {
           ORCA_ELECTRON_VITE_CLI: fakeCliPath,
           ORCA_SKIP_DEV_CLI_PREPARE: '1',
           ORCA_SKIP_DEV_WEB_PREPARE: '1',
-          ORCA_DEV_WRAPPER_TEST_PID_FILE: pidFile,
-          ORCA_DEV_WRAPPER_TEST_ENV_FILE: envFile,
-          ORCA_DEV_BRANCH: 'feature/framework-symlinks',
-          ORCA_DEV_WORKTREE_NAME: 'symlink-ui'
+          ANTHRASPACE_DEV_WRAPPER_TEST_PID_FILE: pidFile,
+          ANTHRASPACE_DEV_WRAPPER_TEST_ENV_FILE: envFile,
+          ANTHRASPACE_DEV_BRANCH: 'feature/framework-symlinks',
+          ANTHRASPACE_DEV_WORKTREE_NAME: 'symlink-ui'
         }),
         stdio: 'ignore'
       })

@@ -3,13 +3,13 @@ import { Import, Loader2, MousePointerClick } from 'lucide-react'
 import { toast } from 'sonner'
 import type { CliInstallStatus } from '../../../../shared/cli-install-types'
 import {
-  ORCA_CLI_SKILL_INSTALL_COMMAND,
-  ORCA_CLI_SKILL_NAME
+  ANTHRASPACE_CLI_SKILL_INSTALL_COMMAND,
+  ANTHRASPACE_CLI_SKILL_NAME
 } from '@/lib/agent-feature-install-commands'
 import {
   AGENT_SKILL_CLI_PREREQUISITE_NOTICE,
-  ensureOrcaCliAvailableForAgentSkillTerminal,
-  isOrcaCliAvailableOnPath
+  ensureAnthraSpaceCliAvailableForAgentSkillTerminal,
+  isAnthraSpaceCliAvailableOnPath
 } from '@/lib/agent-skill-cli-prerequisite'
 import { BROWSER_USE_ENABLED_STORAGE_KEY } from '@/lib/browser-use-setup-state'
 import {
@@ -99,7 +99,7 @@ export function BrowserUseSetup({
   // when the default profile — the one agents use — is still empty.
   const cookiesImported = !!defaultProfile?.source
 
-  const cliEnabled = isOrcaCliAvailableOnPath(cliStatus)
+  const cliEnabled = isAnthraSpaceCliAvailableOnPath(cliStatus)
   const cliPathNeedsAttention = cliStatus?.state === 'installed' && !cliStatus.pathConfigured
   const cliSupported = cliStatus?.supported ?? false
 
@@ -108,7 +108,7 @@ export function BrowserUseSetup({
     loading: skillLoading,
     error: skillError,
     refresh: refreshSkill
-  } = useInstalledAgentSkill(ORCA_CLI_SKILL_NAME, {
+  } = useInstalledAgentSkill(ANTHRASPACE_CLI_SKILL_NAME, {
     enabled: browserUseEnabled,
     sourceKinds: GLOBAL_AGENT_SKILL_SOURCE_KINDS
   })
@@ -116,11 +116,11 @@ export function BrowserUseSetup({
   const handleEnableCli = async (): Promise<void> => {
     setCliBusy(true)
     try {
-      const next = await ensureOrcaCliAvailableForAgentSkillTerminal({
+      const next = await ensureAnthraSpaceCliAvailableForAgentSkillTerminal({
         onStatusChange: setCliStatus
       })
-      if (isOrcaCliAvailableOnPath(next)) {
-        toast.success('Registered `orca` in PATH.')
+      if (isAnthraSpaceCliAvailableOnPath(next)) {
+        toast.success('Registered `anthraspace` in PATH.')
       }
     } finally {
       setCliBusy(false)
@@ -249,8 +249,8 @@ export function BrowserUseSetup({
 
       {showStep1 ? (
         <SearchableSetting
-          title="Enable Orca CLI"
-          description="Register the orca shell command so agents can drive the browser."
+          title="Enable AnthraSpace CLI"
+          description="Register the anthraspace shell command so agents can drive the browser."
           keywords={BROWSER_USE_PANE_SEARCH_ENTRIES[0].keywords}
           className="rounded-xl border border-border/60 bg-card/50 p-4"
         >
@@ -260,9 +260,10 @@ export function BrowserUseSetup({
               state={cliEnabled ? 'done' : cliBusy ? 'in-progress' : 'pending'}
             />
             <div className="min-w-0 flex-1 space-y-1">
-              <p className="text-sm font-medium">Enable Orca CLI</p>
+              <p className="text-sm font-medium">Enable AnthraSpace CLI</p>
               <p className="text-xs text-muted-foreground">
-                Registers the <code className="rounded bg-muted px-1 py-0.5 text-[11px]">orca</code>{' '}
+                Registers the{' '}
+                <code className="rounded bg-muted px-1 py-0.5 text-[11px]">anthraspace</code>{' '}
                 command so agents can orchestrate the browser from their shell.
               </p>
               {cliStatus?.commandPath && cliEnabled ? (
@@ -309,21 +310,23 @@ export function BrowserUseSetup({
       {showStep2 ? (
         <SearchableSetting
           title="Install Browser Use Skill"
-          description="Install the Browser Use skill so agents can operate Orca's browser."
+          description="Install the Browser Use skill so agents can operate AnthraSpace's browser."
           keywords={BROWSER_USE_PANE_SEARCH_ENTRIES[1].keywords}
           className={`rounded-xl border border-border/60 bg-card/50 p-4 ${
             cliEnabled ? '' : 'opacity-60'
           }`}
         >
           <BrowserUseSkillStep
-            command={ORCA_CLI_SKILL_INSTALL_COMMAND}
+            command={ANTHRASPACE_CLI_SKILL_INSTALL_COMMAND}
             skillDetected={skillDetected}
             skillLoading={skillLoading}
             skillError={skillError}
             disabled={!cliEnabled}
             preInstallNotice={AGENT_SKILL_CLI_PREREQUISITE_NOTICE}
             onBeforeOpenTerminal={async () => {
-              await ensureOrcaCliAvailableForAgentSkillTerminal({ onStatusChange: setCliStatus })
+              await ensureAnthraSpaceCliAvailableForAgentSkillTerminal({
+                onStatusChange: setCliStatus
+              })
             }}
             onRecheck={refreshSkill}
           />
@@ -347,7 +350,7 @@ export function BrowserUseSetup({
             <div className="min-w-0 flex-1 space-y-1">
               <p className="text-sm font-medium">Import Browser Cookies</p>
               <p className="text-xs text-muted-foreground">
-                Bring your existing logins into Orca so agents can reach authenticated pages.
+                Bring your existing logins into AnthraSpace so agents can reach authenticated pages.
                 Imports into the default profile.
               </p>
               {sourceLabel ? (

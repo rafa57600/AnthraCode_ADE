@@ -12,8 +12,8 @@ import {
 import { PASTE_TERMINAL_TEXT_EVENT } from '@/constants/terminal'
 import {
   AGENT_SKILL_CLI_PREREQUISITE_NOTICE,
-  ensureOrcaCliAvailableForAgentSkillTerminal,
-  isOrcaCliAvailableOnPath
+  ensureAnthraSpaceCliAvailableForAgentSkillTerminal,
+  isAnthraSpaceCliAvailableOnPath
 } from '@/lib/agent-skill-cli-prerequisite'
 import { ORCHESTRATION_SKILL_INSTALL_COMMAND } from '@/lib/orchestration-install-command'
 import {
@@ -58,7 +58,7 @@ export function FloatingTerminalOrchestrationDialog({
     }
   }, [open, refreshCliStatus])
 
-  const cliInstalled = isOrcaCliAvailableOnPath(cliStatus)
+  const cliInstalled = isAnthraSpaceCliAvailableOnPath(cliStatus)
   const cliSupported = cliStatus?.supported ?? false
   const cliLabel = cliInstalled
     ? 'orca is on PATH'
@@ -69,14 +69,14 @@ export function FloatingTerminalOrchestrationDialog({
   const handleInstallCli = async (): Promise<void> => {
     setCliBusy(true)
     try {
-      const next = await ensureOrcaCliAvailableForAgentSkillTerminal({
+      const next = await ensureAnthraSpaceCliAvailableForAgentSkillTerminal({
         onStatusChange: setCliStatus
       })
       if (next) {
         notifyOrchestrationSetupStateChanged()
         onSetupStateChange()
       }
-      if (isOrcaCliAvailableOnPath(next)) {
+      if (isAnthraSpaceCliAvailableOnPath(next)) {
         toast.success('Registered `orca` in PATH.')
       }
     } finally {
@@ -87,7 +87,7 @@ export function FloatingTerminalOrchestrationDialog({
   const handlePasteSkillCommand = async (): Promise<void> => {
     setSkillBusy(true)
     try {
-      const nextCliStatus = await ensureOrcaCliAvailableForAgentSkillTerminal({
+      const nextCliStatus = await ensureAnthraSpaceCliAvailableForAgentSkillTerminal({
         onStatusChange: setCliStatus
       })
       localStorage.setItem(ORCHESTRATION_ENABLED_STORAGE_KEY, '1')
@@ -108,7 +108,7 @@ export function FloatingTerminalOrchestrationDialog({
         toast.success('Copied the skill install command.')
       }
       onSetupStateChange()
-      if (isOrcaCliAvailableOnPath(nextCliStatus ?? cliStatus)) {
+      if (isAnthraSpaceCliAvailableOnPath(nextCliStatus ?? cliStatus)) {
         onOpenChange(false)
       }
     } catch (error) {

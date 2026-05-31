@@ -6,7 +6,7 @@ function makeRepo(overrides: Partial<Repo> = {}): Repo {
   return {
     id: 'repo-1',
     path: '/Users/test/src/orca',
-    displayName: 'stablyai/orca',
+    displayName: 'rafa57600/AnthraSpace',
     badgeColor: '#22c55e',
     addedAt: 0,
     ...overrides
@@ -34,7 +34,7 @@ describe('repo-search', () => {
 
   it('matches display names case-insensitively', () => {
     const repos = [
-      makeRepo({ id: '1', displayName: 'stablyai/orca', path: '/repos/orca' }),
+      makeRepo({ id: '1', displayName: 'rafa57600/AnthraSpace', path: '/repos/orca' }),
       makeRepo({ id: '2', displayName: 'stablyai/noqa', path: '/repos/noqa' })
     ]
 

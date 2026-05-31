@@ -76,12 +76,12 @@ export function AppearancePane({
         {matchesSettingsSearch(searchQuery, THEME_ENTRIES) ? (
           <SearchableSetting
             title="Theme"
-            description="Choose how Orca looks in the app window."
+            description="Choose how AnthraSpace looks in the app window."
             keywords={['dark', 'light', 'system']}
           >
             <SettingsRow
               label="Theme"
-              description="Choose how Orca looks in the app window."
+              description="Choose how AnthraSpace looks in the app window."
               control={
                 <SettingsSegmentedControl
                   ariaLabel="Theme"
@@ -124,13 +124,22 @@ export function AppearancePane({
         {matchesSettingsSearch(searchQuery, TYPOGRAPHY_ENTRIES) ? (
           <SearchableSetting
             title="IDE Font"
-            description="Choose the font used by the Orca interface."
-            keywords={['font', 'typeface', 'typography', 'ide', 'orca', 'interface', 'app', 'ui']}
+            description="Choose the font used by the AnthraSpace interface."
+            keywords={[
+              'font',
+              'typeface',
+              'typography',
+              'ide',
+              'anthraspace',
+              'interface',
+              'app',
+              'ui'
+            ]}
           >
             <SettingsRow
               alignTop
               label="IDE Font"
-              description="Choose the font used by the Orca interface."
+              description="Choose the font used by the AnthraSpace interface."
               control={
                 <FontAutocomplete
                   value={settings.appFontFamily}
@@ -178,12 +187,12 @@ export function AppearancePane({
         <div className="divide-y divide-border/40">
           <SearchableSetting
             title="Titlebar App Name"
-            description="Show Orca in the titlebar."
-            keywords={['titlebar', 'orca', 'app', 'name', 'brand']}
+            description="Show AnthraSpace in the titlebar."
+            keywords={['titlebar', 'anthraspace', 'app', 'name', 'brand']}
           >
             <SettingsSwitchRow
               label="Titlebar App Name"
-              description="Show Orca in the titlebar."
+              description="Show AnthraSpace in the titlebar."
               checked={settings.showTitlebarAppName}
               onChange={() =>
                 updateSettings({ showTitlebarAppName: !settings.showTitlebarAppName })
@@ -242,13 +251,13 @@ export function AppearancePane({
           </SearchableSetting>
 
           <SearchableSetting
-            title="Show Orca Mobile Button"
-            description="Show the Orca Mobile button at the top of the left sidebar."
+            title="Show AnthraSpace Mobile Button"
+            description="Show the AnthraSpace Mobile button at the top of the left sidebar."
             keywords={['mobile', 'phone', 'sidebar', 'button', 'hide', 'show', 'toolbox']}
           >
             <SettingsSwitchRow
-              label="Show Orca Mobile Button"
-              description="Show the Orca Mobile shortcut in the sidebar. It remains available from Toolbox."
+              label="Show AnthraSpace Mobile Button"
+              description="Show the AnthraSpace Mobile shortcut in the sidebar. It remains available from Toolbox."
               checked={settings.showMobileButton !== false}
               onChange={() =>
                 updateSettings({ showMobileButton: !(settings.showMobileButton !== false) })

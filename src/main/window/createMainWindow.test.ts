@@ -804,7 +804,7 @@ describe('createMainWindow', () => {
 
     createMainWindow({
       getUI: () => ({}),
-      getSettings: () => ({ terminalShortcutPolicy: 'orca-first' })
+      getSettings: () => ({ terminalShortcutPolicy: 'anthraspace-first' })
     } as never)
 
     const setFocusedListener = vi

@@ -14,7 +14,7 @@ import { RepoStep } from './RepoStep'
 import { OnboardingTourStep } from './OnboardingTourStep'
 import { STEPS, useOnboardingFlow } from './use-onboarding-flow'
 import { OnboardingSkipConfirmationDialog } from './OnboardingSkipConfirmationDialog'
-import logo from '../../../../../resources/logo.svg'
+import logo from '../../../../../resources/anthracode_logo.svg'
 
 const stepCopy = {
   agent: {
@@ -259,7 +259,7 @@ export default function OnboardingFlow({
             <div className="mt-8 shrink-0">
               {stepIndex === 0 && (
                 <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
-                  Welcome to Orca
+                  Welcome to AnthraSpace
                 </div>
               )}
               <h1 className="text-[34px] font-semibold leading-[1.15] tracking-tight text-foreground">

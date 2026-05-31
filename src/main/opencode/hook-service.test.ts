@@ -71,8 +71,16 @@ describe('OpenCode hook plugin source', () => {
     )
     // post() uses the resolved coords, not a cached-at-startup url:
     expect(source).toContain('const coords = resolveHookCoords();')
-    expect(source).toContain('`http://127.0.0.1:${coords.port}/hook/opencode`')
+    expect(source).toContain('function getHookSource()')
+    expect(source).toContain('`http://127.0.0.1:${coords.port}/hook/${getHookSource()}`')
     expect(source).toContain('"X-Orca-Agent-Hook-Token": coords.token')
+  })
+
+  it('routes AnthraCode launches to AnthraCode hook attribution', () => {
+    const source = _internals.getOpenCodePluginSource()
+
+    expect(source).toContain('process.env.ORCA_TUI_AGENT_TYPE === "anthracode"')
+    expect(source).toContain('? "anthracode" : "opencode"')
   })
 
   it('caches the parsed endpoint file on mtime+size+inode to skip re-reads per post', () => {

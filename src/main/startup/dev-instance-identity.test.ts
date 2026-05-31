@@ -8,15 +8,15 @@ describe('dev-instance-identity', () => {
       isDev: false,
       devLabel: null,
       dockBadgeLabel: null,
-      appUserModelId: 'com.stablyai.orca'
+      appUserModelId: 'space.anthracode.anthraspace'
     })
   })
 
   it('derives a readable dev label from worktree and branch env', () => {
     const identity = getDevInstanceIdentity(true, {
-      ORCA_DEV_REPO_ROOT: '/repo/worktrees/dev-indicator',
-      ORCA_DEV_WORKTREE_NAME: 'dev-indicator',
-      ORCA_DEV_BRANCH: 'nwparker/dev-indicator'
+      ANTHRASPACE_DEV_REPO_ROOT: '/repo/worktrees/dev-indicator',
+      ANTHRASPACE_DEV_WORKTREE_NAME: 'dev-indicator',
+      ANTHRASPACE_DEV_BRANCH: 'nwparker/dev-indicator'
     })
 
     expect(identity).toMatchObject({
@@ -33,9 +33,9 @@ describe('dev-instance-identity', () => {
 
   it('includes the branch when it differs from the worktree basename', () => {
     const identity = getDevInstanceIdentity(true, {
-      ORCA_DEV_REPO_ROOT: '/repo/worktrees/payment-ui',
-      ORCA_DEV_WORKTREE_NAME: 'payment-ui',
-      ORCA_DEV_BRANCH: 'feature/billing-shell'
+      ANTHRASPACE_DEV_REPO_ROOT: '/repo/worktrees/payment-ui',
+      ANTHRASPACE_DEV_WORKTREE_NAME: 'payment-ui',
+      ANTHRASPACE_DEV_BRANCH: 'feature/billing-shell'
     })
 
     expect(identity.devLabel).toBe('payment-ui @ feature/billing-shell')
@@ -45,9 +45,9 @@ describe('dev-instance-identity', () => {
 
   it('allows an explicit label override', () => {
     const identity = getDevInstanceIdentity(true, {
-      ORCA_DEV_INSTANCE_LABEL: 'manual label',
-      ORCA_DEV_WORKTREE_NAME: 'dev-indicator',
-      ORCA_DEV_BRANCH: 'feature/other'
+      ANTHRASPACE_DEV_INSTANCE_LABEL: 'manual label',
+      ANTHRASPACE_DEV_WORKTREE_NAME: 'dev-indicator',
+      ANTHRASPACE_DEV_BRANCH: 'feature/other'
     })
 
     expect(identity.devLabel).toBe('manual label')

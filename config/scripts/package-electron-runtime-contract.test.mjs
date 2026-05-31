@@ -49,7 +49,7 @@ describe('Electron runtime package contract', () => {
       expect(command).toContain('electron-builder')
       expect(command.indexOf('ensure-native-runtime')).toBeLessThan(command.indexOf('electron-builder'))
     }
-    expect(releaseCommands.get('mac')).toContain(' && ORCA_MAC_RELEASE=1 ')
+    expect(releaseCommands.get('mac')).toContain(' && ANTHRASPACE_MAC_RELEASE=1 ')
     expect(releaseCommands.get('linux')).toContain(' && pnpm exec electron-builder ')
     expect(releaseCommands.get('win')).toContain(
       '; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; pnpm exec electron-builder '

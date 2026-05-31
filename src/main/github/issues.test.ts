@@ -53,14 +53,14 @@ describe('issue source operations', () => {
         number: 923,
         title: 'Use upstream issues',
         state: 'open',
-        html_url: 'https://github.com/stablyai/orca/issues/923',
+        html_url: 'https://github.com/rafa57600/AnthraSpace/issues/923',
         labels: []
       })
     })
 
     await expect(getIssue('/repo-root', 923)).resolves.toMatchObject({ number: 923 })
     expect(ghExecFileAsyncMock).toHaveBeenCalledWith(
-      ['api', '--cache', '300s', 'repos/stablyai/orca/issues/923'],
+      ['api', '--cache', '300s', 'repos/rafa57600/AnthraSpace/issues/923'],
       { cwd: '/repo-root' }
     )
   })
@@ -76,7 +76,7 @@ describe('issue source operations', () => {
         'api',
         '--cache',
         '120s',
-        'repos/stablyai/orca/issues?per_page=5&state=open&sort=updated&direction=desc'
+        'repos/rafa57600/AnthraSpace/issues?per_page=5&state=open&sort=updated&direction=desc'
       ],
       { cwd: '/repo-root' }
     )
@@ -102,21 +102,21 @@ describe('issue source operations', () => {
     ghExecFileAsyncMock.mockResolvedValueOnce({
       stdout: JSON.stringify({
         number: 924,
-        html_url: 'https://github.com/stablyai/orca/issues/924'
+        html_url: 'https://github.com/rafa57600/AnthraSpace/issues/924'
       })
     })
 
     await expect(createIssue('/repo-root', 'New issue', 'Body')).resolves.toEqual({
       ok: true,
       number: 924,
-      url: 'https://github.com/stablyai/orca/issues/924'
+      url: 'https://github.com/rafa57600/AnthraSpace/issues/924'
     })
     expect(ghExecFileAsyncMock).toHaveBeenCalledWith(
       [
         'api',
         '-X',
         'POST',
-        'repos/stablyai/orca/issues',
+        'repos/rafa57600/AnthraSpace/issues',
         '--raw-field',
         'title=New issue',
         '--raw-field',
@@ -134,7 +134,14 @@ describe('issue source operations', () => {
       ok: true
     })
     expect(ghExecFileAsyncMock).toHaveBeenCalledWith(
-      ['api', '-X', 'PATCH', 'repos/stablyai/orca/issues/924', '--raw-field', 'body=Updated body'],
+      [
+        'api',
+        '-X',
+        'PATCH',
+        'repos/rafa57600/AnthraSpace/issues/924',
+        '--raw-field',
+        'body=Updated body'
+      ],
       { cwd: '/repo-root' }
     )
   })

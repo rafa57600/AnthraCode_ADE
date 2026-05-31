@@ -1,6 +1,7 @@
 import React from 'react'
 import { ClaudeIcon, DroidIcon, OpenAIIcon } from '@/components/status-bar/icons'
 import type { TuiAgent } from '../../../shared/types'
+import { AnthraSpaceIcon } from './anthraspace-provider-icon'
 
 export type AgentCatalogEntry = {
   id: TuiAgent
@@ -16,6 +17,12 @@ export type AgentCatalogEntry = {
 // Full catalog of supported agents — ordered by priority for auto-default selection.
 // homepageUrl matches the href used in the README agent badge list.
 export const AGENT_CATALOG: AgentCatalogEntry[] = [
+  {
+    id: 'anthraspace',
+    label: 'AnthraSpace',
+    cmd: 'anthracode',
+    homepageUrl: 'https://github.com/rafa57600/AnthraSpace'
+  },
   {
     id: 'claude',
     label: 'Claude',
@@ -383,6 +390,9 @@ export function AgentIcon({
   }
   if (agent === 'claude') {
     return <ClaudeIcon size={size} />
+  }
+  if (agent === 'anthraspace') {
+    return <AnthraSpaceIcon size={size} />
   }
   if (agent === 'codex') {
     return <OpenAIIcon size={size} />

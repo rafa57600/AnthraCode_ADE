@@ -80,7 +80,7 @@ describe('resolveConsent', () => {
     })
   })
 
-  it('returns orca_disabled when ORCA_TELEMETRY_DISABLED=1', () => {
+  it('returns anthraspace_disabled when ORCA_TELEMETRY_DISABLED=1', () => {
     process.env.ORCA_TELEMETRY_DISABLED = '1'
     expect(
       resolveConsent(
@@ -92,11 +92,11 @@ describe('resolveConsent', () => {
       )
     ).toEqual({
       effective: 'disabled',
-      reason: 'orca_disabled'
+      reason: 'anthraspace_disabled'
     })
   })
 
-  it('prefers do_not_track over orca_disabled when both are set', () => {
+  it('prefers do_not_track over anthraspace_disabled when both are set', () => {
     process.env.DO_NOT_TRACK = '1'
     process.env.ORCA_TELEMETRY_DISABLED = '1'
     expect(
@@ -263,6 +263,6 @@ describe('resolveConsent', () => {
           existedBeforeTelemetryRelease: true
         })
       )
-    ).toEqual({ effective: 'disabled', reason: 'orca_disabled' })
+    ).toEqual({ effective: 'disabled', reason: 'anthraspace_disabled' })
   })
 })

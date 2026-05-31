@@ -1,12 +1,12 @@
 {
-  "name": "orca",
-  "version": "1.4.31-rc.2",
-  "description": "Next-gen IDE for parallel agentic development",
-  "homepage": "https://github.com/stablyai/orca",
-  "author": "stablyai",
+  "name": "anthraspace",
+  "version": "1.0.0-anthraspace.1",
+  "description": "AnthraSpace IDE — AnthraCode Development Environment",
+  "homepage": "https://github.com/rafa57600/AnthraSpace",
+  "author": "AnthraCode <288609694+anthracode@users.noreply.github.com>",
   "bin": {
-    "orca": "./out/cli/index.js",
-    "orca-dev": "./config/scripts/orca-dev"
+    "anthraspace": "./out/cli/index.js",
+    "anthraspace-dev": "./config/scripts/anthraspace-dev"
   },
   "main": "./out/main/index.js",
   "scripts": {
@@ -51,7 +51,7 @@
     "build:win": "pnpm run build && pnpm run ensure:electron-runtime && electron-builder --config config/electron-builder.config.cjs --win",
     "build:icons": "bash resources/icon-source/generate.sh",
     "build:mac": "pnpm run build && pnpm run ensure:electron-runtime && electron-builder --config config/electron-builder.config.cjs --mac",
-    "build:mac:release": "node config/scripts/verify-macos-release-env.mjs && ORCA_MAC_RELEASE=1 pnpm run build && pnpm run ensure:electron-runtime && ORCA_MAC_RELEASE=1 electron-builder --config config/electron-builder.config.cjs --mac",
+    "build:mac:release": "node config/scripts/verify-macos-release-env.mjs && ANTHRASPACE_MAC_RELEASE=1 pnpm run build && pnpm run ensure:electron-runtime && ANTHRASPACE_MAC_RELEASE=1 electron-builder --config config/electron-builder.config.cjs --mac",
     "build:linux": "pnpm run build && pnpm run ensure:electron-runtime && electron-builder --config config/electron-builder.config.cjs --linux",
     "test:e2e": "pnpm run ensure:electron-runtime && npx playwright test --config tests/playwright.config.ts --project electron-headless",
     "test:e2e:headful": "pnpm run ensure:electron-runtime && npx playwright test --config tests/playwright.config.ts --project electron-headful",

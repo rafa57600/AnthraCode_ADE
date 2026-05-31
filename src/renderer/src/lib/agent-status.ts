@@ -110,6 +110,7 @@ export function getWorkingAgentsPerWorktree({
 }
 
 const WELL_KNOWN_LABELS: Record<string, string> = {
+  anthraspace: 'AnthraSpace',
   claude: 'Claude',
   codex: 'Codex',
   gemini: 'Gemini',
@@ -148,6 +149,7 @@ export function formatAgentTypeLabel(agentType: AgentType | null | undefined): s
 // without being added here — a Set<TuiAgent> is structurally permissive and
 // would silently accept a subset of the union.
 const ICONABLE_AGENT_TYPES: Record<TuiAgent, true> = {
+  anthraspace: true,
   claude: true,
   codex: true,
   autohand: true,

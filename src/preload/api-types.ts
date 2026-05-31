@@ -478,8 +478,8 @@ export type DiagnosticsStatusPayload = {
   readonly traceFamilySize: number
   readonly disabledReason?:
     | 'do_not_track'
-    | 'orca_telemetry_disabled'
-    | 'orca_diagnostics_disabled'
+    | 'anthraspace_telemetry_disabled'
+    | 'anthraspace_diagnostics_disabled'
     | 'ci'
 }
 export type DiagnosticsBundlePayload = {

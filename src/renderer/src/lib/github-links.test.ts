@@ -9,7 +9,7 @@ import {
 describe('buildGitHubRepoUrl', () => {
   it('builds a GitHub repository URL from an owner/repo slug', () => {
     expect(buildGitHubRepoUrl({ owner: 'stablyai', repo: 'orca' })).toBe(
-      'https://github.com/stablyai/orca'
+      'https://github.com/rafa57600/AnthraSpace'
     )
   })
 
@@ -24,8 +24,12 @@ describe('parseGitHubIssueOrPRNumber', () => {
   it('parses plain issue numbers and GitHub pull request URLs', () => {
     expect(parseGitHubIssueOrPRNumber('42')).toBe(42)
     expect(parseGitHubIssueOrPRNumber('#42')).toBe(42)
-    expect(parseGitHubIssueOrPRNumber('https://github.com/stablyai/orca/pull/123')).toBe(123)
-    expect(parseGitHubIssueOrPRNumber('https://github.com/stablyai/orca/issues/923')).toBe(923)
+    expect(parseGitHubIssueOrPRNumber('https://github.com/rafa57600/AnthraSpace/pull/123')).toBe(
+      123
+    )
+    expect(parseGitHubIssueOrPRNumber('https://github.com/rafa57600/AnthraSpace/issues/923')).toBe(
+      923
+    )
   })
 
   it('parses GitHub item URLs with trailing page segments', () => {
@@ -47,9 +51,11 @@ describe('parseGitHubIssueOrPRNumber', () => {
   })
 
   it('rejects invalid GitHub item URLs', () => {
-    expect(parseGitHubIssueOrPRNumber('https://example.com/stablyai/orca/pull/123')).toBeNull()
     expect(
-      parseGitHubIssueOrPRNumber('https://github.example.com/stablyai/orca/pull/123')
+      parseGitHubIssueOrPRNumber('https://example.com/rafa57600/AnthraSpace/pull/123')
+    ).toBeNull()
+    expect(
+      parseGitHubIssueOrPRNumber('https://github.example.com/rafa57600/AnthraSpace/pull/123')
     ).toBeNull()
     expect(
       parseGitHubIssueOrPRNumber('https://github.com/o/r/pull/not-a-number/changes')
@@ -62,16 +68,18 @@ describe('parseGitHubIssueOrPRNumber', () => {
 
 describe('parseGitHubIssueOrPRLink', () => {
   it('parses slug, number, and type for direct item URLs', () => {
-    expect(parseGitHubIssueOrPRLink('https://github.com/stablyai/orca/pull/123')).toEqual({
+    expect(parseGitHubIssueOrPRLink('https://github.com/rafa57600/AnthraSpace/pull/123')).toEqual({
       slug: { owner: 'stablyai', repo: 'orca' },
       number: 123,
       type: 'pr'
     })
-    expect(parseGitHubIssueOrPRLink('https://github.com/stablyai/orca/issues/923')).toEqual({
-      slug: { owner: 'stablyai', repo: 'orca' },
-      number: 923,
-      type: 'issue'
-    })
+    expect(parseGitHubIssueOrPRLink('https://github.com/rafa57600/AnthraSpace/issues/923')).toEqual(
+      {
+        slug: { owner: 'stablyai', repo: 'orca' },
+        number: 923,
+        type: 'issue'
+      }
+    )
   })
 
   it('derives item type from the route segment when trailing segments are present', () => {
@@ -113,9 +121,11 @@ describe('parseGitHubIssueOrPRLink', () => {
 
 describe('normalizeGitHubLinkQuery', () => {
   it('accepts full GitHub URLs whose slug differs from the selected repo slug', () => {
-    expect(normalizeGitHubLinkQuery('https://github.com/stablyai/orca/issues/923')).toEqual({
-      query: 'https://github.com/stablyai/orca/issues/923',
-      directNumber: 923
-    })
+    expect(normalizeGitHubLinkQuery('https://github.com/rafa57600/AnthraSpace/issues/923')).toEqual(
+      {
+        query: 'https://github.com/rafa57600/AnthraSpace/issues/923',
+        directNumber: 923
+      }
+    )
   })
 })

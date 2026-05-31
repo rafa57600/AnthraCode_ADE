@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { ORCA_BROWSER_BLANK_URL } from '../../../../shared/constants'
+import { ANTHRASPACE_BROWSER_BLANK_URL } from '../../../../shared/constants'
 import { redactKagiSessionToken } from '../../../../shared/browser-url'
 import type { BrowserTab as BrowserTabState } from '../../../../shared/types'
 import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from './SortableTab'
@@ -22,7 +22,7 @@ import {
 import { preventMiddleButtonDefault } from './middle-button-default-guard'
 
 function formatBrowserTabUrlLabel(url: string): string {
-  if (url === ORCA_BROWSER_BLANK_URL || url === 'about:blank') {
+  if (url === ANTHRASPACE_BROWSER_BLANK_URL || url === 'about:blank') {
     return 'New Tab'
   }
   try {
@@ -37,7 +37,7 @@ export function getBrowserTabLabel(tab: BrowserTabState): string {
   if (
     !tab.title ||
     tab.title === tab.url ||
-    tab.title === ORCA_BROWSER_BLANK_URL ||
+    tab.title === ANTHRASPACE_BROWSER_BLANK_URL ||
     tab.title === 'about:blank'
   ) {
     return formatBrowserTabUrlLabel(tab.url)
@@ -46,7 +46,7 @@ export function getBrowserTabLabel(tab: BrowserTabState): string {
 }
 
 function isBlankBrowserTab(tab: BrowserTabState): boolean {
-  return tab.url === ORCA_BROWSER_BLANK_URL || tab.url === 'about:blank'
+  return tab.url === ANTHRASPACE_BROWSER_BLANK_URL || tab.url === 'about:blank'
 }
 
 export default function BrowserTab({

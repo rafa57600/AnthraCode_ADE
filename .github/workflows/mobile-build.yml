@@ -53,7 +53,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: orca-mobile-apk
+          name: anthraspace-mobile-apk
           path: mobile/android/app/build/outputs/apk/release/*.apk
 
       - name: Create GitHub Release
@@ -64,7 +64,7 @@ jobs:
           tag="${GITHUB_REF#refs/tags/}"
           gh release create "$tag" \
             --repo "$GITHUB_REPOSITORY" \
-            --title "Orca Mobile $tag" \
+            --title "AnthraSpace Mobile $tag" \
             --prerelease \
             --latest=false \
             --generate-notes \

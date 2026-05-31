@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select'
 import { sendNotificationSettingsTestNotification } from '@/components/settings/NotificationsPane'
 import { getNotificationSoundOptions } from '@/components/notification-sound-options'
-import logo from '../../../../../resources/logo.svg'
+import logo from '../../../../../resources/anthracode_logo.svg'
 
 export type NotificationDraft = {
   agentTaskComplete: boolean

@@ -19,7 +19,7 @@ import {
 } from '@/lib/agent-feature-install-commands'
 import {
   AGENT_SKILL_CLI_PREREQUISITE_NOTICE,
-  ensureOrcaCliAvailableForAgentSkillTerminal
+  ensureAnthraSpaceCliAvailableForAgentSkillTerminal
 } from '@/lib/agent-skill-cli-prerequisite'
 import {
   GLOBAL_AGENT_SKILL_SOURCE_KINDS,
@@ -110,7 +110,7 @@ export function ComputerUsePane(): React.JSX.Element {
         ? 'Computer Use is ready.'
         : 'Finish setup to use local apps.'
   const summaryDescription = checking
-    ? 'Orca is checking macOS privacy permissions for the Computer Use helper.'
+    ? 'AnthraSpace is checking macOS privacy permissions for the Computer Use helper.'
     : setupUnavailable
       ? `Computer Use permissions are unavailable because ${helperUnavailableReason}.`
       : allGranted
@@ -324,7 +324,7 @@ export function ComputerUsePane(): React.JSX.Element {
         icon={<MonitorCog className="size-5" />}
         preInstallNotice={AGENT_SKILL_CLI_PREREQUISITE_NOTICE}
         onBeforeOpenTerminal={async () => {
-          await ensureOrcaCliAvailableForAgentSkillTerminal()
+          await ensureAnthraSpaceCliAvailableForAgentSkillTerminal()
         }}
         onRecheck={refreshComputerUseSkill}
       />

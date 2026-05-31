@@ -59,9 +59,11 @@ export function WslCliRegistration({
       const next = await window.api.cli.installWsl()
       setStatus(next)
       setDialogOpen(false)
-      toast.success('Registered `orca` in WSL.')
+      toast.success('Registered `anthraspace` in WSL.')
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to register `orca` in WSL.')
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to register `anthraspace` in WSL.'
+      )
     } finally {
       setBusyAction(null)
     }
@@ -73,9 +75,11 @@ export function WslCliRegistration({
       const next = await window.api.cli.removeWsl()
       setStatus(next)
       setDialogOpen(false)
-      toast.success('Removed `orca` from WSL.')
+      toast.success('Removed `anthraspace` from WSL.')
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to remove `orca` from WSL.')
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to remove `anthraspace` from WSL.'
+      )
     } finally {
       setBusyAction(null)
     }
@@ -90,7 +94,7 @@ export function WslCliRegistration({
             <p className="text-xs text-muted-foreground">
               {loading
                 ? 'Checking WSL CLI registration...'
-                : (status?.detail ?? 'Register `orca` in ~/.local/bin inside WSL.')}
+                : (status?.detail ?? 'Register `anthraspace` in ~/.local/bin inside WSL.')}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -148,12 +152,12 @@ export function WslCliRegistration({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {isEnabled ? 'Remove `orca` from WSL?' : 'Register `orca` in WSL?'}
+              {isEnabled ? 'Remove `anthraspace` from WSL?' : 'Register `anthraspace` in WSL?'}
             </DialogTitle>
             <DialogDescription>
               {isEnabled
-                ? 'This removes the WSL shell command. Orca itself remains installed on Windows.'
-                : `Orca will register ${status?.commandPath ?? '`orca`'} so the command works from WSL terminals.`}
+                ? 'This removes the WSL shell command. AnthraSpace itself remains installed on Windows.'
+                : `AnthraSpace will register ${status?.commandPath ?? '`anthraspace`'} so the command works from WSL terminals.`}
             </DialogDescription>
           </DialogHeader>
           {status?.commandPath ? (

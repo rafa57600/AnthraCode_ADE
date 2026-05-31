@@ -796,10 +796,16 @@ describe('registerPtyHandlers', () => {
         enableGitHubAttribution: true
       }))
 
-      expect(env.ORCA_ENABLE_GIT_ATTRIBUTION).toBe('1')
-      expect(env.ORCA_GIT_COMMIT_TRAILER).toBe('Co-authored-by: Orca <help@stably.ai>')
-      expect(env.ORCA_GH_PR_FOOTER).toBe('Made with [Orca](https://github.com/stablyai/orca) 🐋')
-      expect(env.ORCA_GH_ISSUE_FOOTER).toBe('Made with [Orca](https://github.com/stablyai/orca) 🐋')
+      expect(env.ANTHRASPACE_ENABLE_GIT_ATTRIBUTION).toBe('1')
+      expect(env.ANTHRASPACE_GIT_COMMIT_TRAILER).toBe(
+        'Co-authored-by: AnthraSpace <help@anthracode.com>'
+      )
+      expect(env.ANTHRASPACE_GH_PR_FOOTER).toBe(
+        'Made with [AnthraSpace](https://github.com/rafa57600/AnthraSpace)'
+      )
+      expect(env.ANTHRASPACE_GH_ISSUE_FOOTER).toBe(
+        'Made with [AnthraSpace](https://github.com/rafa57600/AnthraSpace)'
+      )
       expect(env.PATH).toContain('/tmp/orca-user-data/orca-terminal-attribution/posix')
     })
 
@@ -808,10 +814,10 @@ describe('registerPtyHandlers', () => {
         enableGitHubAttribution: false
       }))
 
-      expect(env.ORCA_ENABLE_GIT_ATTRIBUTION).toBeUndefined()
-      expect(env.ORCA_GIT_COMMIT_TRAILER).toBeUndefined()
-      expect(env.ORCA_GH_PR_FOOTER).toBeUndefined()
-      expect(env.ORCA_GH_ISSUE_FOOTER).toBeUndefined()
+      expect(env.ANTHRASPACE_ENABLE_GIT_ATTRIBUTION).toBeUndefined()
+      expect(env.ANTHRASPACE_GIT_COMMIT_TRAILER).toBeUndefined()
+      expect(env.ANTHRASPACE_GH_PR_FOOTER).toBeUndefined()
+      expect(env.ANTHRASPACE_GH_ISSUE_FOOTER).toBeUndefined()
       expect(env.PATH ?? '').not.toContain('/tmp/orca-user-data/orca-terminal-attribution/posix')
     })
 
@@ -840,7 +846,7 @@ describe('registerPtyHandlers', () => {
       })
 
       const env = daemonSpawn.mock.calls.at(-1)![0].env
-      expect(env.ORCA_ENABLE_GIT_ATTRIBUTION).toBe('1')
+      expect(env.ANTHRASPACE_ENABLE_GIT_ATTRIBUTION).toBe('1')
       expect(env.PATH).toContain('/tmp/orca-user-data/orca-terminal-attribution/posix')
     })
 
@@ -1177,11 +1183,11 @@ describe('registerPtyHandlers', () => {
         const env = await daemonSpawnAndGetEnv({}, undefined, () => ({
           enableGitHubAttribution: true
         }))
-        expect(env.ORCA_ENABLE_GIT_ATTRIBUTION).toBe('1')
+        expect(env.ANTHRASPACE_ENABLE_GIT_ATTRIBUTION).toBe('1')
         expect(env.PATH).toContain('/tmp/orca-user-data/orca-terminal-attribution/posix')
       })
 
-      it('injects dev-mode ORCA_USER_DATA_PATH + dev CLI PATH on the daemon path', async () => {
+      it('injects dev-mode ANTHRASPACE_USER_DATA_PATH + dev CLI PATH on the daemon path', async () => {
         // Why: the mocked `app` (see vi.mock at the top of the file) is a
         // plain object, so we can flip isPackaged for the scope of the test.
         const { app } = await import('electron')
@@ -1190,7 +1196,7 @@ describe('registerPtyHandlers', () => {
         mockedApp.isPackaged = false
         try {
           const env = await daemonSpawnAndGetEnv({ PATH: '/usr/bin' })
-          expect(env.ORCA_USER_DATA_PATH).toBe('/tmp/orca-user-data')
+          expect(env.ANTHRASPACE_USER_DATA_PATH).toBe('/tmp/orca-user-data')
           expect(env.PATH).toContain(join('/tmp/orca-user-data', 'cli', 'bin'))
         } finally {
           mockedApp.isPackaged = prev
@@ -1206,7 +1212,7 @@ describe('registerPtyHandlers', () => {
           const env = await daemonSpawnAndGetEnv({}, undefined, undefined, {
             PATH: '/system/bin'
           })
-          expect(env.ORCA_USER_DATA_PATH).toBe('/tmp/orca-user-data')
+          expect(env.ANTHRASPACE_USER_DATA_PATH).toBe('/tmp/orca-user-data')
           expect(env.PATH).toBe(
             `${join('/tmp/orca-user-data', 'cli', 'bin')}${delimiter}/system/bin`
           )
@@ -1288,7 +1294,7 @@ describe('registerPtyHandlers', () => {
         const env = await daemonSpawnAndGetEnv({ PATH: '/usr/bin' }, undefined, () => ({
           enableGitHubAttribution: false
         }))
-        expect(env.ORCA_ENABLE_GIT_ATTRIBUTION).toBeUndefined()
+        expect(env.ANTHRASPACE_ENABLE_GIT_ATTRIBUTION).toBeUndefined()
         expect(env.PATH ?? '').not.toContain('/tmp/orca-user-data/orca-terminal-attribution/posix')
       })
 
@@ -1450,7 +1456,7 @@ describe('registerPtyHandlers', () => {
         // worst a credential leak.
         expect(env.ORCA_AGENT_HOOK_PORT).toBeUndefined()
         expect(env.ORCA_AGENT_HOOK_TOKEN).toBeUndefined()
-        expect(env.ORCA_ENABLE_GIT_ATTRIBUTION).toBeUndefined()
+        expect(env.ANTHRASPACE_ENABLE_GIT_ATTRIBUTION).toBeUndefined()
         expect(env.OPENCODE_CONFIG_DIR).toBeUndefined()
         expect(env.ORCA_OPENCODE_CONFIG_DIR).toBeUndefined()
         expect(env.ORCA_OPENCODE_SOURCE_CONFIG_DIR).toBeUndefined()

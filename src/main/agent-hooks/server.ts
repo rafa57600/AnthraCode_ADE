@@ -16,7 +16,7 @@ import { chmodSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSy
 import { join } from 'path'
 
 import { track } from '../telemetry/client'
-import { ORCA_HOOK_PROTOCOL_VERSION } from '../../shared/agent-hook-types'
+import { ANTHRASPACE_HOOK_PROTOCOL_VERSION } from '../../shared/agent-hook-types'
 import {
   clearAllListenerCaches,
   clearPaneCacheState,
@@ -1061,7 +1061,7 @@ export class AgentHookServer {
       ORCA_AGENT_HOOK_PORT: String(this.port),
       ORCA_AGENT_HOOK_TOKEN: this.token,
       ORCA_AGENT_HOOK_ENV: this.env,
-      ORCA_AGENT_HOOK_VERSION: ORCA_HOOK_PROTOCOL_VERSION
+      ORCA_AGENT_HOOK_VERSION: ANTHRASPACE_HOOK_PROTOCOL_VERSION
     }
     // Why: managed hooks source this file at invocation time. Packaged builds
     // use a stable file for restart handoff; dev callers pass a per-instance
@@ -1090,7 +1090,7 @@ export class AgentHookServer {
       port: this.port,
       token: this.token,
       env: this.env,
-      version: ORCA_HOOK_PROTOCOL_VERSION
+      version: ANTHRASPACE_HOOK_PROTOCOL_VERSION
     })
     this.endpointFileWritten = ok
   }

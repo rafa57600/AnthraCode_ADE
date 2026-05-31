@@ -31,7 +31,7 @@ export const createCodexUsageSlice: StateCreator<AppState, [], [], CodexUsageSli
   set,
   get
 ) => ({
-  codexUsageScope: 'orca',
+  codexUsageScope: 'anthraspace',
   codexUsageRange: '30d',
   codexUsageScanState: null,
   codexUsageSummary: null,

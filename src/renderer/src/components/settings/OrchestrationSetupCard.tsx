@@ -2,7 +2,7 @@ import { useEffect, type JSX } from 'react'
 import { ORCHESTRATION_SKILL_NAME } from '@/lib/agent-feature-install-commands'
 import {
   AGENT_SKILL_CLI_PREREQUISITE_NOTICE,
-  ensureOrcaCliAvailableForAgentSkillTerminal
+  ensureAnthraSpaceCliAvailableForAgentSkillTerminal
 } from '@/lib/agent-skill-cli-prerequisite'
 import { ORCHESTRATION_SKILL_INSTALL_COMMAND } from '@/lib/orchestration-install-command'
 import {
@@ -34,7 +34,7 @@ export function OrchestrationSetupCard(props: {
     <AgentSkillSetupPanel
       className={compact ? 'w-full max-w-[520px]' : undefined}
       title="Orchestration skill"
-      description="Enables agents to hand off context and coordinate work through Orca."
+      description="Enables agents to hand off context and coordinate work through AnthraSpace."
       command={ORCHESTRATION_SKILL_INSTALL_COMMAND}
       terminalTitle="Orchestration setup"
       terminalAriaLabel="Orchestration skill install terminal"
@@ -45,7 +45,7 @@ export function OrchestrationSetupCard(props: {
       terminalHeightPx={terminalHeightPx}
       preInstallNotice={AGENT_SKILL_CLI_PREREQUISITE_NOTICE}
       onBeforeOpenTerminal={async () => {
-        await ensureOrcaCliAvailableForAgentSkillTerminal()
+        await ensureAnthraSpaceCliAvailableForAgentSkillTerminal()
       }}
       showRecheckWhenInstalled={false}
       onRecheck={refreshSkillInstalled}

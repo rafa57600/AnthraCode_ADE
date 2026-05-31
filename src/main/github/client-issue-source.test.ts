@@ -92,7 +92,7 @@ describe('GitHub issue source split', () => {
             number: 923,
             title: 'Use upstream issues',
             state: 'open',
-            html_url: 'https://github.com/stablyai/orca/issues/923',
+            html_url: 'https://github.com/rafa57600/AnthraSpace/issues/923',
             labels: [],
             updated_at: '2026-04-01T00:00:00Z',
             user: { login: 'octocat' }
@@ -124,7 +124,7 @@ describe('GitHub issue source split', () => {
         'api',
         '--cache',
         '120s',
-        'repos/stablyai/orca/issues?per_page=10&state=open&sort=updated&direction=desc'
+        'repos/rafa57600/AnthraSpace/issues?per_page=10&state=open&sort=updated&direction=desc'
       ],
       { cwd: '/repo-root' }
     )
@@ -160,7 +160,7 @@ describe('GitHub issue source split', () => {
         'api',
         '--cache',
         '120s',
-        'repos/stablyai/orca/issues?per_page=10&state=open&sort=updated&direction=desc'
+        'repos/rafa57600/AnthraSpace/issues?per_page=10&state=open&sort=updated&direction=desc'
       ],
       {}
     )
@@ -184,7 +184,7 @@ describe('GitHub issue source split', () => {
     await listWorkItems('/repo-root', 10, 'is:issue')
 
     expect(ghExecFileAsyncMock).toHaveBeenCalledWith(
-      expect.arrayContaining(['--repo', 'stablyai/orca']),
+      expect.arrayContaining(['--repo', 'rafa57600/AnthraSpace']),
       { cwd: '/repo-root' }
     )
 
@@ -217,7 +217,7 @@ describe('GitHub issue source split', () => {
         'api',
         '--cache',
         '120s',
-        `search/issues?q=${encodeURIComponent('repo:stablyai/orca is:issue is:open')}&per_page=1`,
+        `search/issues?q=${encodeURIComponent('repo:rafa57600/AnthraSpace is:issue is:open')}&per_page=1`,
         '--jq',
         '.total_count'
       ],
@@ -287,7 +287,7 @@ describe('GitHub issue source split', () => {
 
     expect(ghExecFileAsyncMock).toHaveBeenNthCalledWith(
       1,
-      ['api', 'repos/stablyai/orca/issues/42'],
+      ['api', 'repos/rafa57600/AnthraSpace/issues/42'],
       { cwd: '/repo-root' }
     )
     expect(ghExecFileAsyncMock).toHaveBeenNthCalledWith(2, ['api', 'repos/fork/orca/pulls/42'], {
@@ -387,7 +387,7 @@ describe('GitHub issue source split', () => {
           'api',
           '--cache',
           '120s',
-          'repos/stablyai/orca/issues?per_page=10&state=open&sort=updated&direction=desc'
+          'repos/rafa57600/AnthraSpace/issues?per_page=10&state=open&sort=updated&direction=desc'
         ],
         { cwd: '/repo-root' }
       )
@@ -433,7 +433,7 @@ describe('GitHub issue source split', () => {
       expect(ghExecFileAsyncMock).toHaveBeenNthCalledWith(
         1,
         expect.arrayContaining([
-          'repos/stablyai/orca/issues?per_page=10&state=open&sort=updated&direction=desc'
+          'repos/rafa57600/AnthraSpace/issues?per_page=10&state=open&sort=updated&direction=desc'
         ]),
         { cwd: '/repo-root' }
       )

@@ -23,7 +23,7 @@ function WebRoot(): React.JSX.Element {
     const offer = initialPairingInput ? parseWebPairingInput(initialPairingInput) : null
     if (offer) {
       saveStoredWebRuntimeEnvironment(
-        createStoredWebRuntimeEnvironment({ name: 'Orca Server', offer })
+        createStoredWebRuntimeEnvironment({ name: 'AnthraSpace Server', offer })
       )
       clearPairingInputFromAddressBar()
       return true

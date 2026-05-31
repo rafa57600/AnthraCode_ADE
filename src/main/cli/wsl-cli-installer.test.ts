@@ -2,12 +2,14 @@ import type { CliInstallStatus } from '../../shared/cli-install-types'
 import { WslCliInstaller, _internals } from './wsl-cli-installer'
 import { describe, expect, it, vi } from 'vitest'
 
-function makeHostStatus(launcherPath = 'C:\\Users\\me\\AppData\\Local\\Orca\\bin\\orca.cmd') {
+function makeHostStatus(
+  launcherPath = 'C:\\Users\\me\\AppData\\Local\\AnthraSpace\\bin\\anthraspace.cmd'
+) {
   return {
     platform: 'win32',
-    commandName: 'orca',
-    commandPath: 'C:\\Users\\me\\AppData\\Local\\Programs\\Orca\\bin\\orca.cmd',
-    pathDirectory: 'C:\\Users\\me\\AppData\\Local\\Programs\\Orca\\bin',
+    commandName: 'anthraspace',
+    commandPath: 'C:\\Users\\me\\AppData\\Local\\Programs\\AnthraSpace\\bin\\anthraspace.cmd',
+    pathDirectory: 'C:\\Users\\me\\AppData\\Local\\Programs\\AnthraSpace\\bin',
     pathConfigured: true,
     launcherPath,
     installMethod: 'wrapper',
@@ -20,8 +22,8 @@ function makeHostStatus(launcherPath = 'C:\\Users\\me\\AppData\\Local\\Orca\\bin
 }
 
 function createWslRunner(initialFile: string | null = null, pathIncludesLocalBin = true) {
-  const commandPath = '/home/alice/.local/bin/orca'
-  const bridgePath = '/home/alice/.local/share/orca/orca-wsl-bridge.ps1'
+  const commandPath = '/home/alice/.local/bin/anthraspace'
+  const bridgePath = '/home/alice/.local/share/anthraspace/anthraspace-wsl-bridge.ps1'
   const files = new Map<string, string>()
   if (initialFile !== null) {
     files.set(commandPath, initialFile)
@@ -53,7 +55,7 @@ function createWslRunner(initialFile: string | null = null, pathIncludesLocalBin
     if (command.includes('rm -f')) {
       if (
         files.has(bridgePath) &&
-        !files.get(bridgePath)?.includes('# Orca managed WSL CLI PowerShell bridge')
+        !files.get(bridgePath)?.includes('# AnthraSpace managed WSL CLI PowerShell bridge')
       ) {
         throw new Error('__ORCA_CONFLICT__')
       }
@@ -80,7 +82,7 @@ function createWslRunner(initialFile: string | null = null, pathIncludesLocalBin
 }
 
 describe('WslCliInstaller', () => {
-  it('installs a WSL launcher that forwards to the Windows Orca launcher', async () => {
+  it('installs a WSL launcher that forwards to the Windows AnthraSpace launcher', async () => {
     const wsl = createWslRunner()
     const installer = new WslCliInstaller({
       platform: 'win32',
@@ -91,7 +93,7 @@ describe('WslCliInstaller', () => {
 
     await expect(installer.getStatus()).resolves.toMatchObject({
       state: 'not_installed',
-      commandPath: '/home/alice/.local/bin/orca'
+      commandPath: '/home/alice/.local/bin/anthraspace'
     })
 
     const installed = await installer.install()
@@ -99,12 +101,12 @@ describe('WslCliInstaller', () => {
     expect(installed).toMatchObject({
       state: 'installed',
       pathConfigured: true,
-      launcherPath: 'C:\\Users\\me\\AppData\\Local\\Orca\\bin\\orca.cmd'
+      launcherPath: 'C:\\Users\\me\\AppData\\Local\\AnthraSpace\\bin\\anthraspace.cmd'
     })
     expect(wsl.getFile()).toBe(
       _internals.buildWslLauncher(
-        'C:\\Users\\me\\AppData\\Local\\Orca\\bin\\orca.cmd',
-        '/home/alice/.local/share/orca/orca-wsl-bridge.ps1'
+        'C:\\Users\\me\\AppData\\Local\\AnthraSpace\\bin\\anthraspace.cmd',
+        '/home/alice/.local/share/anthraspace/anthraspace-wsl-bridge.ps1'
       )
     )
     expect(wsl.getBridge()).toBe(_internals.buildWslBridgeScript())
@@ -112,14 +114,14 @@ describe('WslCliInstaller', () => {
 
   it('reports installed WSL launchers whose bin directory is missing from PATH', async () => {
     const launcher = _internals.buildWslLauncher(
-      'C:\\Orca\\orca.cmd',
-      '/home/alice/.local/share/orca/orca-wsl-bridge.ps1'
+      'C:\\AnthraSpace\\anthraspace.cmd',
+      '/home/alice/.local/share/anthraspace/anthraspace-wsl-bridge.ps1'
     )
     const wsl = createWslRunner(launcher, false)
     const installer = new WslCliInstaller({
       platform: 'win32',
       distro: 'Ubuntu',
-      hostInstaller: { getStatus: async () => makeHostStatus('C:\\Orca\\orca.cmd') },
+      hostInstaller: { getStatus: async () => makeHostStatus('C:\\AnthraSpace\\anthraspace.cmd') },
       wslRunner: wsl.runner
     })
 
@@ -146,14 +148,14 @@ describe('WslCliInstaller', () => {
   it('removes a managed WSL launcher', async () => {
     const wsl = createWslRunner(
       _internals.buildWslLauncher(
-        'C:\\Orca\\orca.cmd',
-        '/home/alice/.local/share/orca/orca-wsl-bridge.ps1'
+        'C:\\AnthraSpace\\anthraspace.cmd',
+        '/home/alice/.local/share/anthraspace/anthraspace-wsl-bridge.ps1'
       )
     )
     const installer = new WslCliInstaller({
       platform: 'win32',
       distro: 'Ubuntu',
-      hostInstaller: { getStatus: async () => makeHostStatus('C:\\Orca\\orca.cmd') },
+      hostInstaller: { getStatus: async () => makeHostStatus('C:\\AnthraSpace\\anthraspace.cmd') },
       wslRunner: wsl.runner
     })
 
@@ -163,8 +165,8 @@ describe('WslCliInstaller', () => {
 
   it('generates a launcher that forwards arguments through a PowerShell file bridge', () => {
     const launcher = _internals.buildWslLauncher(
-      'C:\\Program Files\\Orca\\orca.cmd',
-      '/home/alice/.local/share/orca/orca-wsl-bridge.ps1'
+      'C:\\Program Files\\AnthraSpace\\anthraspace.cmd',
+      '/home/alice/.local/share/anthraspace/anthraspace-wsl-bridge.ps1'
     )
     const bridge = _internals.buildWslBridgeScript()
 
@@ -172,7 +174,7 @@ describe('WslCliInstaller', () => {
     expect(launcher).toContain('"$ORCA_WIN_LAUNCHER" "$@"')
     expect(launcher).not.toContain('-Command')
     expect(bridge).toContain('[Parameter(ValueFromRemainingArguments=$true)]')
-    expect(bridge).toContain('& $OrcaLauncher @ForwardArgs')
+    expect(bridge).toContain('& $AnthraSpaceLauncher @ForwardArgs')
     expect(bridge).toContain('catch')
     expect(bridge).toContain('exit 1')
   })
@@ -198,16 +200,18 @@ describe('WslCliInstaller', () => {
 
   it('refuses to remove an old managed launcher when the bridge path is user-owned', async () => {
     const oldLauncher = _internals.buildWslLauncher(
-      'C:\\Old\\orca.cmd',
-      '/home/alice/.local/share/orca/orca-wsl-bridge.ps1'
+      'C:\\Old\\anthraspace.cmd',
+      '/home/alice/.local/share/anthraspace/anthraspace-wsl-bridge.ps1'
     )
     const wsl = createWslRunner(oldLauncher)
     const installer = new WslCliInstaller({
       platform: 'win32',
       distro: 'Ubuntu',
-      hostInstaller: { getStatus: async () => makeHostStatus('C:\\Orca\\orca.cmd') },
+      hostInstaller: { getStatus: async () => makeHostStatus('C:\\AnthraSpace\\anthraspace.cmd') },
       wslRunner: async (distro, command) => {
-        if (command.includes('cat /home/alice/.local/share/orca/orca-wsl-bridge.ps1')) {
+        if (
+          command.includes('cat /home/alice/.local/share/anthraspace/anthraspace-wsl-bridge.ps1')
+        ) {
           return 'user bridge'
         }
         if (command.includes('rm -f')) {

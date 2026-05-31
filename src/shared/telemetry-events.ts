@@ -38,6 +38,7 @@ import type {
 // `other` remains as a telemetry escape hatch, but project-owned TuiAgents
 // should map to concrete values; see `tuiAgentToAgentKind`.
 export const AGENT_KIND_VALUES = [
+  'anthraspace',
   'claude-code',
   'codex',
   'autohand',
@@ -209,7 +210,7 @@ export type OptInVia = z.infer<typeof optInViaSchema>
 //
 // Keys are camelCase to match the actual field names in `GlobalSettings`.
 // `orca_channel` is intentionally absent — it is a build-time common
-// property baked in from `ORCA_BUILD_IDENTITY`, not a user-togglable setting.
+// property baked in from `ANTHRASPACE_BUILD_IDENTITY`, not a user-togglable setting.
 //
 // Intentionally does NOT include the telemetry opt-in toggle — that is
 // covered by the dedicated `telemetry_opted_in` / `telemetry_opted_out`

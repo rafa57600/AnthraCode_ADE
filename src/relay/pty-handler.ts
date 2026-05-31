@@ -329,7 +329,10 @@ export class PtyHandler {
       cols,
       rows,
       cwd,
-      env: { ...spawnEnv, ...shellLaunch.env }
+      env: { ...spawnEnv, ...shellLaunch.env },
+      // Why: Windows ConPTY cleanup can crash in node-pty's AttachConsole
+      // helper when the relay tears down PTYs from an Electron-owned process.
+      ...(process.platform === 'win32' ? { useConptyDll: true } : {})
     })
 
     // Why: capture the renderer-supplied paneKey on the managed entry so the
@@ -627,7 +630,10 @@ export class PtyHandler {
         cols: entry.cols,
         rows: entry.rows,
         cwd: entry.cwd,
-        env: { ...spawnEnv, ...shellLaunch.env }
+        env: { ...spawnEnv, ...shellLaunch.env },
+        // Why: revived relay PTYs need the same Windows cleanup path as newly
+        // spawned PTYs to avoid AttachConsole failures during teardown.
+        ...(process.platform === 'win32' ? { useConptyDll: true } : {})
       })
       this.wireAndStore({
         id: entry.id,

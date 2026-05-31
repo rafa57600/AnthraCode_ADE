@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { OrcaHooks, Repo, RepoHookSettings } from '../../../../shared/types'
+import type { AnthraSpaceHooks, Repo, RepoHookSettings } from '../../../../shared/types'
 import { getRepoKindLabel, isFolderRepo } from '../../../../shared/repo-kind'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -21,7 +21,7 @@ export { getRepositoryPaneSearchEntries }
 
 type RepositoryPaneProps = {
   repo: Repo
-  yamlHooks: OrcaHooks | null
+  yamlHooks: AnthraSpaceHooks | null
   hasHooksFile: boolean
   hooksInspectionReady: boolean
   mayNeedUpdate: boolean
@@ -61,7 +61,7 @@ export function RepositoryPane({
   }
 
   const handleCopyTemplate = async () => {
-    // Why: the missing-`orca.yaml` state is a migration aid, so copying the shared-template
+    // Why: the missing-`anthraspace.yaml` state is a migration aid, so copying the shared-template
     // snippet should be one click rather than forcing users to reconstruct the expected shape.
     await window.api.ui.writeClipboardText(`scripts:
   setup: |
@@ -131,7 +131,7 @@ export function RepositoryPane({
           </div>
           <SearchableSetting
             title="Remove Project"
-            description="Remove this project from Orca."
+            description="Remove this project from AnthraSpace."
             keywords={[repo.displayName, 'delete', 'project', 'repository']}
           >
             <Button

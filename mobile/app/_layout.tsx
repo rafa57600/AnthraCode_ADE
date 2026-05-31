@@ -6,7 +6,7 @@ import * as SplashScreen from 'expo-splash-screen'
 import * as Notifications from 'expo-notifications'
 import * as Linking from 'expo-linking'
 import { colors } from '../src/theme/mobile-theme'
-import { OrcaLogo } from '../src/components/OrcaLogo'
+import { AnthraSpaceLogo } from '../src/components/AnthraSpaceLogo'
 import { RpcClientProvider } from '../src/transport/client-context'
 import { getNotificationNavigationPath } from '../src/notifications/notification-routing'
 import { loadHosts } from '../src/transport/host-store'
@@ -165,7 +165,7 @@ export default function RootLayout() {
             name="index"
             options={{
               headerShown: false,
-              headerTitle: () => <OrcaLogo size={22} />
+              headerTitle: () => <AnthraSpaceLogo size={22} />
             }}
           />
           <Stack.Screen name="pair-scan" options={{ headerShown: false }} />

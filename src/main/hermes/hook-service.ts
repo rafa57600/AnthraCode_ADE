@@ -273,7 +273,7 @@ function getPluginManifest(): string {
     `name: ${HERMES_PLUGIN_NAME}`,
     'version: 1.0.0',
     'description: "Reports Hermes Agent lifecycle events to Orca."',
-    'author: "Orca"',
+    'author: "AnthraSpace"',
     'kind: standalone',
     'provides_hooks:',
     ...HERMES_EVENTS.map((event) => `  - ${event}`),

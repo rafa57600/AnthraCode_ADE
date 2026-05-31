@@ -89,7 +89,7 @@ describe('ClaudeUsageStore', () => {
       ]
     })
 
-    const summary = await store.getSummary('orca', '30d')
+    const summary = await store.getSummary('anthraspace', '30d')
 
     expect(summary.hasAnyClaudeData).toBe(false)
     expect(summary.sessions).toBe(0)
@@ -147,7 +147,7 @@ describe('ClaudeUsageStore', () => {
       ]
     })
 
-    const recentSessions = await store.getRecentSessions('orca', '7d', 10)
+    const recentSessions = await store.getRecentSessions('anthraspace', '7d', 10)
 
     expect(recentSessions).toHaveLength(1)
     expect(recentSessions[0]?.sessionId).toBe('session-1')
@@ -173,7 +173,7 @@ describe('ClaudeUsageStore', () => {
       ]
     })
 
-    const summary = await store.getSummary('orca', '30d')
+    const summary = await store.getSummary('anthraspace', '30d')
 
     expect(summary.turns).toBe(5)
     expect(summary.zeroCacheReadTurns).toBe(2)
@@ -199,8 +199,8 @@ describe('ClaudeUsageStore', () => {
       ]
     })
 
-    const summary = await store.getSummary('orca', '30d')
-    const breakdown = await store.getBreakdown('orca', '30d', 'model')
+    const summary = await store.getSummary('anthraspace', '30d')
+    const breakdown = await store.getBreakdown('anthraspace', '30d', 'model')
 
     expect(summary.estimatedCostUsd).toBeCloseTo(36.75)
     expect(
@@ -228,7 +228,7 @@ describe('ClaudeUsageStore', () => {
       ]
     })
 
-    const summary = await store.getSummary('orca', '30d')
+    const summary = await store.getSummary('anthraspace', '30d')
 
     expect(summary.estimatedCostUsd).toBeCloseTo(110.25)
   })
@@ -253,7 +253,7 @@ describe('ClaudeUsageStore', () => {
       ]
     })
 
-    const summary = await store.getSummary('orca', '30d')
+    const summary = await store.getSummary('anthraspace', '30d')
 
     expect(summary.estimatedCostUsd).toBeCloseTo(8.07)
   })

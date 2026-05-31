@@ -18,7 +18,7 @@ import {
   PanelLeft,
   PanelRight
 } from 'lucide-react'
-import logo from '../../../resources/logo.svg'
+import logo from '../../../resources/anthracode_logo.svg'
 import { SYNC_FIT_PANES_EVENT, TOGGLE_TERMINAL_PANE_EXPAND_EVENT } from '@/constants/terminal'
 import { syncZoomCSSVar } from '@/lib/ui-zoom'
 import { canShowRightSidebarForView } from '@/lib/right-sidebar-visibility'
@@ -1063,7 +1063,7 @@ function App(): React.JSX.Element {
       const notifyTerminalCapture = (actionId: KeybindingActionId): void => {
         if (
           context !== 'terminal' ||
-          (settings?.terminalShortcutPolicy ?? 'orca-first') !== 'orca-first'
+          (settings?.terminalShortcutPolicy ?? 'anthraspace-first') !== 'anthraspace-first'
         ) {
           return
         }
@@ -1348,7 +1348,7 @@ function App(): React.JSX.Element {
           <div className="titlebar-traffic-light-pad" />
         ) : isWindows ? (
           /* Why: on Windows the native title bar is hidden, so we render the
-             Orca logo as a non-interactive identity anchor and a ··· button
+             AnthraSpace logo as a non-interactive identity anchor and a ··· button
              that pops up the application menu (the same menu revealed by Alt
              on the default autoHideMenuBar). */
           <>
@@ -1376,8 +1376,8 @@ function App(): React.JSX.Element {
             {settings?.showTitlebarAppName !== false && (
               <ContextMenu>
                 <ContextMenuTrigger asChild>
-                  <div className="titlebar-app-name" aria-label="Orca">
-                    <span className="titlebar-app-name-main">Orca</span>
+                  <div className="titlebar-app-name" aria-label="AnthraSpace">
+                    <span className="titlebar-app-name-main">AnthraSpace</span>
                   </div>
                 </ContextMenuTrigger>
                 <ContextMenuContent>

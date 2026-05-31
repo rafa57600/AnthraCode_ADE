@@ -112,16 +112,16 @@ describe('configureDevUserDataPath', () => {
   it('uses an explicit dev userData override when provided', async () => {
     const { app } = await import('electron')
     const { configureDevUserDataPath } = await import('./configure-process')
-    const originalOverride = process.env.ORCA_DEV_USER_DATA_PATH
-    process.env.ORCA_DEV_USER_DATA_PATH = '/tmp/orca-dev-repro'
+    const originalOverride = process.env.ANTHRASPACE_DEV_USER_DATA_PATH
+    process.env.ANTHRASPACE_DEV_USER_DATA_PATH = '/tmp/orca-dev-repro'
 
     try {
       configureDevUserDataPath(true)
     } finally {
       if (originalOverride === undefined) {
-        delete process.env.ORCA_DEV_USER_DATA_PATH
+        delete process.env.ANTHRASPACE_DEV_USER_DATA_PATH
       } else {
-        process.env.ORCA_DEV_USER_DATA_PATH = originalOverride
+        process.env.ANTHRASPACE_DEV_USER_DATA_PATH = originalOverride
       }
     }
 
@@ -132,7 +132,7 @@ describe('configureDevUserDataPath', () => {
     const { app } = await import('electron')
     const { configureDevUserDataPath } = await import('./configure-process')
 
-    delete process.env.ORCA_DEV_USER_DATA_PATH
+    delete process.env.ANTHRASPACE_DEV_USER_DATA_PATH
     configureDevUserDataPath(true)
 
     // Why: production code uses path.join(app.getPath('appData'), 'orca-dev')

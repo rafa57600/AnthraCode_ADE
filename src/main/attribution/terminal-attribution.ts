@@ -4,22 +4,22 @@ to the env injection code makes the attribution behavior auditable as one unit
 instead of scattering generated shell fragments across files. */
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import { ORCA_GIT_COMMIT_TRAILER } from '../../shared/orca-attribution'
+import { ANTHRASPACE_GIT_COMMIT_TRAILER } from '../../shared/orca-attribution'
 
-const ATTRIBUTION_ROOT_DIR = 'orca-terminal-attribution'
+const ATTRIBUTION_ROOT_DIR = 'anthraspace-terminal-attribution'
 const ATTRIBUTION_SHIM_VERSION = '6'
-const ORCA_PRODUCT_URL = 'https://github.com/stablyai/orca'
-const ORCA_GH_FOOTER = `Made with [Orca](${ORCA_PRODUCT_URL}) 🐋`
+const ANTHRASPACE_PRODUCT_URL = 'https://github.com/rafa57600/AnthraSpace'
+const ANTHRASPACE_GH_FOOTER = `Made with [AnthraSpace](${ANTHRASPACE_PRODUCT_URL})`
 const SHELL_DOLLAR = '$'
 const POWERSHELL_TICK = '`'
 const ATTRIBUTION_ENV_KEYS = [
-  'ORCA_ENABLE_GIT_ATTRIBUTION',
-  'ORCA_GIT_COMMIT_TRAILER',
-  'ORCA_GH_PR_FOOTER',
-  'ORCA_GH_ISSUE_FOOTER',
-  'ORCA_ATTRIBUTION_SHIM_DIR',
-  'ORCA_REAL_GIT',
-  'ORCA_REAL_GH'
+  'ANTHRASPACE_ENABLE_GIT_ATTRIBUTION',
+  'ANTHRASPACE_GIT_COMMIT_TRAILER',
+  'ANTHRASPACE_GH_PR_FOOTER',
+  'ANTHRASPACE_GH_ISSUE_FOOTER',
+  'ANTHRASPACE_ATTRIBUTION_SHIM_DIR',
+  'ANTHRASPACE_REAL_GIT',
+  'ANTHRASPACE_REAL_GH'
 ] as const
 
 const writtenRoots = new Set<string>()
@@ -75,18 +75,18 @@ export function applyTerminalAttributionEnv(
   // terminal environment instead of mutating global git/gh config or the
   // user's external shell PATH.
   baseEnv.PATH = [...prependDirs, cleanedBasePath].filter(Boolean).join(pathDelimiter)
-  baseEnv.ORCA_ENABLE_GIT_ATTRIBUTION = '1'
-  baseEnv.ORCA_GIT_COMMIT_TRAILER = ORCA_GIT_COMMIT_TRAILER
-  baseEnv.ORCA_GH_PR_FOOTER = ORCA_GH_FOOTER
-  baseEnv.ORCA_GH_ISSUE_FOOTER = ORCA_GH_FOOTER
-  baseEnv.ORCA_ATTRIBUTION_SHIM_DIR = posixDir
+  baseEnv.ANTHRASPACE_ENABLE_GIT_ATTRIBUTION = '1'
+  baseEnv.ANTHRASPACE_GIT_COMMIT_TRAILER = ANTHRASPACE_GIT_COMMIT_TRAILER
+  baseEnv.ANTHRASPACE_GH_PR_FOOTER = ANTHRASPACE_GH_FOOTER
+  baseEnv.ANTHRASPACE_GH_ISSUE_FOOTER = ANTHRASPACE_GH_FOOTER
+  baseEnv.ANTHRASPACE_ATTRIBUTION_SHIM_DIR = posixDir
 
   if (process.platform === 'win32') {
     if (resolvedGit) {
-      baseEnv.ORCA_REAL_GIT = resolvedGit
+      baseEnv.ANTHRASPACE_REAL_GIT = resolvedGit
     }
     if (resolvedGh) {
-      baseEnv.ORCA_REAL_GH = resolvedGh
+      baseEnv.ANTHRASPACE_REAL_GH = resolvedGh
     }
   }
 }
@@ -208,7 +208,7 @@ const POSIX_GIT_WRAPPER = `${POSIX_COMMON}
 real_path="$(clean_path)"
 real_git="$(PATH="$real_path" command -v git || true)"
 if [[ -z "$real_git" ]]; then
-  echo "Orca attribution wrapper could not locate git on PATH." >&2
+  echo "AnthraSpace attribution wrapper could not locate git on PATH." >&2
   exit 127
 fi
 
@@ -235,7 +235,7 @@ is_commit_command() {
   return 1
 }
 
-if [[ "\${ORCA_ENABLE_GIT_ATTRIBUTION:-0}" != "1" || "\${ORCA_ATTRIBUTION_BYPASS:-0}" == "1" ]] || ! is_commit_command "$@"; then
+if [[ "\${ANTHRASPACE_ENABLE_GIT_ATTRIBUTION:-0}" != "1" || "\${ORCA_ATTRIBUTION_BYPASS:-0}" == "1" ]] || ! is_commit_command "$@"; then
   PATH="$real_path" exec "$real_git" "$@"
 fi
 
@@ -247,7 +247,7 @@ for arg in "$@"; do
   esac
 done
 
-trailer="\${ORCA_GIT_COMMIT_TRAILER:-Co-authored-by: Orca <help@stably.ai>}"
+trailer="\${ANTHRASPACE_GIT_COMMIT_TRAILER:-Co-authored-by: AnthraSpace <help@anthracode.com>}"
 
 has_explicit_commit_message() {
   local arg
@@ -435,7 +435,7 @@ const POSIX_GH_WRAPPER = `${POSIX_COMMON}
 real_path="$(clean_path)"
 real_gh="$(PATH="$real_path" command -v gh || true)"
 if [[ -z "$real_gh" ]]; then
-  echo "Orca attribution wrapper could not locate gh on PATH." >&2
+  echo "AnthraSpace attribution wrapper could not locate gh on PATH." >&2
   exit 127
 fi
 
@@ -526,12 +526,12 @@ has_passthrough_create_args() {
   return 1
 }
 
-if [[ "\${ORCA_ENABLE_GIT_ATTRIBUTION:-0}" != "1" || "\${ORCA_ATTRIBUTION_BYPASS:-0}" == "1" ]]; then
+if [[ "\${ANTHRASPACE_ENABLE_GIT_ATTRIBUTION:-0}" != "1" || "\${ORCA_ATTRIBUTION_BYPASS:-0}" == "1" ]]; then
   PATH="$real_path" exec "$real_gh" "$@"
 fi
 
 if [[ "\${1:-}" == "pr" && "\${2:-}" == "create" ]]; then
-  footer="\${ORCA_GH_PR_FOOTER:-Made with [Orca](https://github.com/stablyai/orca) 🐋}"
+  footer="\${ANTHRASPACE_GH_PR_FOOTER:-Made with [AnthraSpace](https://github.com/rafa57600/AnthraSpace)}"
   if has_passthrough_create_args "$@"; then
     PATH="$real_path" exec "$real_gh" "$@"
   fi
@@ -565,7 +565,7 @@ if [[ "\${1:-}" == "pr" && "\${2:-}" == "create" ]]; then
 fi
 
 if [[ "\${1:-}" == "issue" && "\${2:-}" == "create" ]]; then
-  footer="\${ORCA_GH_ISSUE_FOOTER:-Made with [Orca](https://github.com/stablyai/orca) 🐋}"
+  footer="\${ANTHRASPACE_GH_ISSUE_FOOTER:-Made with [AnthraSpace](https://github.com/rafa57600/AnthraSpace)}"
   if has_passthrough_create_args "$@"; then
     PATH="$real_path" exec "$real_gh" "$@"
   fi
@@ -603,17 +603,17 @@ PATH="$real_path" exec "$real_gh" "$@"
 
 const WIN32_GIT_CMD_WRAPPER = String.raw`@echo off
 setlocal
-if not "%ORCA_ENABLE_GIT_ATTRIBUTION%"=="1" goto run
+if not "%ANTHRASPACE_ENABLE_GIT_ATTRIBUTION%"=="1" goto run
 if "%ORCA_ATTRIBUTION_BYPASS%"=="1" goto run
 call :orca_is_git_commit %*
 if errorlevel 1 goto run
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0git-wrapper.ps1" %*
 exit /b %ERRORLEVEL%
 :run
-if defined ORCA_REAL_GIT (
-  "%ORCA_REAL_GIT%" %*
+if defined ANTHRASPACE_REAL_GIT (
+  "%ANTHRASPACE_REAL_GIT%" %*
 ) else (
-  echo Orca attribution wrapper could not locate git on PATH. 1>&2
+  echo AnthraSpace attribution wrapper could not locate git on PATH. 1>&2
   exit /b 127
 )
 exit /b %ERRORLEVEL%
@@ -645,7 +645,7 @@ goto orca_is_git_commit
 
 const WIN32_GH_CMD_WRAPPER = String.raw`@echo off
 setlocal
-if not "%ORCA_ENABLE_GIT_ATTRIBUTION%"=="1" goto run
+if not "%ANTHRASPACE_ENABLE_GIT_ATTRIBUTION%"=="1" goto run
 if "%ORCA_ATTRIBUTION_BYPASS%"=="1" goto run
 if /I "%~1"=="pr" if /I "%~2"=="create" goto wrap
 if /I "%~1"=="issue" if /I "%~2"=="create" goto wrap
@@ -654,18 +654,18 @@ goto run
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0gh-wrapper.ps1" %*
 exit /b %ERRORLEVEL%
 :run
-if defined ORCA_REAL_GH (
-  "%ORCA_REAL_GH%" %*
+if defined ANTHRASPACE_REAL_GH (
+  "%ANTHRASPACE_REAL_GH%" %*
 ) else (
-  echo Orca attribution wrapper could not locate gh on PATH. 1>&2
+  echo AnthraSpace attribution wrapper could not locate gh on PATH. 1>&2
   exit /b 127
 )
 exit /b %ERRORLEVEL%
 `
 
 const WIN32_GIT_PS_WRAPPER = String.raw`$ErrorActionPreference = 'Stop'
-$realGit = if ($env:ORCA_REAL_GIT) { $env:ORCA_REAL_GIT } else { 'git' }
-$trailer = if ($env:ORCA_GIT_COMMIT_TRAILER) { $env:ORCA_GIT_COMMIT_TRAILER } else { 'Co-authored-by: Orca <help@stably.ai>' }
+$realGit = if ($env:ANTHRASPACE_REAL_GIT) { $env:ANTHRASPACE_REAL_GIT } else { 'git' }
+$trailer = if ($env:ANTHRASPACE_GIT_COMMIT_TRAILER) { $env:ANTHRASPACE_GIT_COMMIT_TRAILER } else { 'Co-authored-by: AnthraSpace <help@anthracode.com>' }
 
 if ($args -contains '--dry-run') {
   & $realGit @args
@@ -858,7 +858,7 @@ try {
 `
 
 const WIN32_GH_PS_WRAPPER = String.raw`$ErrorActionPreference = 'Stop'
-$realGh = if ($env:ORCA_REAL_GH) { $env:ORCA_REAL_GH } else { 'gh' }
+$realGh = if ($env:ANTHRASPACE_REAL_GH) { $env:ANTHRASPACE_REAL_GH } else { 'gh' }
 
 function Test-NonInteractiveCreateArgs {
   param([string[]]$CommandArgs)
@@ -940,7 +940,7 @@ if ($isPrCreate) {
     if ($LASTEXITCODE -ne 0) {
       $body = $null
     }
-    $footer = if ($env:ORCA_GH_PR_FOOTER) { $env:ORCA_GH_PR_FOOTER } else { 'Made with [Orca](https://github.com/stablyai/orca) 🐋' }
+    $footer = if ($env:ANTHRASPACE_GH_PR_FOOTER) { $env:ANTHRASPACE_GH_PR_FOOTER } else { 'Made with [AnthraSpace](https://github.com/rafa57600/AnthraSpace)' }
     if ($null -ne $body -and $body -notmatch [Regex]::Escape($footer)) {
       $tmpFile = [System.IO.Path]::GetTempFileName()
       try {
@@ -971,7 +971,7 @@ if ($isIssueCreate) {
     if ($LASTEXITCODE -ne 0) {
       $body = $null
     }
-    $footer = if ($env:ORCA_GH_ISSUE_FOOTER) { $env:ORCA_GH_ISSUE_FOOTER } else { 'Made with [Orca](https://github.com/stablyai/orca) 🐋' }
+    $footer = if ($env:ANTHRASPACE_GH_ISSUE_FOOTER) { $env:ANTHRASPACE_GH_ISSUE_FOOTER } else { 'Made with [AnthraSpace](https://github.com/rafa57600/AnthraSpace)' }
     if ($null -ne $body -and $body -notmatch [Regex]::Escape($footer)) {
       $tmpFile = [System.IO.Path]::GetTempFileName()
       try {

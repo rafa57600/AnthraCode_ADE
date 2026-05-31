@@ -14,12 +14,12 @@ import { serveOrcaApp } from './launch'
 describe('serveOrcaApp', () => {
   beforeEach(() => {
     spawnMock.mockReset()
-    process.env.ORCA_APP_EXECUTABLE = '/Applications/Orca.app/Contents/MacOS/Orca'
+    process.env.ANTHRASPACE_APP_EXECUTABLE = '/Applications/Orca.app/Contents/MacOS/Orca'
   })
 
   afterEach(() => {
-    delete process.env.ORCA_APP_EXECUTABLE
-    delete process.env.ORCA_APP_EXECUTABLE_NEEDS_APP_ROOT
+    delete process.env.ANTHRASPACE_APP_EXECUTABLE
+    delete process.env.ANTHRASPACE_APP_EXECUTABLE_NEEDS_APP_ROOT
   })
 
   it('pins the Electron child cwd to the app root instead of the caller cwd', async () => {
@@ -88,8 +88,8 @@ describe('serveOrcaApp', () => {
   })
 
   it('passes the app root before serve flags for dev Electron executables', async () => {
-    process.env.ORCA_APP_EXECUTABLE = '/repo/node_modules/.bin/electron'
-    process.env.ORCA_APP_EXECUTABLE_NEEDS_APP_ROOT = '1'
+    process.env.ANTHRASPACE_APP_EXECUTABLE = '/repo/node_modules/.bin/electron'
+    process.env.ANTHRASPACE_APP_EXECUTABLE_NEEDS_APP_ROOT = '1'
     const child = {
       kill: vi.fn(),
       once: vi.fn(
@@ -117,7 +117,7 @@ describe('serveOrcaApp', () => {
   it('uses a shell when a Windows npm command shim is the Electron executable', async () => {
     const platformDescriptor = Object.getOwnPropertyDescriptor(process, 'platform')
     Object.defineProperty(process, 'platform', { value: 'win32' })
-    process.env.ORCA_APP_EXECUTABLE = 'C:\\repo\\node_modules\\.bin\\electron.cmd'
+    process.env.ANTHRASPACE_APP_EXECUTABLE = 'C:\\repo\\node_modules\\.bin\\electron.cmd'
     const child = {
       kill: vi.fn(),
       once: vi.fn(

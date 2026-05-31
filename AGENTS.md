@@ -42,3 +42,7 @@ Never commit PR evidence images; attach them to the PR conversation instead.
 ## Type Declarations: Prefer `.ts` Over `.d.ts`
 
 Project-owned type declarations belong in `.ts` files. `.d.ts` is reserved for ambient shims (e.g., `env.d.ts`, `vite/client.d.ts`). TypeScript's `skipLibCheck: true` setting applies globally, including to our own `.d.ts` files, which means any unresolved type reference in a `.d.ts` silently becomes `any` at its call sites. Write your types in `.ts` files so the compiler actually checks them. CI enforces this for `src/preload/` and `src/shared/` — see `docs/preload-typecheck-hole.md`.
+
+## Production Change Log Requirement
+
+After every successful production-ready edit, update [`CHANGELOG.md`](./CHANGELOG.md) before calling the work complete. Include what changed, why it matters for production readiness, and the exact verification evidence that passed. Do not add changelog entries for speculative, failed, or unverified edits.

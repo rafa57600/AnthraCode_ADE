@@ -40,6 +40,7 @@ describe('shared agent-hook-listener', () => {
     expect(resolveHookSource('/hook/claude')).toBe('claude')
     expect(resolveHookSource('/hook/cursor')).toBe('cursor')
     expect(resolveHookSource('/hook/antigravity')).toBe('antigravity')
+    expect(resolveHookSource('/hook/anthracode')).toBe('anthracode')
     expect(resolveHookSource('/hook/grok')).toBe('grok')
     expect(resolveHookSource('/hook/hermes')).toBe('hermes')
     expect(resolveHookSource('/hook/pi')).toBe('pi')
@@ -126,6 +127,28 @@ describe('shared agent-hook-listener', () => {
       agentType: 'omp',
       toolName: 'bash',
       toolInput: 'pnpm test'
+    })
+  })
+
+  it('normalizes AnthraCode OpenCode-compatible hooks with AnthraCode attribution', () => {
+    const event = normalizeHookPayload(
+      state,
+      'anthraspace',
+      {
+        paneKey: PANE_KEY,
+        tabId: 'tab-1',
+        worktreeId: 'wt',
+        env: 'production',
+        version: '1',
+        payload: { hook_event_name: 'SessionBusy', prompt: 'fix provider identity' }
+      },
+      'production'
+    )
+
+    expect(event?.payload).toMatchObject({
+      state: 'working',
+      prompt: 'fix provider identity',
+      agentType: 'anthracode'
     })
   })
 

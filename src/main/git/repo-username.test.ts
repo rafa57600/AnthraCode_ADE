@@ -57,7 +57,7 @@ describe('getGitUsername', () => {
   })
 
   it('prefers explicit GitHub user config before checking GitHub CLI login', () => {
-    originRemoteUrl = 'https://github.com/stablyai/orca.git'
+    originRemoteUrl = 'https://github.com/rafa57600/AnthraSpace.git'
     gitConfig['github.user'] = 'config-demo'
     execSyncMock.mockImplementationOnce(() => 'gh-demo\n')
 
@@ -66,7 +66,7 @@ describe('getGitUsername', () => {
   })
 
   it('uses explicit username config before checking GitHub CLI login', () => {
-    originRemoteUrl = 'https://github.com/stablyai/orca.git'
+    originRemoteUrl = 'https://github.com/rafa57600/AnthraSpace.git'
     gitConfig['user.username'] = 'repo-demo'
     execSyncMock.mockImplementationOnce(() => 'gh-demo\n')
 
@@ -75,7 +75,7 @@ describe('getGitUsername', () => {
   })
 
   it('uses GitHub CLI login for GitHub remotes instead of repo-local author identity', () => {
-    originRemoteUrl = 'https://github.com/stablyai/orca.git'
+    originRemoteUrl = 'https://github.com/rafa57600/AnthraSpace.git'
     gitConfig['user.email'] = 'demo@example.com'
     gitConfig['user.name'] = 'Demo User'
     execSyncMock.mockImplementationOnce(() => 'gh-demo\n')
@@ -85,7 +85,7 @@ describe('getGitUsername', () => {
   })
 
   it('uses GitHub CLI login for a single GitHub remote not named origin', () => {
-    remoteUrls.upstream = 'https://github.com/stablyai/orca.git'
+    remoteUrls.upstream = 'https://github.com/rafa57600/AnthraSpace.git'
     execSyncMock.mockImplementationOnce(() => 'gh-demo\n')
 
     expect(getGitUsername('/repo')).toBe('gh-demo')
@@ -98,7 +98,7 @@ describe('getGitUsername', () => {
   })
 
   it('uses GitHub CLI login for GitHub SSH-over-443 remotes', () => {
-    remoteUrls.upstream = 'ssh://git@ssh.github.com:443/stablyai/orca.git'
+    remoteUrls.upstream = 'ssh://git@ssh.github.com:443/rafa57600/AnthraSpace.git'
     execSyncMock.mockImplementationOnce(() => 'gh-demo\n')
 
     expect(getGitUsername('/repo')).toBe('gh-demo')
@@ -106,7 +106,7 @@ describe('getGitUsername', () => {
   })
 
   it('does not derive GitHub username prefixes from non-GitHub author identity', () => {
-    originRemoteUrl = 'https://gitlab.com/stablyai/orca.git'
+    originRemoteUrl = 'https://gitlab.com/rafa57600/AnthraSpace.git'
     gitConfig['user.email'] = 'demo@example.com'
     gitConfig['user.name'] = 'Demo User'
     execSyncMock.mockImplementationOnce(() => 'gh-demo\n')
@@ -116,7 +116,7 @@ describe('getGitUsername', () => {
   })
 
   it('bounds and caches failed GitHub CLI lookup', () => {
-    originRemoteUrl = 'https://github.com/stablyai/orca.git'
+    originRemoteUrl = 'https://github.com/rafa57600/AnthraSpace.git'
     execSyncMock.mockImplementation(() => {
       throw new Error('gh unavailable')
     })
@@ -131,7 +131,7 @@ describe('getGitUsername', () => {
   })
 
   it('skips auth status fallback when GitHub CLI API lookup times out', () => {
-    originRemoteUrl = 'https://github.com/stablyai/orca.git'
+    originRemoteUrl = 'https://github.com/rafa57600/AnthraSpace.git'
     execSyncMock.mockImplementationOnce(() => {
       throw Object.assign(new Error('spawnSync /bin/sh ETIMEDOUT'), { code: 'ETIMEDOUT' })
     })
@@ -144,7 +144,7 @@ describe('getGitUsername', () => {
   })
 
   it('uses auth status fallback after fast GitHub CLI API failure', () => {
-    originRemoteUrl = 'https://github.com/stablyai/orca.git'
+    originRemoteUrl = 'https://github.com/rafa57600/AnthraSpace.git'
     execSyncMock
       .mockImplementationOnce(() => {
         throw new Error('gh api unavailable')

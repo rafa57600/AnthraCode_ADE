@@ -57,7 +57,7 @@ function enabledOpenCodeScanState(): OpenCodeUsageScanState {
 describe('usage overview model', () => {
   it('combines provider totals without double-counting cached input', () => {
     const claudeSummary: ClaudeUsageSummary = {
-      scope: 'orca',
+      scope: 'anthraspace',
       range: '30d',
       sessions: 2,
       turns: 4,
@@ -73,7 +73,7 @@ describe('usage overview model', () => {
       hasAnyClaudeData: true
     }
     const codexSummary: CodexUsageSummary = {
-      scope: 'orca',
+      scope: 'anthraspace',
       range: '30d',
       sessions: 1,
       events: 3,
@@ -88,7 +88,7 @@ describe('usage overview model', () => {
       hasAnyCodexData: true
     }
     const openCodeSummary: OpenCodeUsageSummary = {
-      scope: 'orca',
+      scope: 'anthraspace',
       range: '30d',
       sessions: 1,
       events: 2,

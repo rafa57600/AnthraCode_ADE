@@ -106,7 +106,7 @@ export function FloatingWorkspacePane({
         <SettingsRow
           alignTop
           label="Terminal Directory"
-          description="New floating terminal tabs start here. Markdown notes are saved in Orca's app-owned floating workspace."
+          description="New floating terminal tabs start here. Markdown notes are saved in AnthraSpace's app-owned floating workspace."
           control={
             <div className="flex w-72 max-w-full gap-2">
               <Input

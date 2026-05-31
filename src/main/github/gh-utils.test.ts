@@ -39,7 +39,7 @@ describe('github owner/repo resolution', () => {
       owner: 'acme',
       repo: 'widgets'
     })
-    expect(parseGitHubOwnerRepo('git@github.com:stablyai/orca.git')).toEqual({
+    expect(parseGitHubOwnerRepo('git@github.com:rafa57600/AnthraSpace.git')).toEqual({
       owner: 'stablyai',
       repo: 'orca'
     })
@@ -47,7 +47,7 @@ describe('github owner/repo resolution', () => {
       owner: 'TheBoredTeam',
       repo: 'boring.notch'
     })
-    expect(parseGitHubOwnerRepo('git@example.com:stablyai/orca.git')).toBeNull()
+    expect(parseGitHubOwnerRepo('git@example.com:rafa57600/AnthraSpace.git')).toBeNull()
   })
 
   it('parses GitHub Enterprise host identity', () => {
@@ -77,7 +77,7 @@ describe('github owner/repo resolution', () => {
 
   it('prefers upstream for issue owner/repo resolution', async () => {
     gitExecFileAsyncMock.mockResolvedValueOnce({
-      stdout: 'git@github.com:stablyai/orca.git\n'
+      stdout: 'git@github.com:rafa57600/AnthraSpace.git\n'
     })
 
     await expect(getIssueOwnerRepo('/repo')).resolves.toEqual({ owner: 'stablyai', repo: 'orca' })
@@ -88,7 +88,7 @@ describe('github owner/repo resolution', () => {
 
   it('falls back to origin when upstream is missing or non-GitHub', async () => {
     gitExecFileAsyncMock
-      .mockResolvedValueOnce({ stdout: 'git@example.com:stablyai/orca.git\n' })
+      .mockResolvedValueOnce({ stdout: 'git@example.com:rafa57600/AnthraSpace.git\n' })
       .mockResolvedValueOnce({ stdout: 'git@github.com:fork/orca.git\n' })
 
     await expect(getIssueOwnerRepo('/repo')).resolves.toEqual({ owner: 'fork', repo: 'orca' })
@@ -103,7 +103,7 @@ describe('github owner/repo resolution', () => {
   it('does not mix origin and upstream cache entries for the same repo path', async () => {
     gitExecFileAsyncMock
       .mockResolvedValueOnce({ stdout: 'git@github.com:fork/orca.git\n' })
-      .mockResolvedValueOnce({ stdout: 'git@github.com:stablyai/orca.git\n' })
+      .mockResolvedValueOnce({ stdout: 'git@github.com:rafa57600/AnthraSpace.git\n' })
 
     await expect(getOwnerRepo('/repo')).resolves.toEqual({ owner: 'fork', repo: 'orca' })
     await expect(getIssueOwnerRepo('/repo')).resolves.toEqual({ owner: 'stablyai', repo: 'orca' })
@@ -111,7 +111,9 @@ describe('github owner/repo resolution', () => {
 
   it('resolves SSH repo remotes through the registered SSH git provider', async () => {
     const sshProvider = {
-      exec: vi.fn().mockResolvedValue({ stdout: 'git@github.com:stablyai/orca.git\n', stderr: '' })
+      exec: vi
+        .fn()
+        .mockResolvedValue({ stdout: 'git@github.com:rafa57600/AnthraSpace.git\n', stderr: '' })
     }
     getSshGitProviderMock.mockReturnValue(sshProvider)
 
@@ -200,7 +202,7 @@ describe('resolveIssueSource', () => {
 
   it("'auto' + upstream exists → upstream, fellBack=false", async () => {
     gitExecFileAsyncMock.mockResolvedValueOnce({
-      stdout: 'git@github.com:stablyai/orca.git\n'
+      stdout: 'git@github.com:rafa57600/AnthraSpace.git\n'
     })
 
     await expect(resolveIssueSource('/repo', 'auto')).resolves.toEqual({
@@ -211,7 +213,7 @@ describe('resolveIssueSource', () => {
 
   it("'auto' + no upstream → origin, fellBack=false", async () => {
     gitExecFileAsyncMock
-      .mockResolvedValueOnce({ stdout: 'git@example.com:stablyai/orca.git\n' })
+      .mockResolvedValueOnce({ stdout: 'git@example.com:rafa57600/AnthraSpace.git\n' })
       .mockResolvedValueOnce({ stdout: 'git@github.com:solo/orca.git\n' })
 
     await expect(resolveIssueSource('/repo', 'auto')).resolves.toEqual({
@@ -222,7 +224,7 @@ describe('resolveIssueSource', () => {
 
   it("'upstream' + upstream exists → upstream, fellBack=false", async () => {
     gitExecFileAsyncMock.mockResolvedValueOnce({
-      stdout: 'git@github.com:stablyai/orca.git\n'
+      stdout: 'git@github.com:rafa57600/AnthraSpace.git\n'
     })
 
     await expect(resolveIssueSource('/repo', 'upstream')).resolves.toEqual({
@@ -272,7 +274,7 @@ describe('resolveIssueSource', () => {
 
   it('undefined preference is treated identically to auto', async () => {
     gitExecFileAsyncMock.mockResolvedValueOnce({
-      stdout: 'git@github.com:stablyai/orca.git\n'
+      stdout: 'git@github.com:rafa57600/AnthraSpace.git\n'
     })
 
     await expect(resolveIssueSource('/repo', undefined)).resolves.toEqual({

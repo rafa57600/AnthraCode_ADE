@@ -35,6 +35,7 @@ export type AgentHookSource =
   | 'codex'
   | 'gemini'
   | 'antigravity'
+  | 'anthraspace'
   | 'opencode'
   | 'cursor'
   | 'pi'
@@ -96,10 +97,11 @@ export const AGENT_HOOK_INSTALL_PLUGINS_METHOD = 'agent_hook.installPlugins' as 
 
 /** Feature-flag env var. Read once at process start by Orca and the relay.
  *  Remote agent hooks ship as the default SSH behavior; set "0" to opt out. */
-export const ORCA_FEATURE_REMOTE_AGENT_HOOKS_ENV = 'ORCA_FEATURE_REMOTE_AGENT_HOOKS' as const
+export const ANTHRASPACE_FEATURE_REMOTE_AGENT_HOOKS_ENV =
+  'ANTHRASPACE_FEATURE_REMOTE_AGENT_HOOKS' as const
 
 export function isRemoteAgentHooksEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  const raw = env[ORCA_FEATURE_REMOTE_AGENT_HOOKS_ENV]
+  const raw = env[ANTHRASPACE_FEATURE_REMOTE_AGENT_HOOKS_ENV]
   if (raw === undefined) {
     return true
   }

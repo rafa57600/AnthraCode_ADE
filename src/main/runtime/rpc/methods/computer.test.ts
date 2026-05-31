@@ -88,7 +88,7 @@ describe('computer RPC methods', () => {
   it('opens computer-use permission setup', async () => {
     const result = {
       platform: 'darwin',
-      helperAppPath: '/Applications/Orca Computer Use.app',
+      helperAppPath: '/Applications/AnthraSpace Computer Use.app',
       openedSettings: false,
       launchedHelper: true
     }

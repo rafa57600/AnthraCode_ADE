@@ -51,7 +51,7 @@ describe('ensure-native-runtime', () => {
 })
 
 function mkTempProject() {
-  const projectDir = mkdtempSync(join(tmpdir(), 'orca-native-runtime-'))
+  const projectDir = mkdtempSync(join(tmpdir(), 'anthraspace-native-runtime-'))
   mkdirSync(join(projectDir, 'config', 'scripts'), { recursive: true })
   return projectDir
 }

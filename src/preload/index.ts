@@ -136,12 +136,12 @@ import type {
 } from '../shared/automations-types'
 import type { KeybindingActionId, KeybindingFileSnapshot } from '../shared/keybindings'
 import {
-  ORCA_EDITOR_SAVE_DIRTY_FILES_EVENT,
+  ANTHRASPACE_EDITOR_SAVE_DIRTY_FILES_EVENT,
   type EditorSaveDirtyFilesDetail
 } from '../shared/editor-save-events'
 import {
-  ORCA_UPDATER_QUIT_AND_INSTALL_ABORTED_EVENT,
-  ORCA_UPDATER_QUIT_AND_INSTALL_STARTED_EVENT
+  ANTHRASPACE_UPDATER_QUIT_AND_INSTALL_ABORTED_EVENT,
+  ANTHRASPACE_UPDATER_QUIT_AND_INSTALL_STARTED_EVENT
 } from '../shared/updater-renderer-events'
 import { subscribeRuntimeEnvironmentFromPreload } from './runtime-environment-subscriptions'
 import type { RuntimeEnvironmentSubscriptionHandle } from './runtime-environment-subscriptions'
@@ -1907,7 +1907,7 @@ const api = {
       // close unless we mark the updater path explicitly, and #300 introduced
       // longer-lived editor dirty/autosave state that can otherwise veto the
       // restart even after the update payload has been downloaded.
-      window.dispatchEvent(new Event(ORCA_UPDATER_QUIT_AND_INSTALL_STARTED_EVENT))
+      window.dispatchEvent(new Event(ANTHRASPACE_UPDATER_QUIT_AND_INSTALL_STARTED_EVENT))
 
       // Why: we wrap the save attempt in try/catch so that a save failure
       // (e.g., unsupported dirty files or a write error) never silently
@@ -1918,7 +1918,7 @@ const api = {
         await new Promise<void>((resolve, reject) => {
           let claimed = false
           window.dispatchEvent(
-            new CustomEvent<EditorSaveDirtyFilesDetail>(ORCA_EDITOR_SAVE_DIRTY_FILES_EVENT, {
+            new CustomEvent<EditorSaveDirtyFilesDetail>(ANTHRASPACE_EDITOR_SAVE_DIRTY_FILES_EVENT, {
               detail: {
                 claim: () => {
                   claimed = true
@@ -1952,7 +1952,7 @@ const api = {
       try {
         return await ipcRenderer.invoke('updater:quitAndInstall')
       } catch (error) {
-        window.dispatchEvent(new Event(ORCA_UPDATER_QUIT_AND_INSTALL_ABORTED_EVENT))
+        window.dispatchEvent(new Event(ANTHRASPACE_UPDATER_QUIT_AND_INSTALL_ABORTED_EVENT))
         throw error
       }
     },

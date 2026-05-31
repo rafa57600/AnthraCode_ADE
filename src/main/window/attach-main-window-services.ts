@@ -5,7 +5,7 @@ import { app, ipcMain, session } from 'electron'
 import type { BrowserWindow, Session } from 'electron'
 import type { Store } from '../persistence'
 import type { CreateWorktreeResult, WorktreeStartupLaunch } from '../../shared/types'
-import { ORCA_BROWSER_PARTITION } from '../../shared/constants'
+import { ANTHRASPACE_BROWSER_PARTITION } from '../../shared/constants'
 import { registerRepoHandlers } from '../ipc/repos'
 import { registerWorktreeHandlers } from '../ipc/worktrees'
 import { registerWorkspaceCleanupHandlers } from '../ipc/workspace-cleanup'
@@ -132,7 +132,7 @@ export function attachMainWindowServices(
     }
   )
 
-  const browserSession = session.fromPartition(ORCA_BROWSER_PARTITION)
+  const browserSession = session.fromPartition(ANTHRASPACE_BROWSER_PARTITION)
   browserSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
     // Why: the in-app browser is for dev previews and lightweight browsing, not
     // trusted desktop-app privileges. Denying by default keeps arbitrary sites

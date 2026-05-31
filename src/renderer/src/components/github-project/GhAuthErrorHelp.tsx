@@ -108,7 +108,7 @@ function buildRemediation(
     return {
       summary: 'GitHub CLI (`gh`) is not installed or not on PATH.',
       detail:
-        'Orca uses `gh` to talk to GitHub Projects. Install it from cli.github.com, then sign in.',
+        'AnthraSpace uses `gh` to talk to GitHub Projects. Install it from cli.github.com, then sign in.',
       commands: [{ label: 'Copy login command', command: LOGIN_CMD }],
       docsUrl: 'https://cli.github.com/'
     }

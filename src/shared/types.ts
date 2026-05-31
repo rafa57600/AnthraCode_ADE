@@ -1220,7 +1220,7 @@ export type LinearTeam = {
   url?: string
 }
 
-// ─── Hooks (orca.yaml) ──────────────────────────────────────────────
+// ─── Hooks (anthraspace.yaml) ───────────────────────────────────────
 export type OrcaHooks = {
   scripts: {
     setup?: string // Runs after worktree is created
@@ -1228,6 +1228,8 @@ export type OrcaHooks = {
   }
   issueCommand?: string // Shared default command for linked GitHub issues
 }
+
+export type AnthraSpaceHooks = OrcaHooks
 
 export type RepoHookSettings = {
   // Why: persisted data may still include the old mode field from the earlier
@@ -1470,6 +1472,7 @@ export type ClaudeRateLimitAccountsState = {
 /** All AI coding agents Orca knows how to launch. Used for the agent picker in the new-workspace
  *  flow and for the default-agent setting. Extend this union as new agents are added. */
 export type TuiAgent =
+  | 'anthraspace' // ANTHRASPACE: AnthraSpace TUI
   | 'claude' // Claude Code
   | 'codex' // OpenAI Codex
   | 'autohand' // Autohand Code CLI
@@ -1664,7 +1667,7 @@ export type GlobalSettings = {
    *  usable without the setup output crowding the initial pane. */
   setupScriptLaunchMode: SetupScriptLaunchMode
   terminalScrollbackBytes: number
-  /** Why: opening arbitrary links inside Orca uses an isolated guest browser surface.
+  /** Why: opening arbitrary links inside AnthraSpace uses an isolated guest browser surface.
    *  The setting stays opt-in so existing workflows continue to use the system browser
    *  until the user explicitly wants worktree-scoped in-app browsing. */
   openLinksInApp: boolean

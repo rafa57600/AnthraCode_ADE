@@ -98,7 +98,7 @@ This keeps light/dark parity automatic.
 
 ## Elevation & shadows
 
-Orca uses shadows sparingly. Three levels in practice:
+AnthraSpace uses shadows sparingly. Three levels in practice:
 
 1. **Inset hairline** — `border` + `border` token. The default. Almost everything sits at this level.
 2. **Subtle lift** — `shadow-xs` + a single-token border. Outline buttons, embedded cards.

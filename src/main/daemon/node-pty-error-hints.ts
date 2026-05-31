@@ -27,7 +27,7 @@ const RESOURCE_EXHAUSTION_ERRNOS = new Set([
 const PTY_ALLOCATION_HINT = [
   'Your system cannot allocate any more pty devices.',
   '',
-  'Orca requires a pty device to launch a new terminal. This error is usually due to having too many terminal windows or terminal sessions open, either in Orca or another program.',
+  'AnthraSpace requires a pty device to launch a new terminal. This error is usually due to having too many terminal windows or terminal sessions open, either in AnthraSpace or another program.',
   '',
   'Free up some pty devices and try again.'
 ].join('\n')

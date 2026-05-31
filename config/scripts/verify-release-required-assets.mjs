@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import { pathToFileURL } from 'node:url'
 
 const API_VERSION = '2022-11-28'
@@ -10,18 +8,18 @@ export function getRequiredReleaseAssetNames(tag) {
     'latest-linux.yml',
     'latest-mac.yml',
     'latest.yml',
-    'orca-linux.AppImage',
-    `orca-ide_${version}_amd64.deb`,
-    'orca-windows-setup.exe',
-    'orca-windows-setup.exe.blockmap',
-    `Orca-${version}-mac.zip`,
-    `Orca-${version}-mac.zip.blockmap`,
-    `Orca-${version}-arm64-mac.zip`,
-    `Orca-${version}-arm64-mac.zip.blockmap`,
-    'orca-macos-x64.dmg',
-    'orca-macos-x64.dmg.blockmap',
-    'orca-macos-arm64.dmg',
-    'orca-macos-arm64.dmg.blockmap'
+    'anthraspace-linux.AppImage',
+    `anthraspace-ide_${version}_amd64.deb`,
+    'anthraspace-windows-setup.exe',
+    'anthraspace-windows-setup.exe.blockmap',
+    `AnthraSpace-${version}-mac.zip`,
+    `AnthraSpace-${version}-mac.zip.blockmap`,
+    `AnthraSpace-${version}-arm64-mac.zip`,
+    `AnthraSpace-${version}-arm64-mac.zip.blockmap`,
+    'anthraspace-macos-x64.dmg',
+    'anthraspace-macos-x64.dmg.blockmap',
+    'anthraspace-macos-arm64.dmg',
+    'anthraspace-macos-arm64.dmg.blockmap'
   ]
 }
 
@@ -140,7 +138,7 @@ async function main() {
   if (!token) {
     throw new Error('GH_TOKEN or GITHUB_TOKEN must be set')
   }
-  const repo = process.env.GITHUB_REPOSITORY || 'stablyai/orca'
+  const repo = process.env.GITHUB_REPOSITORY || 'rafa57600/AnthraSpace'
   const result = await verifyRequiredReleaseAssets({ repo, tag, token })
   console.log(`Verified ${result.checked.length} required release assets for ${repo}@${tag}`)
 }

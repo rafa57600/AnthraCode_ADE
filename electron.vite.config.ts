@@ -13,22 +13,22 @@ import tailwindcss from '@tailwindcss/vite'
 // shell export.
 //
 // CI injects real values via GitHub Actions secrets
-// (ORCA_BUILD_IDENTITY='stable' | 'rc', ORCA_POSTHOG_WRITE_KEY=phc_...);
+// (ANTHRASPACE_BUILD_IDENTITY='stable' | 'rc', ANTHRASPACE_POSTHOG_WRITE_KEY=phc_...);
 // every other build path resolves these env vars to undefined, which the
 // JSON.stringify below folds to the literal `null`. Ambient declarations
 // for the two constants live in `src/types/build-constants.d.ts`.
-const orcaBuildIdentity = process.env.ORCA_BUILD_IDENTITY
-const ORCA_BUILD_IDENTITY_LITERAL =
+const orcaBuildIdentity = process.env.ANTHRASPACE_BUILD_IDENTITY
+const ANTHRASPACE_BUILD_IDENTITY_LITERAL =
   orcaBuildIdentity === 'stable' || orcaBuildIdentity === 'rc'
     ? JSON.stringify(orcaBuildIdentity)
     : 'null'
-const orcaPostHogWriteKey = process.env.ORCA_POSTHOG_WRITE_KEY
-const ORCA_POSTHOG_WRITE_KEY_LITERAL =
+const orcaPostHogWriteKey = process.env.ANTHRASPACE_POSTHOG_WRITE_KEY
+const ANTHRASPACE_POSTHOG_WRITE_KEY_LITERAL =
   typeof orcaPostHogWriteKey === 'string' && orcaPostHogWriteKey.length > 0
     ? JSON.stringify(orcaPostHogWriteKey)
     : 'null'
-const orcaDiagnosticsTokenUrl = process.env.ORCA_DIAGNOSTICS_TOKEN_URL
-const ORCA_DIAGNOSTICS_TOKEN_URL_LITERAL =
+const orcaDiagnosticsTokenUrl = process.env.ANTHRASPACE_DIAGNOSTICS_TOKEN_URL
+const ANTHRASPACE_DIAGNOSTICS_TOKEN_URL_LITERAL =
   typeof orcaDiagnosticsTokenUrl === 'string' && orcaDiagnosticsTokenUrl.length > 0
     ? JSON.stringify(orcaDiagnosticsTokenUrl)
     : 'null'
@@ -60,9 +60,9 @@ export default defineConfig({
     // Why: compile-time substitution for the telemetry gate. See the block
     // above for the full rationale.
     define: {
-      ORCA_BUILD_IDENTITY: ORCA_BUILD_IDENTITY_LITERAL,
-      ORCA_POSTHOG_WRITE_KEY: ORCA_POSTHOG_WRITE_KEY_LITERAL,
-      ORCA_DIAGNOSTICS_TOKEN_URL: ORCA_DIAGNOSTICS_TOKEN_URL_LITERAL
+      ANTHRASPACE_BUILD_IDENTITY: ANTHRASPACE_BUILD_IDENTITY_LITERAL,
+      ANTHRASPACE_POSTHOG_WRITE_KEY: ANTHRASPACE_POSTHOG_WRITE_KEY_LITERAL,
+      ANTHRASPACE_DIAGNOSTICS_TOKEN_URL: ANTHRASPACE_DIAGNOSTICS_TOKEN_URL_LITERAL
     },
     // Why: @xterm/headless declares "exports": null in package.json, which
     // prevents Vite's default resolver from finding the CJS entry. Point

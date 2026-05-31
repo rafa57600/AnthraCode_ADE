@@ -35,7 +35,7 @@ import type { GitHubViewer } from '../../../../shared/types'
 import { showOnboardingFromRenderer } from '../onboarding/show-onboarding-event'
 import { ScrollToCurrentWorkspaceToolbarButton } from './ScrollToCurrentWorkspaceToolbarButton'
 
-const GITHUB_ISSUES_URL = 'https://github.com/stablyai/orca/issues/'
+const GITHUB_ISSUES_URL = 'https://github.com/rafa57600/AnthraSpace/issues/'
 const DISCORD_URL = 'https://discord.gg/fzjDKHxv8Q'
 const X_URL = 'https://x.com/orca_build'
 const DOCS_URL = 'https://www.onorca.dev/docs'

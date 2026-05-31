@@ -105,8 +105,8 @@ beforeEach(() => {
   fsMockState.failSymlink = false
   fakeHomeDir = mkdtempSync(join(tmpdir(), 'orca-codex-session-home-'))
   userDataDir = mkdtempSync(join(tmpdir(), 'orca-codex-session-user-data-'))
-  previousUserDataPath = process.env.ORCA_USER_DATA_PATH
-  process.env.ORCA_USER_DATA_PATH = userDataDir
+  previousUserDataPath = process.env.ANTHRASPACE_USER_DATA_PATH
+  process.env.ANTHRASPACE_USER_DATA_PATH = userDataDir
   homedirMock.mockReturnValue(fakeHomeDir)
   mkdirSync(getSystemCodexHomePath(), { recursive: true })
 })
@@ -115,9 +115,9 @@ afterEach(() => {
   rmSync(fakeHomeDir, { recursive: true, force: true })
   rmSync(userDataDir, { recursive: true, force: true })
   if (previousUserDataPath === undefined) {
-    delete process.env.ORCA_USER_DATA_PATH
+    delete process.env.ANTHRASPACE_USER_DATA_PATH
   } else {
-    process.env.ORCA_USER_DATA_PATH = previousUserDataPath
+    process.env.ANTHRASPACE_USER_DATA_PATH = previousUserDataPath
   }
   vi.clearAllMocks()
 })

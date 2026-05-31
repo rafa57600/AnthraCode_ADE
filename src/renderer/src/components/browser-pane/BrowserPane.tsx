@@ -51,7 +51,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import { useAppStore } from '@/store'
-import { ORCA_BROWSER_BLANK_URL, ORCA_BROWSER_PARTITION } from '../../../../shared/constants'
+import {
+  ANTHRASPACE_BROWSER_BLANK_URL,
+  ANTHRASPACE_BROWSER_PARTITION
+} from '../../../../shared/constants'
 import type {
   BrowserLoadError,
   BrowserPage as BrowserPageState,
@@ -479,15 +482,15 @@ function buildLoadError(event: {
 }
 
 function toDisplayUrl(url: string): string {
-  return url === ORCA_BROWSER_BLANK_URL ? 'about:blank' : redactKagiSessionToken(url)
+  return url === ANTHRASPACE_BROWSER_BLANK_URL ? 'about:blank' : redactKagiSessionToken(url)
 }
 
 function getBrowserDisplayTitle(title: string | null | undefined, url: string): string {
   if (
     url === 'about:blank' ||
-    url === ORCA_BROWSER_BLANK_URL ||
+    url === ANTHRASPACE_BROWSER_BLANK_URL ||
     title === 'about:blank' ||
-    title === ORCA_BROWSER_BLANK_URL ||
+    title === ANTHRASPACE_BROWSER_BLANK_URL ||
     !title
   ) {
     return 'New Tab'
@@ -1405,7 +1408,7 @@ function RemoteBrowserPagePane({
       const createRemotePage = async (): Promise<string | null> => {
         const currentUrl = currentBrowserTabUrlRef.current
         const initialUrl =
-          currentUrl === ORCA_BROWSER_BLANK_URL ? 'about:blank' : currentUrl || 'about:blank'
+          currentUrl === ANTHRASPACE_BROWSER_BLANK_URL ? 'about:blank' : currentUrl || 'about:blank'
         const created = await callRuntimeRpc<{ browserPageId: string }>(
           target,
           'browser.tabCreate',
@@ -2622,7 +2625,7 @@ function BrowserPagePane({
   const sessionProfile = sessionProfileId
     ? (browserSessionProfiles.find((p) => p.id === sessionProfileId) ?? null)
     : null
-  const webviewPartition = sessionProfile?.partition ?? ORCA_BROWSER_PARTITION
+  const webviewPartition = sessionProfile?.partition ?? ANTHRASPACE_BROWSER_PARTITION
   const browserSessionImportState = useAppStore((s) => s.browserSessionImportState)
   const clearBrowserSessionImportState = useAppStore((s) => s.clearBrowserSessionImportState)
 
@@ -3435,7 +3438,7 @@ function BrowserPagePane({
         setAddressBarValue(toDisplayUrl(browserModelUrl))
       }
       onSetUrlRef.current(browserTab.id, browserModelUrl)
-      if (keepAddressBarFocusRef.current && currentUrl === ORCA_BROWSER_BLANK_URL) {
+      if (keepAddressBarFocusRef.current && currentUrl === ANTHRASPACE_BROWSER_BLANK_URL) {
         focusAddressBarNow()
       } else {
         keepAddressBarFocusRef.current = false
@@ -3575,8 +3578,8 @@ function BrowserPagePane({
       // reclaiming/activating a parked about:blank tab is not a meaningful
       // navigation and should not flash the tab-loading dot.
       const initialUrl =
-        normalizeBrowserNavigationUrl(initialBrowserUrlRef.current) ?? ORCA_BROWSER_BLANK_URL
-      trackNextLoadingEventRef.current = initialUrl !== ORCA_BROWSER_BLANK_URL
+        normalizeBrowserNavigationUrl(initialBrowserUrlRef.current) ?? ANTHRASPACE_BROWSER_BLANK_URL
+      trackNextLoadingEventRef.current = initialUrl !== ANTHRASPACE_BROWSER_BLANK_URL
       lastKnownWebviewUrlRef.current = initialUrl
       webview.src = initialUrl
     }
@@ -3671,10 +3674,10 @@ function BrowserPagePane({
       // Why: browserTab.url changes are Orca-driven navigations (address bar,
       // terminal link open, retry target update). Gate the next did-start-loading
       // event so only real navigations, not tab activation churn, show loading UI.
-      trackNextLoadingEventRef.current = normalizedUrl !== ORCA_BROWSER_BLANK_URL
+      trackNextLoadingEventRef.current = normalizedUrl !== ANTHRASPACE_BROWSER_BLANK_URL
       lastKnownWebviewUrlRef.current = normalizedUrl
       webview.src = normalizedUrl
-      if (normalizedUrl !== ORCA_BROWSER_BLANK_URL) {
+      if (normalizedUrl !== ANTHRASPACE_BROWSER_BLANK_URL) {
         keepAddressBarFocusRef.current = false
         if (document.activeElement === addressBarInputRef.current) {
           focusWebviewNow()
@@ -4012,11 +4015,11 @@ function BrowserPagePane({
         if (!webview) {
           return
         }
-        trackNextLoadingEventRef.current = targetUrl !== ORCA_BROWSER_BLANK_URL
+        trackNextLoadingEventRef.current = targetUrl !== ANTHRASPACE_BROWSER_BLANK_URL
         lastKnownWebviewUrlRef.current =
           normalizeBrowserNavigationUrl(browserModelUrl) ?? browserModelUrl
         webview.src = targetUrl
-        if (targetUrl !== ORCA_BROWSER_BLANK_URL) {
+        if (targetUrl !== ANTHRASPACE_BROWSER_BLANK_URL) {
           focusWebviewNow()
         }
       }
@@ -4103,7 +4106,8 @@ function BrowserPagePane({
   // Why: the store initially holds 'about:blank', but once the webview loads
   // with the safe data: URL, handleDidStopLoading writes the resolved URL back.
   // Match both so the "New Browser Tab" overlay stays visible for blank tabs.
-  const isBlankTab = browserTab.url === 'about:blank' || browserTab.url === ORCA_BROWSER_BLANK_URL
+  const isBlankTab =
+    browserTab.url === 'about:blank' || browserTab.url === ANTHRASPACE_BROWSER_BLANK_URL
   const externalUrl = getOpenableExternalUrl(webviewRef.current, browserTab.url)
   const currentBrowserUrl = getCurrentBrowserUrl(webviewRef.current, browserTab.url)
   const loadErrorMeta = getLoadErrorMetadata(browserTab.loadError)

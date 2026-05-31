@@ -1,11 +1,11 @@
 import { useEffect, type JSX } from 'react'
 import {
-  ORCA_CLI_SKILL_INSTALL_COMMAND,
-  ORCA_CLI_SKILL_NAME
+  ANTHRASPACE_CLI_SKILL_INSTALL_COMMAND,
+  ANTHRASPACE_CLI_SKILL_NAME
 } from '@/lib/agent-feature-install-commands'
 import {
   AGENT_SKILL_CLI_PREREQUISITE_NOTICE,
-  ensureOrcaCliAvailableForAgentSkillTerminal
+  ensureAnthraSpaceCliAvailableForAgentSkillTerminal
 } from '@/lib/agent-skill-cli-prerequisite'
 import { BROWSER_USE_ENABLED_STORAGE_KEY } from '@/lib/browser-use-setup-state'
 import {
@@ -25,7 +25,7 @@ export function BrowserUseSkillSetupCard(props: {
     loading: skillLoading,
     error: skillError,
     refresh: refreshSkillInstalled
-  } = useInstalledAgentSkill(ORCA_CLI_SKILL_NAME, {
+  } = useInstalledAgentSkill(ANTHRASPACE_CLI_SKILL_NAME, {
     sourceKinds: GLOBAL_AGENT_SKILL_SOURCE_KINDS
   })
 
@@ -34,7 +34,7 @@ export function BrowserUseSkillSetupCard(props: {
   }, [onInstalledChange, skillInstalled])
 
   const handleBeforeOpenTerminal = async (): Promise<void> => {
-    await ensureOrcaCliAvailableForAgentSkillTerminal()
+    await ensureAnthraSpaceCliAvailableForAgentSkillTerminal()
     localStorage.setItem(BROWSER_USE_ENABLED_STORAGE_KEY, '1')
   }
 
@@ -42,8 +42,8 @@ export function BrowserUseSkillSetupCard(props: {
     <AgentSkillSetupPanel
       className={compact ? 'w-full max-w-[520px]' : undefined}
       title="Browser Use skill"
-      description="Enables agents to navigate and verify pages in Orca's browser."
-      command={ORCA_CLI_SKILL_INSTALL_COMMAND}
+      description="Enables agents to navigate and verify pages in AnthraSpace's browser."
+      command={ANTHRASPACE_CLI_SKILL_INSTALL_COMMAND}
       terminalTitle="Browser Use setup"
       terminalAriaLabel="Browser Use skill install terminal"
       terminalWorktreeId="feature-wall-browser-use-skill-terminal"

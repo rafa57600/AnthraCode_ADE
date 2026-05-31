@@ -102,7 +102,7 @@ export function getLegendItems(provider: 'claude' | 'codex') {
   ]
 }
 
-export function OrcaLogo(): React.JSX.Element {
+export function AnthraSpaceLogo(): React.JSX.Element {
   return (
     <svg
       width={26}
@@ -187,7 +187,7 @@ export function CardFooter(props: {
             marginLeft: 5
           }}
         >
-          github.com/stablyai/orca
+          github.com/rafa57600/AnthraSpace
         </span>
       </div>
     </div>

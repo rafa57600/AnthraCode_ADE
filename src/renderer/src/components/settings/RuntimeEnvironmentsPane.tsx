@@ -221,7 +221,7 @@ export function RuntimeEnvironmentsPane({
           <p className="text-xs text-muted-foreground">
             {allowLocalRuntime
               ? "Local keeps today's desktop behavior. Saved servers route supported client calls through the remote runtime."
-              : 'Saved servers route this browser through a paired Orca runtime.'}
+              : 'Saved servers route this browser through a paired AnthraSpace runtime.'}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -316,11 +316,14 @@ export function RuntimeEnvironmentsPane({
                   aria-describedby="runtime-server-pairing-code-help"
                   value={pairingCode}
                   onChange={(event) => setPairingCode(event.target.value)}
-                  placeholder="orca://pair#..."
+                  placeholder="anthraspace://pair#..."
                   className="h-8 min-w-0 font-mono text-xs"
                 />
                 <p id="runtime-server-pairing-code-help" className="text-xs text-muted-foreground">
-                  Run <span className="font-mono">orca serve --pairing-address &lt;host&gt;</span>{' '}
+                  Run{' '}
+                  <span className="font-mono">
+                    anthraspace serve --pairing-address &lt;host&gt;
+                  </span>{' '}
                   on the server and paste the printed pairing URL.
                 </p>
               </div>
@@ -387,9 +390,10 @@ export function RuntimeEnvironmentsPane({
         <div className="overflow-hidden rounded-lg border border-border/50">
           <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2.5">
             <div className="min-w-0 space-y-0.5">
-              <div className="text-sm font-medium">Share this Orca server</div>
+              <div className="text-sm font-medium">Share this AnthraSpace server</div>
               <p className="text-xs text-muted-foreground">
-                Create a revocable access grant so a browser or another Orca client can connect.
+                Create a revocable access grant so a browser or another AnthraSpace client can
+                connect.
               </p>
             </div>
             <Button
@@ -426,8 +430,8 @@ export function RuntimeEnvironmentsPane({
           <DialogHeader>
             <DialogTitle className="text-sm">Switch Server</DialogTitle>
             <DialogDescription>
-              Orca will close remote terminals and browser tabs from the current server before
-              loading projects from the next server.
+              AnthraSpace will close remote terminals and browser tabs from the current server
+              before loading projects from the next server.
             </DialogDescription>
           </DialogHeader>
           {pendingSwitchValue ? (
@@ -486,9 +490,9 @@ export function RuntimeEnvironmentsPane({
             <DialogDescription>
               {removingActiveServer
                 ? allowLocalRuntime
-                  ? 'Removing the active server first switches Orca back to Local desktop and closes remote terminals and browser tabs for that server.'
+                  ? 'Removing the active server first switches AnthraSpace back to Local desktop and closes remote terminals and browser tabs for that server.'
                   : 'Removing the active server disconnects this browser and closes remote terminals and browser tabs for that server.'
-                : 'This removes the saved server from Orca. It does not change the active server.'}
+                : 'This removes the saved server from AnthraSpace. It does not change the active server.'}
             </DialogDescription>
           </DialogHeader>
           {pendingRemove ? (

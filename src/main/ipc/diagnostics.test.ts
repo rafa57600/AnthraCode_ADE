@@ -99,9 +99,11 @@ describe('diagnostics IPC handlers', () => {
     getDiagnosticsStatusMock.mockReset()
     getTraceFilePathMock.mockReset()
     uploadDiagnosticBundleMock.mockReset()
-    delete (globalThis as { ORCA_BUILD_IDENTITY?: unknown }).ORCA_BUILD_IDENTITY
-    delete (globalThis as { ORCA_DIAGNOSTICS_TOKEN_URL?: unknown }).ORCA_DIAGNOSTICS_TOKEN_URL
-    process.env.ORCA_DIAGNOSTICS_TOKEN_URL = 'https://diagnostics.example.com/diagnostics/token'
+    delete (globalThis as { ANTHRASPACE_BUILD_IDENTITY?: unknown }).ANTHRASPACE_BUILD_IDENTITY
+    delete (globalThis as { ANTHRASPACE_DIAGNOSTICS_TOKEN_URL?: unknown })
+      .ANTHRASPACE_DIAGNOSTICS_TOKEN_URL
+    process.env.ANTHRASPACE_DIAGNOSTICS_TOKEN_URL =
+      'https://diagnostics.example.com/diagnostics/token'
     getDiagnosticsStatusMock.mockReturnValue({
       localFileEnabled: true,
       otlpEnabled: false,
@@ -152,12 +154,13 @@ describe('diagnostics IPC handlers', () => {
       payload: '{"type":"bundle-header"}\n{"safe":true}\n'
     })
     const globalOverrides = globalThis as {
-      ORCA_BUILD_IDENTITY?: 'stable'
-      ORCA_DIAGNOSTICS_TOKEN_URL?: string
+      ANTHRASPACE_BUILD_IDENTITY?: 'stable'
+      ANTHRASPACE_DIAGNOSTICS_TOKEN_URL?: string
     }
-    globalOverrides.ORCA_BUILD_IDENTITY = 'stable'
-    globalOverrides.ORCA_DIAGNOSTICS_TOKEN_URL = 'https://official.example.com/diagnostics/token'
-    process.env.ORCA_DIAGNOSTICS_TOKEN_URL = 'https://attacker.example.com/diagnostics/token'
+    globalOverrides.ANTHRASPACE_BUILD_IDENTITY = 'stable'
+    globalOverrides.ANTHRASPACE_DIAGNOSTICS_TOKEN_URL =
+      'https://official.example.com/diagnostics/token'
+    process.env.ANTHRASPACE_DIAGNOSTICS_TOKEN_URL = 'https://attacker.example.com/diagnostics/token'
     collectDiagnosticBundleMock.mockReturnValue(bundle)
     readFileSyncMock.mockReturnValue(bundle.payload)
     const collect = handlers.get('diagnostics:collectBundle')!

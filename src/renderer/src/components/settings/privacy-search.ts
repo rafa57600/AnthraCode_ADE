@@ -36,7 +36,7 @@ export const PRIVACY_PANE_SEARCH_ENTRIES: SettingsSearchEntry[] = [
     keywords: [
       'do not track',
       'do_not_track',
-      'orca_telemetry_disabled',
+      'anthraspace_telemetry_disabled',
       'ci',
       'continuous integration',
       'env',

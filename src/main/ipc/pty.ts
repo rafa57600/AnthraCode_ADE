@@ -417,6 +417,35 @@ function restoreOrStripOverlayEnv(
   delete baseEnv[keys.source]
 }
 
+function firstLaunchExecutable(command: string | undefined): string {
+  const trimmed = command?.trim() ?? ''
+  if (!trimmed) {
+    return ''
+  }
+  const quoted = trimmed.match(/^(["'])(.*?)\1/)
+  const token = quoted ? quoted[2] : (trimmed.split(/\s+/)[0] ?? '')
+  const basename = token.split(/[\\/]/).pop() ?? token
+  return basename.toLowerCase().replace(/\.(?:exe|cmd|bat|ps1)$/i, '')
+}
+
+function applyOpenCodeCompatibleHookIdentity(
+  baseEnv: Record<string, string>,
+  launchCommand: string | undefined
+): void {
+  const executable = firstLaunchExecutable(launchCommand)
+  if (executable === 'anthracode') {
+    // ANTHRACODE: the CLI currently uses OpenCode-compatible plugin hooks;
+    // this env var makes the shared plugin report AnthraCode at the source.
+    baseEnv.ORCA_TUI_AGENT_TYPE = 'anthracode'
+    return
+  }
+  if (executable === 'opencode') {
+    baseEnv.ORCA_TUI_AGENT_TYPE = 'opencode'
+    return
+  }
+  delete baseEnv.ORCA_TUI_AGENT_TYPE
+}
+
 /**
  * Mutates `baseEnv` in place with all host-local PTY env vars and returns it.
  *
@@ -452,6 +481,7 @@ export function buildPtyHostEnv(
       baseEnv.HOME ?? process.env.HOME,
       baseEnv.SHELL ?? process.env.SHELL
     )
+  applyOpenCodeCompatibleHookIdentity(baseEnv, opts.launchCommand)
   const piAgentKind = detectPiAgentKindFromCommand(opts.launchCommand)
   const hasLaunchCommand =
     typeof opts.launchCommand === 'string' && opts.launchCommand.trim().length > 0
@@ -572,13 +602,13 @@ export function buildPtyHostEnv(
 
   // Why: in dev mode the `orca` CLI defaults to the production userData
   // path, which routes status updates to the packaged Orca instead of this
-  // dev instance. Injecting ORCA_USER_DATA_PATH ensures CLI calls from
+  // dev instance. Injecting ANTHRASPACE_USER_DATA_PATH ensures CLI calls from
   // agents running inside dev terminals reach the correct runtime. We also
   // prepend the dev CLI launcher directory to PATH so `orca` resolves to
-  // the dev build (which supports ORCA_USER_DATA_PATH) instead of the
+  // the dev build (which supports ANTHRASPACE_USER_DATA_PATH) instead of the
   // production binary at /usr/local/bin/orca.
   if (!opts.isPackaged) {
-    baseEnv.ORCA_USER_DATA_PATH ??= opts.userDataPath
+    baseEnv.ANTHRASPACE_USER_DATA_PATH ??= opts.userDataPath
     const devCliBin = join(opts.userDataPath, 'cli', 'bin')
     const inheritedPath = readInheritedPath(baseEnv)
     // Why: avoid a trailing delimiter when PATH is empty — some shells
@@ -593,11 +623,11 @@ export function buildPtyHostEnv(
   // the behavior local to Orca instead of rewriting user git config or
   // touching external shells.
   if (!opts.githubAttributionEnabled) {
-    delete baseEnv.ORCA_ENABLE_GIT_ATTRIBUTION
-    delete baseEnv.ORCA_GIT_COMMIT_TRAILER
-    delete baseEnv.ORCA_GH_PR_FOOTER
-    delete baseEnv.ORCA_GH_ISSUE_FOOTER
-    delete baseEnv.ORCA_ATTRIBUTION_SHIM_DIR
+    delete baseEnv.ANTHRASPACE_ENABLE_GIT_ATTRIBUTION
+    delete baseEnv.ANTHRASPACE_GIT_COMMIT_TRAILER
+    delete baseEnv.ANTHRASPACE_GH_PR_FOOTER
+    delete baseEnv.ANTHRASPACE_GH_ISSUE_FOOTER
+    delete baseEnv.ANTHRASPACE_ATTRIBUTION_SHIM_DIR
   }
   applyTerminalAttributionEnv(baseEnv, {
     enabled: opts.githubAttributionEnabled,

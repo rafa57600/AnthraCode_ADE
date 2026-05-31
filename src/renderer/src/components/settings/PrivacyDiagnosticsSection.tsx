@@ -289,7 +289,7 @@ export function PrivacyDiagnosticsSection(): React.JSX.Element {
         title="OTLP export"
         description={
           status?.otlpStatus ??
-          'Set ORCA_OTLP_TRACES_URL to point Orca at your own OpenTelemetry collector.'
+          'Set ORCA_OTLP_TRACES_URL to point AnthraSpace at your own OpenTelemetry collector.'
         }
       >
         <span
@@ -318,9 +318,9 @@ function DiagnosticsDisabledStateNote({
   const message =
     reason === 'do_not_track'
       ? 'DO_NOT_TRACK=1 is set — network-bound diagnostics are disabled. The local trace file is still active.'
-      : reason === 'orca_telemetry_disabled'
+      : reason === 'anthraspace_telemetry_disabled'
         ? 'ORCA_TELEMETRY_DISABLED=1 is set — network-bound diagnostics are disabled. The local trace file is still active.'
-        : reason === 'orca_diagnostics_disabled'
+        : reason === 'anthraspace_diagnostics_disabled'
           ? 'ORCA_DIAGNOSTICS_DISABLED=1 is set — every diagnostics surface is off, including local trace writes.'
           : reason === 'ci'
             ? 'Running in CI — diagnostics are off.'

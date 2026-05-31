@@ -332,6 +332,18 @@ export async function fetchClaudeRateLimits(options?: {
   // whose OAuth credentials exist. This remains a fallback for older Claude
   // auth shapes and transient OAuth failures.
   if (oauthCredentials.token || oauthCredentials.hasRefreshableCredentials) {
+    if (process.platform === 'win32') {
+      // Why: node-pty's hidden Windows ConPTY fallback can terminate the dev app
+      // with native heap errors; quota display is cosmetic, so keep startup safe.
+      return {
+        provider: 'claude',
+        session: null,
+        weekly: null,
+        updatedAt: Date.now(),
+        error: 'Claude usage PTY fallback is disabled on Windows.',
+        status: 'unavailable'
+      }
+    }
     try {
       return await fetchViaPty({ authPreparation: options?.authPreparation })
     } catch (err) {

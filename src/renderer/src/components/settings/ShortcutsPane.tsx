@@ -110,7 +110,7 @@ function getShortcutTerminalStatus(
   })
   return activeInTerminal
     ? {
-        label: 'Orca first',
+        label: 'AnthraSpace first',
         description: 'Also runs while a terminal or TUI has keyboard focus.'
       }
     : {
@@ -122,7 +122,7 @@ function getShortcutTerminalStatus(
 export function ShortcutsPane(): React.JSX.Element {
   const searchQuery = useAppStore((state) => state.settingsSearchQuery)
   const terminalShortcutPolicy = useAppStore(
-    (state) => state.settings?.terminalShortcutPolicy ?? 'orca-first'
+    (state) => state.settings?.terminalShortcutPolicy ?? 'anthraspace-first'
   )
   const updateSettings = useAppStore((state) => state.updateSettings)
   const keybindings = useAppStore((state) => state.keybindings)

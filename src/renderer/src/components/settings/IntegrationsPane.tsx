@@ -456,7 +456,8 @@ export function IntegrationsPane(): React.JSX.Element {
               <>
                 <p className="text-xs text-muted-foreground">
                   Bitbucket credentials are configured but could not authenticate. Check the token
-                  and repository permissions, then restart Orca if environment variables changed.
+                  and repository permissions, then restart AnthraSpace if environment variables
+                  changed.
                 </p>
                 <div className="flex items-center gap-2">
                   <Button
@@ -518,7 +519,7 @@ export function IntegrationsPane(): React.JSX.Element {
                   Set <span className="font-mono text-[11px]">ORCA_AZURE_DEVOPS_TOKEN</span>, or set{' '}
                   <span className="font-mono text-[11px]">ORCA_AZURE_DEVOPS_ACCESS_TOKEN</span>. Set{' '}
                   <span className="font-mono text-[11px]">ORCA_AZURE_DEVOPS_API_BASE_URL</span> only
-                  when Orca cannot derive the API base URL from the git remote.
+                  when AnthraSpace cannot derive the API base URL from the git remote.
                 </p>
                 <div className="flex items-center gap-2">
                   <Button
@@ -542,8 +543,8 @@ export function IntegrationsPane(): React.JSX.Element {
               <>
                 <p className="text-xs text-muted-foreground">
                   Azure DevOps credentials are configured but could not authenticate. Check the
-                  token, API base URL, and repository permissions, then restart Orca if environment
-                  variables changed.
+                  token, API base URL, and repository permissions, then restart AnthraSpace if
+                  environment variables changed.
                 </p>
                 <div className="flex items-center gap-2">
                   <Button
@@ -606,7 +607,7 @@ export function IntegrationsPane(): React.JSX.Element {
                   <span className="font-mono text-[11px]">ORCA_GITEA_TOKEN</span> for private
                   repositories, and set{' '}
                   <span className="font-mono text-[11px]">ORCA_GITEA_API_BASE_URL</span> only when
-                  Orca cannot derive the API URL from the remote.
+                  AnthraSpace cannot derive the API URL from the remote.
                 </p>
                 <div className="flex items-center gap-2">
                   <Button
@@ -628,8 +629,8 @@ export function IntegrationsPane(): React.JSX.Element {
               <>
                 <p className="text-xs text-muted-foreground">
                   Gitea credentials are configured but could not authenticate. Check the token, API
-                  base URL, and repository permissions, then restart Orca if environment variables
-                  changed.
+                  base URL, and repository permissions, then restart AnthraSpace if environment
+                  variables changed.
                 </p>
                 <div className="flex items-center gap-2">
                   <Button
@@ -772,7 +773,7 @@ export function IntegrationsPane(): React.JSX.Element {
             <DialogTitle className="leading-tight">Connect Linear workspace</DialogTitle>
             <DialogDescription>
               Paste a <strong className="font-semibold text-foreground">Personal API key</strong> to
-              add a workspace to Orca.
+              add a workspace to AnthraSpace.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3">

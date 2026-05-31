@@ -153,7 +153,7 @@ if (app.isPackaged && process.platform !== 'win32') {
 configureDevUserDataPath(is.dev)
 // Why: CLI-shared Codex helpers cannot import Electron. Seed the resolved
 // app userData path once Electron has applied dev/e2e overrides.
-process.env.ORCA_USER_DATA_PATH ??= app.getPath('userData')
+process.env.ANTHRASPACE_USER_DATA_PATH ??= app.getPath('userData')
 
 function focusExistingWindow(): void {
   // Why: the second-instance event fires on the *primary* Electron process

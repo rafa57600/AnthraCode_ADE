@@ -233,7 +233,7 @@ export function createMainWindow(
     ...(savedBounds ? { x: savedBounds.x, y: savedBounds.y } : {}),
     minWidth: MIN_WIDTH,
     minHeight: MIN_HEIGHT,
-    title: opts?.title ?? 'Orca',
+    title: opts?.title ?? 'AnthraSpace',
     show: false,
     // Why: on macOS the menu lives in the system menu bar, so the in-window
     // menu bar is irrelevant. On Windows/Linux we auto-hide so the menu bar
@@ -737,7 +737,7 @@ export function createMainWindow(
 
     const capturedTerminalActionId =
       terminalShortcutContext.context === 'terminal' &&
-      terminalShortcutContext.terminalShortcutPolicy === 'orca-first' &&
+      terminalShortcutContext.terminalShortcutPolicy === 'anthraspace-first' &&
       windowShortcutActionCapturesTerminal(action)
         ? getWindowShortcutActionId(action)
         : null

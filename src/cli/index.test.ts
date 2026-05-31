@@ -100,7 +100,7 @@ describe('COMMAND_SPECS collision check', () => {
 
 describe('orca cli worktree awareness', () => {
   const originalTerminalHandle = process.env.ORCA_TERMINAL_HANDLE
-  const originalUserDataPath = process.env.ORCA_USER_DATA_PATH
+  const originalUserDataPath = process.env.ANTHRASPACE_USER_DATA_PATH
   const originalPairingCode = process.env.ORCA_PAIRING_CODE
   const originalRemotePairing = process.env.ORCA_REMOTE_PAIRING
   const originalEnvironment = process.env.ORCA_ENVIRONMENT
@@ -108,7 +108,7 @@ describe('orca cli worktree awareness', () => {
   beforeEach(() => {
     callMock.mockReset()
     delete process.env.ORCA_TERMINAL_HANDLE
-    delete process.env.ORCA_USER_DATA_PATH
+    delete process.env.ANTHRASPACE_USER_DATA_PATH
     serveOrcaAppMock.mockReset()
     getDefaultUserDataPathMock.mockClear()
     addEnvironmentFromPairingCodeMock.mockReset()
@@ -143,9 +143,9 @@ describe('orca cli worktree awareness', () => {
       process.env.ORCA_TERMINAL_HANDLE = originalTerminalHandle
     }
     if (originalUserDataPath === undefined) {
-      delete process.env.ORCA_USER_DATA_PATH
+      delete process.env.ANTHRASPACE_USER_DATA_PATH
     } else {
-      process.env.ORCA_USER_DATA_PATH = originalUserDataPath
+      process.env.ANTHRASPACE_USER_DATA_PATH = originalUserDataPath
     }
     if (originalPairingCode === undefined) {
       delete process.env.ORCA_PAIRING_CODE
@@ -1362,7 +1362,7 @@ describe('orca cli worktree awareness', () => {
 
   it('passes dev mode to injected orchestration dispatches', async () => {
     process.env.ORCA_TERMINAL_HANDLE = 'term_sender'
-    process.env.ORCA_USER_DATA_PATH = '/tmp/orca-dev'
+    process.env.ANTHRASPACE_USER_DATA_PATH = '/tmp/orca-dev'
     callMock.mockResolvedValueOnce({
       id: 'req_dispatch',
       ok: true,

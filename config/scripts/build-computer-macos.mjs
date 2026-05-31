@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const packagePath = path.join(repoRoot, 'native', 'computer-use-macos')
 const binaryPath = path.join(packagePath, '.build', 'release', 'orca-computer-use-macos')
-const appPath = path.join(packagePath, '.build', 'release', 'Orca Computer Use.app')
+const appPath = path.join(packagePath, '.build', 'release', 'AnthraSpace Computer Use.app')
 const appExecutablePath = path.join(appPath, 'Contents', 'MacOS', 'orca-computer-use-macos')
 const appIconPath = path.join(appPath, 'Contents', 'Resources', 'AppIcon.icns')
 const entitlementsPath = path.join(
@@ -15,8 +15,10 @@ const entitlementsPath = path.join(
   'build',
   'entitlements.computer-use.mac.plist'
 )
-const bundleId = process.env.ORCA_COMPUTER_MACOS_BUNDLE_ID ?? 'com.stablyai.orca.computer-use'
-const displayName = 'Orca Computer Use'
+const bundleId =
+  process.env.ANTHRASPACE_COMPUTER_MACOS_BUNDLE_ID ??
+  'space.anthracode.anthraspace.computer-use'
+const displayName = 'AnthraSpace Computer Use'
 const signingIdentity = resolveSigningIdentity()
 const universalTriples = ['arm64-apple-macosx', 'x86_64-apple-macosx']
 
@@ -56,7 +58,7 @@ function createHelperApp() {
 
 function codesignArgs(identity, targetPath) {
   const args = ['--force', '--deep', '--sign', identity]
-  if (process.env.ORCA_MAC_RELEASE === '1' && identity !== '-') {
+  if (process.env.ANTHRASPACE_MAC_RELEASE === '1' && identity !== '-') {
     args.push('--options', 'runtime', '--timestamp', '--entitlements', entitlementsPath)
   }
   args.push(targetPath)
@@ -64,7 +66,7 @@ function codesignArgs(identity, targetPath) {
 }
 
 function resolveSigningIdentity() {
-  const explicitIdentity = process.env.ORCA_COMPUTER_MACOS_SIGN_IDENTITY ?? process.env.CSC_NAME
+  const explicitIdentity = process.env.ANTHRASPACE_COMPUTER_MACOS_SIGN_IDENTITY ?? process.env.CSC_NAME
   if (explicitIdentity) {
     return explicitIdentity
   }
@@ -75,7 +77,7 @@ function resolveSigningIdentity() {
     return '-'
   }
   const developmentMatch = identities.stdout.match(/"([^"]*Apple Development:[^"]+)"/)
-  if (process.env.ORCA_MAC_RELEASE !== '1' && developmentMatch) {
+  if (process.env.ANTHRASPACE_MAC_RELEASE !== '1' && developmentMatch) {
     return developmentMatch[1]
   }
   const releaseMatch =
@@ -124,9 +126,9 @@ function infoPlist() {
   <key>LSUIElement</key>
   <true/>
   <key>NSAccessibilityUsageDescription</key>
-  <string>Orca Computer Use needs Accessibility permission to read and interact with app interfaces when you ask Orca to use apps.</string>
+  <string>AnthraSpace Computer Use needs Accessibility permission to read and interact with app interfaces when you ask AnthraSpace to use apps.</string>
   <key>NSScreenCaptureUsageDescription</key>
-  <string>Orca Computer Use needs Screen Recording permission to capture app windows when you ask Orca to inspect your screen.</string>
+  <string>AnthraSpace Computer Use needs Screen Recording permission to capture app windows when you ask AnthraSpace to inspect your screen.</string>
 </dict>
 </plist>
 `

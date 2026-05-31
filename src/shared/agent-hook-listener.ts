@@ -28,7 +28,7 @@ import {
 import { join } from 'path'
 
 import { parseAgentStatusPayload, type ParsedAgentStatusPayload } from './agent-status-types'
-import { ORCA_HOOK_PROTOCOL_VERSION } from './agent-hook-types'
+import { ANTHRASPACE_HOOK_PROTOCOL_VERSION } from './agent-hook-types'
 import { REMOTE_AGENT_HOOK_ENV, type AgentHookSource } from './agent-hook-relay'
 import { parsePaneKey } from './stable-pane-id'
 
@@ -107,13 +107,13 @@ export function warnOnHookEnvOrVersionMismatch(
   const { version, env, expectedEnv } = fields
   if (
     version &&
-    version !== ORCA_HOOK_PROTOCOL_VERSION &&
+    version !== ANTHRASPACE_HOOK_PROTOCOL_VERSION &&
     !state.warnedVersions.has(version) &&
     state.warnedVersions.size < MAX_WARNED_KEYS
   ) {
     state.warnedVersions.add(version)
     console.warn(
-      `[agent-hooks] received hook v${version}; server expects v${ORCA_HOOK_PROTOCOL_VERSION}. ` +
+      `[agent-hooks] received hook v${version}; server expects v${ANTHRASPACE_HOOK_PROTOCOL_VERSION}. ` +
         'Reinstall agent hooks from Settings to upgrade the managed script.'
     )
   }
@@ -1633,6 +1633,7 @@ function isNewTurnEvent(source: AgentHookSource, eventName: unknown): boolean {
       return eventName === 'BeforeAgent'
     case 'antigravity':
       return eventName === 'PreInvocation'
+    case 'anthraspace':
     case 'opencode':
       return false
     case 'cursor':
@@ -1676,6 +1677,7 @@ function extractToolFields(
       return extractGeminiToolFields(eventName, hookPayload)
     case 'antigravity':
       return extractAntigravityToolFields(eventName, hookPayload)
+    case 'anthraspace':
     case 'opencode':
       return extractOpenCodeToolFields(eventName, hookPayload)
     case 'cursor':
@@ -1917,8 +1919,9 @@ function normalizeCodexEvent(
   )
 }
 
-function normalizeOpenCodeEvent(
+function normalizeOpenCodeCompatibleEvent(
   state: HookListenerState,
+  agentType: 'anthraspace' | 'opencode',
   eventName: unknown,
   promptText: string,
   paneKey: string,
@@ -1950,7 +1953,7 @@ function normalizeOpenCodeEvent(
       prompt: resolvePrompt(state, paneKey, promptText, {
         resetOnNewTurn: isNewTurnEvent('opencode', eventName)
       }),
-      agentType: 'opencode',
+      agentType,
       toolName: snapshot.toolName,
       toolInput: snapshot.toolInput,
       lastAssistantMessage: snapshot.lastAssistantMessage
@@ -2437,8 +2440,25 @@ export function normalizeHookPayload(
     case 'antigravity':
       payload = normalizeAntigravityEvent(state, eventName, promptText, paneKey, hookPayloadRecord)
       break
+    case 'anthraspace':
+      payload = normalizeOpenCodeCompatibleEvent(
+        state,
+        'anthraspace',
+        eventName,
+        promptText,
+        paneKey,
+        hookPayloadRecord
+      )
+      break
     case 'opencode':
-      payload = normalizeOpenCodeEvent(state, eventName, promptText, paneKey, hookPayloadRecord)
+      payload = normalizeOpenCodeCompatibleEvent(
+        state,
+        'opencode',
+        eventName,
+        promptText,
+        paneKey,
+        hookPayloadRecord
+      )
       break
     case 'cursor':
       payload = normalizeCursorEvent(state, eventName, promptText, paneKey, hookPayloadRecord)
@@ -2512,6 +2532,7 @@ export const HOOK_SOURCE_BY_PATHNAME: Readonly<Record<string, AgentHookSource>> 
   '/hook/codex': 'codex',
   '/hook/gemini': 'gemini',
   '/hook/antigravity': 'antigravity',
+  '/hook/anthraspace': 'anthraspace',
   '/hook/opencode': 'opencode',
   '/hook/cursor': 'cursor',
   '/hook/pi': 'pi',

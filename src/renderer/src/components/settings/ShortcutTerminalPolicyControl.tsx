@@ -19,7 +19,7 @@ export function ShortcutTerminalPolicyControl({
     <SearchableSetting
       id="terminal-shortcut-policy"
       title="Shortcuts in Terminal"
-      description="Choose whether Orca or the focused terminal wins when shortcuts overlap."
+      description="Choose whether AnthraSpace or the focused terminal wins when shortcuts overlap."
       keywords={keywords}
       className="max-w-none"
     >
@@ -39,7 +39,7 @@ export function ShortcutTerminalPolicyControl({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="orca-first">Orca first</SelectItem>
+              <SelectItem value="anthraspace-first">AnthraSpace first</SelectItem>
               <SelectItem value="terminal-first">Terminal first</SelectItem>
             </SelectContent>
           </Select>

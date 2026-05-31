@@ -255,7 +255,7 @@ export class LocalPtyProvider implements IPtyProvider {
       ...args.env,
       TERM: 'xterm-256color',
       COLORTERM: 'truecolor',
-      TERM_PROGRAM: 'Orca',
+      TERM_PROGRAM: 'AnthraSpace',
       // Why: TUIs feature-gate on TERM_PROGRAM_VERSION (Neovim's termcap
       // autodetection, bat/delta paging hints). Sourced from ORCA_APP_VERSION
       // which main/index.ts seeds from app.getVersion() at startup; the
@@ -306,7 +306,7 @@ export class LocalPtyProvider implements IPtyProvider {
       // Why: any Orca-injected overlay env that user rc files can clobber
       // needs the wrapper so the post-rc restore line runs.
       const needsNoMarkerWrapper =
-        finalEnv.ORCA_ATTRIBUTION_SHIM_DIR ||
+        finalEnv.ANTHRASPACE_ATTRIBUTION_SHIM_DIR ||
         finalEnv.ORCA_OPENCODE_CONFIG_DIR ||
         finalEnv.ORCA_PI_CODING_AGENT_DIR ||
         finalEnv.ORCA_OMP_CODING_AGENT_DIR ||

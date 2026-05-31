@@ -6845,7 +6845,7 @@ describe('OrcaRuntimeService', () => {
       }
     ])
 
-    const draftUrl = 'https://github.com/stablyai/orca/issues/123'
+    const draftUrl = 'https://github.com/rafa57600/AnthraSpace/issues/123'
     const result = await runtime.createManagedWorktree({
       repoSelector: 'id:repo-1',
       name: 'runtime-startup-draft',
@@ -6942,7 +6942,7 @@ describe('OrcaRuntimeService', () => {
     const result = await runtime.createManagedWorktree({
       repoSelector: 'id:repo-1',
       name: 'runtime-startup-setup-split',
-      startupDraft: 'https://github.com/stablyai/orca/issues/123',
+      startupDraft: 'https://github.com/rafa57600/AnthraSpace/issues/123',
       setupDecision: 'run',
       activate: true
     })
@@ -7041,7 +7041,7 @@ describe('OrcaRuntimeService', () => {
       }
     ])
 
-    const draftUrl = 'https://github.com/stablyai/orca/issues/789'
+    const draftUrl = 'https://github.com/rafa57600/AnthraSpace/issues/789'
     const result = await runtime.createManagedWorktree({
       repoSelector: 'id:repo-1',
       name: 'runtime-explicit-draft',
@@ -7124,7 +7124,7 @@ describe('OrcaRuntimeService', () => {
     const result = await runtime.createManagedWorktree({
       repoSelector: 'id:repo-1',
       name: 'runtime-blank-draft',
-      startupDraft: 'https://github.com/stablyai/orca/issues/123',
+      startupDraft: 'https://github.com/rafa57600/AnthraSpace/issues/123',
       activate: true
     })
 
@@ -7207,7 +7207,7 @@ describe('OrcaRuntimeService', () => {
       getForegroundProcess: async () => null
     })
 
-    const draftUrl = 'https://github.com/stablyai/orca/pull/456'
+    const draftUrl = 'https://github.com/rafa57600/AnthraSpace/pull/456'
     const result = await runtime.createManagedWorktree({
       repoSelector: TEST_REPO_ID,
       name: 'mobile-startup-draft',
@@ -7310,7 +7310,7 @@ describe('OrcaRuntimeService', () => {
       const result = await runtime.createManagedWorktree({
         repoSelector: TEST_REPO_ID,
         name: 'mobile-codex-draft',
-        startupDraft: 'https://github.com/stablyai/orca/issues/789'
+        startupDraft: 'https://github.com/rafa57600/AnthraSpace/issues/789'
       })
 
       expect(detectRemoteAgentsMock).not.toHaveBeenCalled()

@@ -90,7 +90,7 @@ async function resolveOrchestrationTerminalHandle(
 }
 
 function isDevCliInvocation(): boolean {
-  return process.env.ORCA_USER_DATA_PATH?.includes('orca-dev') ?? false
+  return process.env.ANTHRASPACE_USER_DATA_PATH?.includes('orca-dev') ?? false
 }
 
 export const ORCHESTRATION_HANDLERS: Record<string, CommandHandler> = {

@@ -9,6 +9,7 @@ import type { TerminalTab } from '../../../../shared/types'
 import {
   AGENT_STATUS_STALE_AFTER_MS,
   type AgentStatusEntry,
+  type AgentType,
   type MigrationUnsupportedPtyEntry
 } from '../../../../shared/agent-status-types'
 import { parsePaneKey } from '../../../../shared/stable-pane-id'
@@ -57,6 +58,20 @@ let tabWorktreeIndexCache: TabWorktreeIndexCache | null = null
 let liveEntriesByWorktreeCache: LiveEntriesByWorktreeCache | null = null
 let migrationUnsupportedByWorktreeCache: MigrationUnsupportedByWorktreeCache | null = null
 let retainedEntriesByWorktreeCache: RetainedEntriesByWorktreeCache | null = null
+
+function isAnthraCodeTitle(title: string | null | undefined): boolean {
+  const normalized = title?.trim().toLowerCase() ?? ''
+  return normalized.includes('anthracode') || /(?:^|\s)ac\s*\|/.test(normalized)
+}
+
+function getSidebarAgentType(agentType: AgentType | null | undefined, tab: TerminalTab): AgentType {
+  if (agentType === 'opencode' && isAnthraCodeTitle(tab.title)) {
+    // ANTHRACODE: legacy sessions may predate source-level hook attribution;
+    // keep those rows branded from renderer-owned launch identity.
+    return 'anthracode'
+  }
+  return agentType ?? 'unknown'
+}
 
 function reuseArrayIfEqual<T>(previous: T[] | undefined, next: T[]): T[] {
   if (!previous || previous.length !== next.length) {
@@ -249,7 +264,7 @@ export function buildWorktreeAgentRows(args: {
         paneKey: entry.paneKey,
         entry,
         tab,
-        agentType: entry.agentType ?? 'unknown',
+        agentType: getSidebarAgentType(entry.agentType, tab),
         state: shouldDecay ? 'idle' : entry.state,
         startedAt: entry.stateHistory[0]?.startedAt ?? entry.stateStartedAt
       })
@@ -265,7 +280,7 @@ export function buildWorktreeAgentRows(args: {
       paneKey: ra.entry.paneKey,
       entry: ra.entry,
       tab: ra.tab,
-      agentType: ra.agentType,
+      agentType: getSidebarAgentType(ra.agentType, ra.tab),
       state: 'done',
       startedAt: ra.startedAt
     })

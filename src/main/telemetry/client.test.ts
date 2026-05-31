@@ -448,7 +448,7 @@ describe('persistBannerAcknowledgeWithoutEmitting()', () => {
 // tells us the existing-user opt-out flow works.
 describe('shouldOptOutSdkAtInit()', () => {
   it('opts out the SDK for every disabled-reason', () => {
-    for (const reason of ['user_opt_out', 'ci', 'do_not_track', 'orca_disabled'] as const) {
+    for (const reason of ['user_opt_out', 'ci', 'do_not_track', 'anthraspace_disabled'] as const) {
       expect(shouldOptOutSdkAtInit({ effective: 'disabled', reason })).toBe(true)
     }
   })

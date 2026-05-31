@@ -47,7 +47,7 @@ describe('onboarding feature setup telemetry validation', () => {
         computer_use: false,
         orchestration: true,
         selected_count: 2,
-        command: 'npx skills add https://github.com/stablyai/orca --global'
+        command: 'npx skills add https://github.com/rafa57600/AnthraSpace --global'
       } as never).ok
     ).toBe(false)
     expect(

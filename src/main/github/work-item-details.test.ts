@@ -85,7 +85,7 @@ describe('getWorkItemDetails', () => {
       number: 923,
       title: 'Use upstream issues',
       state: 'open',
-      url: 'https://github.com/stablyai/orca/issues/923',
+      url: 'https://github.com/rafa57600/AnthraSpace/issues/923',
       labels: [],
       updatedAt: '2026-04-01T00:00:00Z',
       author: 'octocat'
@@ -107,7 +107,7 @@ describe('getWorkItemDetails', () => {
                     databaseId: 7,
                     body: 'first',
                     createdAt: '2026-04-01T00:00:00Z',
-                    url: 'https://github.com/stablyai/orca/issues/923#issuecomment-7',
+                    url: 'https://github.com/rafa57600/AnthraSpace/issues/923#issuecomment-7',
                     author: { login: 'octocat', avatarUrl: 'https://x/y' }
                   }
                 ]
@@ -139,7 +139,7 @@ describe('getWorkItemDetails', () => {
       number: 923,
       title: 'Use upstream issues',
       state: 'open',
-      url: 'https://github.com/stablyai/orca/issues/923',
+      url: 'https://github.com/rafa57600/AnthraSpace/issues/923',
       labels: [],
       updatedAt: '2026-04-01T00:00:00Z',
       author: 'octocat'
@@ -163,12 +163,12 @@ describe('getWorkItemDetails', () => {
 
     expect(ghExecFileAsyncMock).toHaveBeenNthCalledWith(
       2,
-      ['api', '--cache', '60s', 'repos/stablyai/orca/issues/923'],
+      ['api', '--cache', '60s', 'repos/rafa57600/AnthraSpace/issues/923'],
       { cwd: '/repo-root' }
     )
     expect(ghExecFileAsyncMock).toHaveBeenNthCalledWith(
       3,
-      ['api', '--cache', '60s', 'repos/stablyai/orca/issues/923/comments?per_page=100'],
+      ['api', '--cache', '60s', 'repos/rafa57600/AnthraSpace/issues/923/comments?per_page=100'],
       { cwd: '/repo-root' }
     )
     expect(details?.body).toBe('Issue body')
@@ -187,7 +187,7 @@ describe('getWorkItemDetails', () => {
       number: 923,
       title: 'Use upstream issues',
       state: 'open',
-      url: 'https://github.com/stablyai/orca/issues/923',
+      url: 'https://github.com/rafa57600/AnthraSpace/issues/923',
       labels: [],
       updatedAt: '2026-04-01T00:00:00Z',
       author: 'octocat'
@@ -213,7 +213,7 @@ describe('getWorkItemDetails', () => {
       number: 923,
       title: 'Use upstream issues',
       state: 'open',
-      url: 'https://github.com/stablyai/orca/issues/923',
+      url: 'https://github.com/rafa57600/AnthraSpace/issues/923',
       labels: [],
       updatedAt: '2026-04-01T00:00:00Z',
       author: 'octocat'

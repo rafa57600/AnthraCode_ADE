@@ -27,7 +27,7 @@ import { parsePaneKey } from '../../shared/stable-pane-id'
 const NOTIFICATION_COOLDOWN_MS = 5000
 const NOTIFICATION_DISPLAY_CONFIRMATION_TIMEOUT_MS = 2500
 const MAX_NOTIFICATION_SOUND_BYTES = 10 * 1024 * 1024
-const MACOS_PACKAGED_BUNDLE_ID = 'com.stablyai.orca'
+const MACOS_PACKAGED_BUNDLE_ID = 'space.anthracode.anthraspace'
 const MACOS_NOTIFICATION_SETTINGS_URL =
   'x-apple.systempreferences:com.apple.Notifications-Settings.extension'
 const NOTIFICATION_SOUND_MIME_BY_EXTENSION: ReadonlyMap<string, string> = new Map([
@@ -59,7 +59,7 @@ type NotificationSoundId = NotificationSettings['customSoundId']
 const activeNotifications = new Set<Notification>()
 
 function getMacNotificationSettingsUrl(): string {
-  const bundleId = process.env.ORCA_DEV_MACOS_BUNDLE_ID ?? MACOS_PACKAGED_BUNDLE_ID
+  const bundleId = process.env.ANTHRASPACE_DEV_MACOS_BUNDLE_ID ?? MACOS_PACKAGED_BUNDLE_ID
   return `${MACOS_NOTIFICATION_SETTINGS_URL}?id=${encodeURIComponent(bundleId)}`
 }
 
@@ -380,7 +380,7 @@ export function triggerStartupNotificationRegistration(store: Store): void {
 
   const notification = new Notification({
     title: 'Orca is ready to notify you',
-    body: 'Allow notifications so Orca can alert you when agents finish or terminals need attention.'
+    body: 'Allow notifications so AnthraSpace can alert you when agents finish or terminals need attention.'
   })
 
   // Why: prevent GC from collecting the notification (and its click handler)

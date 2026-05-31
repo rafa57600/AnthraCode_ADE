@@ -26,7 +26,7 @@ import { getConnectionId } from '@/lib/connection-context'
 import { createUntitledMarkdownFile } from '@/lib/create-untitled-markdown'
 import { detectLanguage } from '@/lib/language-detect'
 import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
-import { isOrcaCliAvailableOnPath } from '@/lib/agent-skill-cli-prerequisite'
+import { isAnthraSpaceCliAvailableOnPath } from '@/lib/agent-skill-cli-prerequisite'
 import {
   isFloatingWorkspacePanelShortcut,
   isFloatingWorkspaceTerminalInputTarget,
@@ -392,7 +392,7 @@ export function FloatingTerminalPanel({
     }
     try {
       const status = await window.api.cli.getInstallStatus()
-      setShowOrchestrationSetup(!isOrcaCliAvailableOnPath(status))
+      setShowOrchestrationSetup(!isAnthraSpaceCliAvailableOnPath(status))
     } catch {
       setShowOrchestrationSetup(true)
     }

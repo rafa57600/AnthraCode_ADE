@@ -46,14 +46,14 @@ function getSystemNotificationSettingsCopy(
   if (platform === 'darwin') {
     return {
       failureTitle: 'macOS did not show the notification',
-      failureDescription: 'Enable Allow notifications for Orca in System Settings.'
+      failureDescription: 'Enable Allow notifications for AnthraSpace in System Settings.'
     }
   }
 
   if (platform === 'win32') {
     return {
       failureTitle: 'Windows did not show the notification',
-      failureDescription: 'Enable notifications for Orca in Windows Settings.'
+      failureDescription: 'Enable notifications for AnthraSpace in Windows Settings.'
     }
   }
 
@@ -94,7 +94,7 @@ export async function sendNotificationSettingsTestNotification(
       // Why: Electron's native 'show' event can fire even when macOS silently
       // drops the banner because the per-app Allow notifications switch is off.
       toast.message('Test notification requested', {
-        description: 'If no macOS banner appeared, enable Allow notifications for Orca.',
+        description: 'If no macOS banner appeared, enable Allow notifications for AnthraSpace.',
         action: {
           label: 'Open Settings',
           onClick: () => {
@@ -122,7 +122,7 @@ export async function sendNotificationSettingsTestNotification(
       })
     } else {
       toast.error('System did not show the notification', {
-        description: 'Check your desktop notification settings for Orca.'
+        description: 'Check your desktop notification settings for AnthraSpace.'
       })
     }
     return
@@ -263,7 +263,7 @@ export function NotificationsPane({
             <Label>Notification Sound</Label>
           </div>
           <p className="text-xs text-muted-foreground">
-            Choose the alert Orca plays when a desktop notification is delivered.
+            Choose the alert AnthraSpace plays when a desktop notification is delivered.
           </p>
         </div>
         <Select

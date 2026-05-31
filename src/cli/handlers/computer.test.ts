@@ -104,7 +104,7 @@ describe('orca computer CLI handlers', () => {
       callMock,
       okFixture('req_permissions', {
         platform: 'darwin',
-        helperAppPath: '/Applications/Orca Computer Use.app',
+        helperAppPath: '/Applications/AnthraSpace Computer Use.app',
         openedSettings: false,
         launchedHelper: true
       })
@@ -115,8 +115,8 @@ describe('orca computer CLI handlers', () => {
     expect(callMock).toHaveBeenCalledTimes(1)
     expect(callMock).toHaveBeenCalledWith('computer.permissions', {})
     const output = vi.mocked(console.log).mock.calls[0][0]
-    expect(output).toContain('Opened Orca Computer Use permission setup')
-    expect(output).toContain('/Applications/Orca Computer Use.app')
+    expect(output).toContain('Opened AnthraSpace Computer Use permission setup')
+    expect(output).toContain('/Applications/AnthraSpace Computer Use.app')
   })
 
   it('passes get-app-state target and observe flags', async () => {

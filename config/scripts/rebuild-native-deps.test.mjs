@@ -68,7 +68,7 @@ describe('rebuild-native-deps Electron install fallback', () => {
 })
 
 function mkTempProject() {
-  const projectDir = mkdtempSync(join(tmpdir(), 'orca-rebuild-native-deps-'))
+  const projectDir = mkdtempSync(join(tmpdir(), 'anthraspace-rebuild-native-deps-'))
   mkdirSync(join(projectDir, 'config', 'scripts'), { recursive: true })
   copyFileSync(sourceScriptPath, join(projectDir, 'config', 'scripts', 'rebuild-native-deps.mjs'))
   return projectDir

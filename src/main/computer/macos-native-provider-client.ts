@@ -94,7 +94,10 @@ export class MacOSNativeProviderClient {
     const id = this.nextId++
     const helperExecutablePath = resolveMacOSComputerUseExecutablePath()
     if (!helperExecutablePath) {
-      throw new RuntimeClientError('accessibility_error', 'Orca Computer Use.app was not found')
+      throw new RuntimeClientError(
+        'accessibility_error',
+        'AnthraSpace Computer Use.app was not found'
+      )
     }
     const transport = await this.ensureSocketStarted(helperExecutablePath)
     const token = this.socketToken

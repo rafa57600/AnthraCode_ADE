@@ -168,7 +168,7 @@ describe('getPRForBranch', () => {
           number: 1738,
           title: 'Fork PR',
           state: 'open',
-          html_url: 'https://github.com/stablyai/orca/pull/1738',
+          html_url: 'https://github.com/rafa57600/AnthraSpace/pull/1738',
           updated_at: '2026-03-28T00:00:00Z',
           draft: false,
           mergeable_state: 'clean',
@@ -181,7 +181,7 @@ describe('getPRForBranch', () => {
     const pr = await getPRForBranch('/repo-root', 'feature/test')
 
     expect(ghExecFileAsyncMock).toHaveBeenCalledWith(
-      ['api', 'repos/stablyai/orca/pulls?head=fork%3Afeature%2Ftest&state=all&per_page=1'],
+      ['api', 'repos/rafa57600/AnthraSpace/pulls?head=fork%3Afeature%2Ftest&state=all&per_page=1'],
       { cwd: '/repo-root' }
     )
     expect(pr).toMatchObject({
@@ -228,7 +228,7 @@ describe('getPRForBranch', () => {
         'view',
         '99',
         '--repo',
-        'stablyai/orca',
+        'rafa57600/AnthraSpace',
         '--json',
         'number,title,state,url,statusCheckRollup,updatedAt,isDraft,mergeable,baseRefName,headRefName,baseRefOid,headRefOid'
       ],
@@ -905,15 +905,18 @@ describe('getPRForBranch', () => {
       })
     })
     gitExecFileAsyncMock.mockResolvedValueOnce({
-      stdout: 'git@github.com:stablyai/orca.git\n',
+      stdout: 'git@github.com:rafa57600/AnthraSpace.git\n',
       stderr: ''
     })
 
     const target = await getPullRequestPushTarget('/repo-root', 1738)
 
-    expect(ghExecFileAsyncMock).toHaveBeenCalledWith(['api', 'repos/stablyai/orca/pulls/1738'], {
-      cwd: '/repo-root'
-    })
+    expect(ghExecFileAsyncMock).toHaveBeenCalledWith(
+      ['api', 'repos/rafa57600/AnthraSpace/pulls/1738'],
+      {
+        cwd: '/repo-root'
+      }
+    )
     expect(target).toEqual({
       remoteName: 'pr-prateek-orca',
       branchName: 'prateek/fix-sidebar-agents-toggle',
@@ -929,10 +932,10 @@ describe('getPRForBranch', () => {
         head: {
           ref: 'fix-sidebar',
           repo: {
-            full_name: 'stablyai/orca',
+            full_name: 'rafa57600/AnthraSpace',
             name: 'orca',
-            clone_url: 'https://github.com/stablyai/orca.git',
-            ssh_url: 'git@github.com:stablyai/orca.git',
+            clone_url: 'https://github.com/rafa57600/AnthraSpace.git',
+            ssh_url: 'git@github.com:rafa57600/AnthraSpace.git',
             owner: { login: 'stablyai' }
           }
         }
@@ -981,7 +984,7 @@ describe('getPRForBranch', () => {
     })
     expect(ghExecFileAsyncMock).toHaveBeenNthCalledWith(
       2,
-      ['api', 'repos/stablyai/orca/pulls/1849'],
+      ['api', 'repos/rafa57600/AnthraSpace/pulls/1849'],
       { cwd: '/repo-root' }
     )
   })
@@ -1083,7 +1086,7 @@ describe('GitHub GraphQL rate-limit guard', () => {
             user: { login: 'octo', avatar_url: 'https://avatar', type: 'User' },
             body: 'top-level',
             created_at: '2026-04-01T00:00:00Z',
-            html_url: 'https://github.com/stablyai/orca/pull/7#issuecomment-10'
+            html_url: 'https://github.com/rafa57600/AnthraSpace/pull/7#issuecomment-10'
           }
         ])
       })
@@ -1094,12 +1097,12 @@ describe('GitHub GraphQL rate-limit guard', () => {
     expect(getOwnerRepoMock).not.toHaveBeenCalled()
     expect(ghExecFileAsyncMock).toHaveBeenNthCalledWith(
       1,
-      ['api', '--cache', '60s', 'repos/stablyai/orca/issues/7/comments?per_page=100'],
+      ['api', '--cache', '60s', 'repos/rafa57600/AnthraSpace/issues/7/comments?per_page=100'],
       { cwd: '/repo-root' }
     )
     expect(ghExecFileAsyncMock).toHaveBeenNthCalledWith(
       2,
-      ['api', '--cache', '60s', 'repos/stablyai/orca/pulls/7/reviews?per_page=100'],
+      ['api', '--cache', '60s', 'repos/rafa57600/AnthraSpace/pulls/7/reviews?per_page=100'],
       { cwd: '/repo-root' }
     )
   })
@@ -1111,7 +1114,7 @@ describe('GitHub GraphQL rate-limit guard', () => {
           number: 7,
           title: 'PR',
           state: 'OPEN',
-          url: 'https://github.com/stablyai/orca/pull/7',
+          url: 'https://github.com/rafa57600/AnthraSpace/pull/7',
           statusCheckRollup: [],
           updatedAt: '2026-04-01T00:00:00Z',
           isDraft: false,
@@ -1138,7 +1141,7 @@ describe('GitHub GraphQL rate-limit guard', () => {
         'view',
         '7',
         '--repo',
-        'stablyai/orca',
+        'rafa57600/AnthraSpace',
         '--json',
         'number,title,state,url,statusCheckRollup,updatedAt,isDraft,mergeable,baseRefName,headRefName,baseRefOid,headRefOid'
       ],
@@ -1146,7 +1149,7 @@ describe('GitHub GraphQL rate-limit guard', () => {
     )
     expect(ghExecFileAsyncMock).toHaveBeenNthCalledWith(
       2,
-      ['pr', 'merge', '7', '--squash', '--repo', 'stablyai/orca'],
+      ['pr', 'merge', '7', '--squash', '--repo', 'rafa57600/AnthraSpace'],
       expect.objectContaining({
         cwd: '/repo-root',
         env: expect.objectContaining({ GH_PROMPT_DISABLED: '1' })
@@ -1154,7 +1157,7 @@ describe('GitHub GraphQL rate-limit guard', () => {
     )
     expect(ghExecFileAsyncMock).toHaveBeenNthCalledWith(
       3,
-      ['pr', 'edit', '7', '--title', 'New title', '--repo', 'stablyai/orca'],
+      ['pr', 'edit', '7', '--title', 'New title', '--repo', 'rafa57600/AnthraSpace'],
       { cwd: '/repo-root' }
     )
   })
@@ -1165,7 +1168,7 @@ describe('GitHub GraphQL rate-limit guard', () => {
         number: 7,
         title: 'PR',
         state: 'OPEN',
-        url: 'https://github.com/stablyai/orca/pull/7',
+        url: 'https://github.com/rafa57600/AnthraSpace/pull/7',
         statusCheckRollup: [],
         updatedAt: '2026-04-01T00:00:00Z',
         isDraft: false,
@@ -1205,7 +1208,7 @@ describe('GitHub GraphQL rate-limit guard', () => {
 
     expect(ghExecFileAsyncMock).toHaveBeenCalledTimes(1)
     expect(ghExecFileAsyncMock).toHaveBeenCalledWith(
-      ['pr', 'merge', '7', '--squash', '--repo', 'stablyai/orca'],
+      ['pr', 'merge', '7', '--squash', '--repo', 'rafa57600/AnthraSpace'],
       expect.objectContaining({
         env: expect.objectContaining({ GH_PROMPT_DISABLED: '1' })
       })

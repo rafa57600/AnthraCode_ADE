@@ -7,7 +7,7 @@ import { PRIVACY_URL, getConsentState, setOptIn as telemetrySetOptIn } from '../
 import { useAppStore } from '../../store'
 import { PrivacyDiagnosticsSection } from './PrivacyDiagnosticsSection'
 
-export type EnvBlockedReason = 'do_not_track' | 'orca_disabled' | 'ci'
+export type EnvBlockedReason = 'do_not_track' | 'anthraspace_disabled' | 'ci'
 export type BlockedReason = { kind: 'env'; reason: EnvBlockedReason }
 
 type PrivacyPaneProps = {
@@ -23,7 +23,7 @@ export function isEnvBlocked(consent: TelemetryConsentState | null): consent is 
   return (
     consent?.effective === 'disabled' &&
     (consent.reason === 'do_not_track' ||
-      consent.reason === 'orca_disabled' ||
+      consent.reason === 'anthraspace_disabled' ||
       consent.reason === 'ci')
   )
 }
@@ -32,7 +32,7 @@ export function envVarNameForReason(reason: EnvBlockedReason): string {
   if (reason === 'do_not_track') {
     return 'DO_NOT_TRACK'
   }
-  if (reason === 'orca_disabled') {
+  if (reason === 'anthraspace_disabled') {
     return 'ORCA_TELEMETRY_DISABLED'
   }
   return 'CI'
@@ -87,8 +87,8 @@ export function PrivacyPane({ settings }: PrivacyPaneProps): React.JSX.Element {
             <Label>Share anonymous usage data</Label>
           </div>
           <p className="text-xs text-muted-foreground">
-            Help us figure out what to build next. Orca sends anonymous counts of which features you
-            use and where things break.{' '}
+            Help us figure out what to build next. AnthraSpace sends anonymous counts of which
+            features you use and where things break.{' '}
             <button
               type="button"
               className="underline underline-offset-2 hover:text-foreground"

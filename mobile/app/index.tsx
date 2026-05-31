@@ -34,7 +34,7 @@ import { classifyConnection } from '../src/transport/connection-health'
 import { subscribeToDesktopNotifications } from '../src/notifications/mobile-notifications'
 import type { ConnectionState, HostProfile } from '../src/transport/types'
 import { triggerMediumImpact } from '../src/platform/haptics'
-import { OrcaLogo } from '../src/components/OrcaLogo'
+import { AnthraSpaceLogo } from '../src/components/AnthraSpaceLogo'
 import { StatusDot } from '../src/components/StatusDot'
 import { TaskProviderLogo } from '../src/components/TaskProviderLogo'
 import { TextInputModal } from '../src/components/TextInputModal'
@@ -662,7 +662,7 @@ export default function HomeScreen() {
       <View style={styles.topBar}>
         <View style={styles.brandLockup}>
           <View style={styles.logoMark}>
-            <OrcaLogo size={18} />
+            <AnthraSpaceLogo size={18} />
           </View>
           <Text style={styles.brandName}>Orca</Text>
         </View>

@@ -51,6 +51,6 @@ describe('parseAzureDevOpsRepoRef', () => {
   })
 
   it('ignores non-Azure remotes', () => {
-    expect(parseAzureDevOpsRepoRef('git@github.com:stablyai/orca.git')).toBeNull()
+    expect(parseAzureDevOpsRepoRef('git@github.com:rafa57600/AnthraSpace.git')).toBeNull()
   })
 })

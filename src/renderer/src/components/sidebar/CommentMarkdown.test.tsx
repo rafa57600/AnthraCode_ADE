@@ -12,7 +12,7 @@ describe('CommentMarkdown', () => {
       />
     )
 
-    expect(markup).toContain('href="https://github.com/stablyai/orca/issues/2316"')
+    expect(markup).toContain('href="https://github.com/rafa57600/AnthraSpace/issues/2316"')
     expect(markup).toContain('<strong><a')
   })
 
@@ -38,8 +38,8 @@ describe('CommentMarkdown', () => {
     )
 
     expect(markup).toContain('href="https://example.com/already-linked"')
-    expect(markup).not.toContain('href="https://github.com/stablyai/orca/issues/2316"')
-    expect(markup).not.toContain('href="https://github.com/stablyai/orca/issues/2317"')
+    expect(markup).not.toContain('href="https://github.com/rafa57600/AnthraSpace/issues/2316"')
+    expect(markup).not.toContain('href="https://github.com/rafa57600/AnthraSpace/issues/2317"')
   })
 
   it('contains long PR body markdown inside its available width', () => {

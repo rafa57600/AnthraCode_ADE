@@ -77,7 +77,7 @@ describe('getWorkItemDetails PR file viewed state', () => {
       number: 42,
       title: 'Review files',
       state: 'open',
-      url: 'https://github.com/stablyai/orca/pull/42',
+      url: 'https://github.com/rafa57600/AnthraSpace/pull/42',
       labels: [],
       updatedAt: '2026-04-01T00:00:00Z',
       author: null
@@ -115,7 +115,7 @@ describe('getWorkItemDetails PR file viewed state', () => {
         })
       }
       const endpoint = args.find((arg) => arg.startsWith('repos/')) ?? ''
-      if (endpoint === 'repos/stablyai/orca/pulls/42') {
+      if (endpoint === 'repos/rafa57600/AnthraSpace/pulls/42') {
         return Promise.resolve({
           stdout: JSON.stringify({
             body: 'PR body',
@@ -124,7 +124,7 @@ describe('getWorkItemDetails PR file viewed state', () => {
           })
         })
       }
-      if (endpoint === 'repos/stablyai/orca/pulls/42/files?per_page=100') {
+      if (endpoint === 'repos/rafa57600/AnthraSpace/pulls/42/files?per_page=100') {
         return Promise.resolve({
           stdout: JSON.stringify([
             {
@@ -176,7 +176,7 @@ describe('getWorkItemDetails PR file viewed state', () => {
       number: 42,
       title: 'Review files',
       state: 'open',
-      url: 'https://github.com/stablyai/orca/pull/42',
+      url: 'https://github.com/rafa57600/AnthraSpace/pull/42',
       labels: [],
       updatedAt: '2026-04-01T00:00:00Z',
       author: null
@@ -213,7 +213,7 @@ describe('getWorkItemDetails PR file viewed state', () => {
         })
       }
       const endpoint = args.find((arg) => arg.startsWith('repos/')) ?? ''
-      if (endpoint === 'repos/stablyai/orca/pulls/42') {
+      if (endpoint === 'repos/rafa57600/AnthraSpace/pulls/42') {
         return Promise.resolve({
           stdout: JSON.stringify({
             body: 'PR body',
@@ -222,7 +222,7 @@ describe('getWorkItemDetails PR file viewed state', () => {
           })
         })
       }
-      if (endpoint === 'repos/stablyai/orca/pulls/42/files?per_page=100') {
+      if (endpoint === 'repos/rafa57600/AnthraSpace/pulls/42/files?per_page=100') {
         return Promise.resolve({ stdout: '[]' })
       }
       return Promise.reject(new Error(`unexpected gh call: ${args.join(' ')}`))

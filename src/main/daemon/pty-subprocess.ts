@@ -172,7 +172,7 @@ export function createPtySubprocess(opts: PtySubprocessOptions): SubprocessHandl
     ...opts.env,
     TERM: 'xterm-256color',
     COLORTERM: 'truecolor',
-    TERM_PROGRAM: 'Orca',
+    TERM_PROGRAM: 'AnthraSpace',
     // Why: TUIs feature-gate on TERM_PROGRAM_VERSION. The daemon is forked
     // by main (daemon-init.ts:93) with the parent's env, so ORCA_APP_VERSION
     // — set in src/main/index.ts from app.getVersion() — is inherited here.
@@ -263,7 +263,7 @@ export function createPtySubprocess(opts: PtySubprocessOptions): SubprocessHandl
     // needs the wrapper so the post-rc restore line runs.
     const shellLaunch = opts.command
       ? getShellReadyLaunchConfig(shellPath)
-      : env.ORCA_ATTRIBUTION_SHIM_DIR ||
+      : env.ANTHRASPACE_ATTRIBUTION_SHIM_DIR ||
           env.ORCA_OPENCODE_CONFIG_DIR ||
           env.ORCA_PI_CODING_AGENT_DIR ||
           env.ORCA_OMP_CODING_AGENT_DIR ||
@@ -293,7 +293,10 @@ export function createPtySubprocess(opts: PtySubprocessOptions): SubprocessHandl
       cols: size.cols,
       rows: size.rows,
       cwd: spawnCwd,
-      env
+      env,
+      // Why: daemon PTYs can be disposed without a visible console on Windows;
+      // the bundled ConPTY DLL avoids node-pty's AttachConsole cleanup helper.
+      ...(process.platform === 'win32' ? { useConptyDll: true } : {})
     })
   } catch (err) {
     if (process.platform === 'win32') {

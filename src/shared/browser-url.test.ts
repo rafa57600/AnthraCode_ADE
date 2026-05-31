@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ORCA_BROWSER_BLANK_URL } from './constants'
+import { ANTHRASPACE_BROWSER_BLANK_URL } from './constants'
 import {
   buildSearchUrl,
   normalizeKagiSessionLink,
@@ -16,8 +16,8 @@ describe('browser-url helpers', () => {
 
   it('keeps normal web URLs and blank tabs in the allowed set', () => {
     expect(normalizeBrowserNavigationUrl('https://example.com')).toBe('https://example.com/')
-    expect(normalizeBrowserNavigationUrl('')).toBe(ORCA_BROWSER_BLANK_URL)
-    expect(normalizeBrowserNavigationUrl('about:blank')).toBe(ORCA_BROWSER_BLANK_URL)
+    expect(normalizeBrowserNavigationUrl('')).toBe(ANTHRASPACE_BROWSER_BLANK_URL)
+    expect(normalizeBrowserNavigationUrl('about:blank')).toBe(ANTHRASPACE_BROWSER_BLANK_URL)
   })
 
   it('rejects non-web schemes for in-app navigation', () => {

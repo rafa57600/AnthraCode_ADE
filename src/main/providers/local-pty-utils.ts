@@ -112,6 +112,26 @@ export type ShellSpawnResult = {
   shellPath: string
 }
 
+function getPtyForkOptions(
+  params: Pick<ShellSpawnParams, 'cols' | 'rows' | 'cwd' | 'env'>
+): pty.IPtyForkOptions | pty.IWindowsPtyForkOptions {
+  const options: pty.IPtyForkOptions = {
+    name: 'xterm-256color',
+    cols: params.cols,
+    rows: params.rows,
+    cwd: params.cwd,
+    env: params.env
+  }
+
+  if (process.platform === 'win32') {
+    // Why: Electron dev shutdown can make node-pty's ConPTY process-list helper
+    // hit AttachConsole failures. The bundled ConPTY DLL avoids that helper path.
+    return { ...options, useConptyDll: true }
+  }
+
+  return options
+}
+
 /**
  * Attempt to spawn a PTY shell. If the primary shell fails on Unix,
  * try common fallback shells before giving up.
@@ -137,7 +157,7 @@ export function spawnShellWithFallback(params: ShellSpawnParams): ShellSpawnResu
   if (!primaryError) {
     try {
       return {
-        process: ptySpawn(shellPath, shellArgs, { name: 'xterm-256color', cols, rows, cwd, env }),
+        process: ptySpawn(shellPath, shellArgs, getPtyForkOptions({ cols, rows, cwd, env })),
         shellPath
       }
     } catch (err) {
@@ -157,13 +177,11 @@ export function spawnShellWithFallback(params: ShellSpawnParams): ShellSpawnResu
         env.SHELL = fallback
         onBeforeFallbackSpawn?.(env, fallback)
         Object.assign(env, fallbackReady?.env ?? {})
-        const proc = ptySpawn(fallback, fallbackReady?.args ?? ['-l'], {
-          name: 'xterm-256color',
-          cols,
-          rows,
-          cwd,
-          env
-        })
+        const proc = ptySpawn(
+          fallback,
+          fallbackReady?.args ?? ['-l'],
+          getPtyForkOptions({ cols, rows, cwd, env })
+        )
         console.warn(
           `[pty] Primary shell "${shellPath}" failed (${primaryError ?? 'unknown error'}), fell back to "${fallback}"`
         )

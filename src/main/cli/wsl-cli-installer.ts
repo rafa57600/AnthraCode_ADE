@@ -57,7 +57,7 @@ export class WslCliInstaller {
         state: 'not_installed',
         currentTarget: null,
         pathConfigured: ready.pathConfigured,
-        detail: `Register ${ready.commandPath} to use Orca from WSL.`
+        detail: `Register ${ready.commandPath} to use AnthraSpace from WSL.`
       })
     }
 
@@ -69,7 +69,7 @@ export class WslCliInstaller {
         state: 'conflict',
         currentTarget: null,
         pathConfigured: ready.pathConfigured,
-        detail: `${ready.commandPath} exists but is not an Orca launcher script.`
+        detail: `${ready.commandPath} exists but is not an AnthraSpace launcher script.`
       })
     }
 
@@ -103,7 +103,7 @@ export class WslCliInstaller {
         detail:
           bridgeContent === null || bridgeManaged
             ? `${ready.commandPath} is missing its PowerShell bridge.`
-            : `${ready.bridgePath} exists but is not managed by Orca.`
+            : `${ready.bridgePath} exists but is not managed by AnthraSpace.`
       })
     }
 
@@ -115,8 +115,8 @@ export class WslCliInstaller {
       currentTarget,
       pathConfigured: ready.pathConfigured,
       detail: managed
-        ? `${ready.commandPath} points to a different Orca launcher.`
-        : `${ready.commandPath} exists but is not managed by Orca.`
+        ? `${ready.commandPath} points to a different AnthraSpace launcher.`
+        : `${ready.commandPath} exists but is not managed by AnthraSpace.`
     })
   }
 
@@ -126,7 +126,7 @@ export class WslCliInstaller {
       throw new Error(status.detail ?? 'WSL CLI registration is unavailable.')
     }
     if (status.state === 'conflict') {
-      throw new Error(`Refusing to replace non-Orca command at ${status.commandPath}.`)
+      throw new Error(`Refusing to replace non-AnthraSpace command at ${status.commandPath}.`)
     }
 
     await this.run(
@@ -175,7 +175,7 @@ export class WslCliInstaller {
       return status
     }
     if (status.state === 'conflict') {
-      throw new Error(`Refusing to remove non-Orca command at ${status.commandPath}.`)
+      throw new Error(`Refusing to remove non-AnthraSpace command at ${status.commandPath}.`)
     }
 
     await this.run(this.distro as string, buildSafeRemoveCommand(status.commandPath))
@@ -211,7 +211,7 @@ export class WslCliInstaller {
       return {
         status: this.unsupported(
           hostStatus.unsupportedReason ?? 'launcher_missing',
-          hostStatus.detail ?? 'The Windows Orca CLI launcher is missing.'
+          hostStatus.detail ?? 'The Windows AnthraSpace CLI launcher is missing.'
         )
       }
     }
@@ -234,13 +234,13 @@ export class WslCliInstaller {
       return {
         status: this.unsupported(
           'launcher_missing',
-          'WSL Windows interop is unavailable; Orca cannot launch the Windows CLI from WSL.'
+          'WSL Windows interop is unavailable; AnthraSpace cannot launch the Windows CLI from WSL.'
         )
       }
     }
 
     const pathDirectory = `${home}/.local/bin`
-    const commandPath = `${pathDirectory}/orca`
+    const commandPath = `${pathDirectory}/anthraspace`
     const pathConfigured =
       (
         await this.run(
@@ -296,9 +296,9 @@ export class WslCliInstaller {
   }): CliInstallStatus {
     return {
       platform: 'linux',
-      commandName: 'orca',
+      commandName: 'anthraspace',
       commandPath: args.commandPath,
-      pathDirectory: args.commandPath.replace(/\/orca$/, ''),
+      pathDirectory: args.commandPath.replace(/\/anthraspace$/, ''),
       pathConfigured: args.pathConfigured,
       launcherPath: args.launcherPath,
       installMethod: 'wrapper',
@@ -308,7 +308,7 @@ export class WslCliInstaller {
       unsupportedReason: null,
       detail:
         args.state === 'installed' && !args.pathConfigured
-          ? `${args.commandPath} is registered, but ${args.commandPath.replace(/\/orca$/, '')} is not on PATH in ${args.distro}.`
+          ? `${args.commandPath} is registered, but ${args.commandPath.replace(/\/anthraspace$/, '')} is not on PATH in ${args.distro}.`
           : args.detail
     }
   }
@@ -319,7 +319,7 @@ export class WslCliInstaller {
   ): CliInstallStatus {
     return {
       platform: 'linux',
-      commandName: 'orca',
+      commandName: 'anthraspace',
       commandPath: null,
       pathDirectory: null,
       pathConfigured: false,

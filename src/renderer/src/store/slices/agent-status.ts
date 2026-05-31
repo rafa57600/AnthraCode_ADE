@@ -31,6 +31,14 @@ export type RetainedAgentEntry = {
   startedAt: number
 }
 
+function isAnthraCodeTerminalTitle(title: string | undefined): boolean {
+  if (!title) {
+    return false
+  }
+  const normalized = title.trim().toLowerCase()
+  return normalized.includes('anthracode') || /(?:^|\s)ac\s*\|/.test(normalized)
+}
+
 export type AgentStatusSlice = {
   /** Explicit agent status entries keyed by `${tabId}:${leafId}` composite.
    *  Real-time only — lives in renderer memory, not persisted to disk. */
@@ -229,6 +237,15 @@ export const createAgentStatusSlice: StateCreator<AppState, [], [], AgentStatusS
         // carries the authoritative current snapshot — including clears on a
         // fresh turn. Writing through directly (no existing fallback) is what
         // lets a `UserPromptSubmit` reset clear stale tool lines in the UI.
+        const nextAgentType =
+          payload.agentType && payload.agentType !== 'unknown'
+            ? payload.agentType
+            : existing?.agentType
+        const effectiveAgentType: AgentType =
+          nextAgentType === 'opencode' &&
+          (existing?.agentType === 'anthracode' || isAnthraCodeTerminalTitle(effectiveTitle))
+            ? 'anthracode'
+            : (nextAgentType ?? 'unknown')
         const entry: AgentStatusEntry = {
           state: payload.state,
           prompt: payload.prompt,
@@ -243,10 +260,9 @@ export const createAgentStatusSlice: StateCreator<AppState, [], [], AgentStatusS
           // identity (e.g. 'claude' learned from an earlier hook ping) isn't
           // stomped by a later ping that lost the identity (e.g. legacy/partial
           // integrations).
-          agentType:
-            (payload.agentType && payload.agentType !== 'unknown'
-              ? payload.agentType
-              : existing?.agentType) ?? 'unknown',
+          // ANTHRACODE: preserve legacy AnthraCode rows created before the hook
+          // source reported `anthracode` directly.
+          agentType: effectiveAgentType,
           paneKey,
           terminalTitle: effectiveTitle,
           stateHistory: history,

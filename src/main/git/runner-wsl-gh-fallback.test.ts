@@ -222,7 +222,7 @@ describe('ghExecFileAsync WSL fallback', () => {
     })
 
     await expect(
-      ghExecFileAsync(['api', '-X', 'POST', 'repos/stablyai/orca/issues'])
+      ghExecFileAsync(['api', '-X', 'POST', 'repos/rafa57600/AnthraSpace/issues'])
     ).rejects.toThrow('HTTP 502 Bad Gateway')
 
     expect(execFileMock).toHaveBeenCalledTimes(1)
@@ -261,7 +261,7 @@ describe('ghExecFileAsync WSL fallback', () => {
     })
 
     await expect(
-      ghExecFileAsync(['issue', 'edit', '5', '--repo', 'stablyai/orca'])
+      ghExecFileAsync(['issue', 'edit', '5', '--repo', 'rafa57600/AnthraSpace'])
     ).rejects.toThrow('HTTP 502 Bad Gateway')
 
     expect(execFileMock).toHaveBeenCalledTimes(1)
@@ -321,7 +321,7 @@ describe('ghExecFileAsync WSL fallback', () => {
     })
 
     await expect(
-      glabExecFileAsync(['issue', 'update', '5', '-R', 'stablyai/orca'], {
+      glabExecFileAsync(['issue', 'update', '5', '-R', 'rafa57600/AnthraSpace'], {
         cwd: String.raw`C:\repo`
       })
     ).rejects.toThrow('HTTP 502 Bad Gateway')

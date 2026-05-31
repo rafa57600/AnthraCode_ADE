@@ -63,18 +63,18 @@ describePosix('daemon shell-ready launch config', () => {
   let userDataPath: string
 
   beforeEach(() => {
-    previousUserDataPath = process.env.ORCA_USER_DATA_PATH
+    previousUserDataPath = process.env.ANTHRASPACE_USER_DATA_PATH
     previousOrcaOrigZdotdir = process.env.ORCA_ORIG_ZDOTDIR
     delete process.env.ORCA_ORIG_ZDOTDIR
     userDataPath = mkdtempSync(join(tmpdir(), 'daemon-shell-ready-test-'))
-    process.env.ORCA_USER_DATA_PATH = userDataPath
+    process.env.ANTHRASPACE_USER_DATA_PATH = userDataPath
   })
 
   afterEach(() => {
     if (previousUserDataPath === undefined) {
-      delete process.env.ORCA_USER_DATA_PATH
+      delete process.env.ANTHRASPACE_USER_DATA_PATH
     } else {
-      process.env.ORCA_USER_DATA_PATH = previousUserDataPath
+      process.env.ANTHRASPACE_USER_DATA_PATH = previousUserDataPath
     }
     if (previousOrcaOrigZdotdir === undefined) {
       delete process.env.ORCA_ORIG_ZDOTDIR

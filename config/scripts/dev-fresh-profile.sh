@@ -40,4 +40,4 @@ trap cleanup EXIT
 
 echo "[dev-fresh-profile] using userData=$PROFILE_DIR"
 # Don't exec — we need the EXIT trap to fire so the temp profile gets cleaned up.
-ORCA_DEV_USER_DATA_PATH="$PROFILE_DIR" pnpm dev
+ANTHRASPACE_DEV_USER_DATA_PATH="$PROFILE_DIR" pnpm dev

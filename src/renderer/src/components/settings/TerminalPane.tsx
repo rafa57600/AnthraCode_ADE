@@ -400,18 +400,18 @@ export function TerminalPane({
       <section key="cursor" className="space-y-3">
         <SettingsSubsectionHeader
           title="Cursor"
-          description="Default cursor appearance for Orca terminal panes."
+          description="Default cursor appearance for AnthraSpace terminal panes."
         />
 
         <div className="divide-y divide-border/40">
           <SearchableSetting
             title="Cursor Shape"
-            description="Default cursor appearance for Orca terminal panes."
+            description="Default cursor appearance for AnthraSpace terminal panes."
             keywords={['terminal', 'cursor', 'bar', 'block', 'underline']}
           >
             <SettingsRow
               label="Cursor Shape"
-              description="Default cursor appearance for Orca terminal panes."
+              description="Default cursor appearance for AnthraSpace terminal panes."
               control={
                 <SettingsSegmentedControl
                   ariaLabel="Cursor Shape"

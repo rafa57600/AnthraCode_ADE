@@ -56,6 +56,14 @@ export type TuiAgentConfig = {
 // Centralizing that metadata prevents the picker, launcher, and preflight
 // checks from quietly drifting apart as new agents are added.
 export const TUI_AGENT_CONFIG: Record<TuiAgent, TuiAgentConfig> = {
+  anthraspace: {
+    // ANTHRASPACE: expose our own TUI as a first-class AnthraSpace agent provider.
+    // CLI binary remains 'anthracode' until native-agent conversion.
+    detectCmd: 'anthracode',
+    launchCmd: 'anthracode',
+    expectedProcess: 'anthracode',
+    promptInjectionMode: 'flag-prompt'
+  },
   claude: {
     detectCmd: 'claude',
     launchCmd: 'claude',
@@ -64,7 +72,7 @@ export const TUI_AGENT_CONFIG: Record<TuiAgent, TuiAgentConfig> = {
     // Why: `claude --prefill <text>` lands the TUI with `<text>` in the
     // input box, nothing submitted. Strictly better than the paste-after-
     // ready fallback because it eliminates the readiness race entirely.
-    // See PR https://github.com/stablyai/orca/pull/926 for context.
+    // See PR https://github.com/rafa57600/AnthraSpace/pull/926 for context.
     draftPromptFlag: '--prefill'
   },
   codex: {

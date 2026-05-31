@@ -27,7 +27,7 @@ vi.mock('./browser-manager', () => ({
 
 import { browserSessionRegistry } from './browser-session-registry'
 import { setupClientHintsOverride } from './browser-session-ua'
-import { ORCA_BROWSER_PARTITION } from '../../shared/constants'
+import { ANTHRASPACE_BROWSER_PARTITION } from '../../shared/constants'
 
 describe('BrowserSessionRegistry', () => {
   beforeEach(() => {
@@ -51,11 +51,11 @@ describe('BrowserSessionRegistry', () => {
     const defaultProfile = browserSessionRegistry.getDefaultProfile()
     expect(defaultProfile.id).toBe('default')
     expect(defaultProfile.scope).toBe('default')
-    expect(defaultProfile.partition).toBe(ORCA_BROWSER_PARTITION)
+    expect(defaultProfile.partition).toBe(ANTHRASPACE_BROWSER_PARTITION)
   })
 
   it('allows the default partition', () => {
-    expect(browserSessionRegistry.isAllowedPartition(ORCA_BROWSER_PARTITION)).toBe(true)
+    expect(browserSessionRegistry.isAllowedPartition(ANTHRASPACE_BROWSER_PARTITION)).toBe(true)
   })
 
   it('rejects unknown partitions', () => {
@@ -67,7 +67,7 @@ describe('BrowserSessionRegistry', () => {
     expect(profile).not.toBeNull()
     expect(profile!.scope).toBe('isolated')
     expect(profile!.partition).toMatch(/^persist:orca-browser-session-/)
-    expect(profile!.partition).not.toBe(ORCA_BROWSER_PARTITION)
+    expect(profile!.partition).not.toBe(ANTHRASPACE_BROWSER_PARTITION)
     expect(profile!.label).toBe('Test Isolated')
     expect(profile!.source).toBeNull()
   })
@@ -97,12 +97,14 @@ describe('BrowserSessionRegistry', () => {
   })
 
   it('resolves default partition for null/undefined profileId', () => {
-    expect(browserSessionRegistry.resolvePartition(null)).toBe(ORCA_BROWSER_PARTITION)
-    expect(browserSessionRegistry.resolvePartition(undefined)).toBe(ORCA_BROWSER_PARTITION)
+    expect(browserSessionRegistry.resolvePartition(null)).toBe(ANTHRASPACE_BROWSER_PARTITION)
+    expect(browserSessionRegistry.resolvePartition(undefined)).toBe(ANTHRASPACE_BROWSER_PARTITION)
   })
 
   it('resolves default partition for unknown profileId', () => {
-    expect(browserSessionRegistry.resolvePartition('nonexistent')).toBe(ORCA_BROWSER_PARTITION)
+    expect(browserSessionRegistry.resolvePartition('nonexistent')).toBe(
+      ANTHRASPACE_BROWSER_PARTITION
+    )
   })
 
   it('lists all profiles', () => {

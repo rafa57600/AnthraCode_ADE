@@ -10,8 +10,9 @@ import {
 } from './mobile-settings-search'
 export { MOBILE_SETTINGS_PANE_SEARCH_ENTRIES }
 
-const ORCA_IOS_APP_STORE_URL = 'https://apps.apple.com/app/orca-ide/id6766130217'
-const ORCA_ANDROID_RELEASE_URL = 'https://github.com/stablyai/orca/releases/tag/mobile-v0.0.9'
+const ORCA_IOS_APP_STORE_URL = 'https://apps.apple.com/app/anthraspace-ide/id6766130217'
+const ORCA_ANDROID_RELEASE_URL =
+  'https://github.com/stablyai/anthraspace/releases/tag/mobile-v0.0.9'
 
 type MobileSettingsPaneProps = {
   settings: GlobalSettings
@@ -39,8 +40,8 @@ export function MobileSettingsPane({
             <div className="min-w-0 shrink space-y-1.5">
               <Label>Mobile</Label>
               <p className="text-xs text-muted-foreground">
-                Control Orca from your phone by scanning a QR code. Beta / early preview &mdash;
-                expect bugs and breaking changes. Get the iOS app from the{' '}
+                Control AnthraSpace from your phone by scanning a QR code. Beta / early preview
+                &mdash; expect bugs and breaking changes. Get the iOS app from the{' '}
                 <button
                   type="button"
                   onClick={() => void window.api.shell.openUrl(ORCA_IOS_APP_STORE_URL)}

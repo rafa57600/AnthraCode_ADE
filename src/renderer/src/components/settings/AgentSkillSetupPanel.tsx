@@ -3,7 +3,7 @@ import { RefreshCw, Terminal } from 'lucide-react'
 import { IntegrationStatusPill } from '../integration-status-pill'
 import { OnboardingInlineCommandTerminal } from '../onboarding/OnboardingInlineCommandTerminal'
 import { Button } from '../ui/button'
-import { isOrcaCliAvailableOnPath } from '@/lib/agent-skill-cli-prerequisite'
+import { isAnthraSpaceCliAvailableOnPath } from '@/lib/agent-skill-cli-prerequisite'
 import { cn } from '@/lib/utils'
 
 type AgentSkillSetupPanelVariant = 'card' | 'inline'
@@ -65,7 +65,7 @@ export function AgentSkillSetupPanel({
       try {
         const status = await window.api.cli.getInstallStatus()
         if (!canceled) {
-          setPreInstallNoticeVisible(!isOrcaCliAvailableOnPath(status))
+          setPreInstallNoticeVisible(!isAnthraSpaceCliAvailableOnPath(status))
         }
       } catch {
         if (!canceled) {
@@ -88,7 +88,7 @@ export function AgentSkillSetupPanel({
     }
     try {
       const status = await window.api.cli.getInstallStatus()
-      setPreInstallNoticeVisible(!isOrcaCliAvailableOnPath(status))
+      setPreInstallNoticeVisible(!isAnthraSpaceCliAvailableOnPath(status))
     } catch {
       setPreInstallNoticeVisible(true)
     }

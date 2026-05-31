@@ -79,7 +79,8 @@ export function scanForShellReady(
 // ── Shell wrapper files ─────────────────────────────────────────────
 
 function getShellReadyWrapperRoot(): string {
-  const userDataPath = app?.getPath?.('userData') ?? process.env.ORCA_USER_DATA_PATH ?? tmpdir()
+  const userDataPath =
+    app?.getPath?.('userData') ?? process.env.ANTHRASPACE_USER_DATA_PATH ?? tmpdir()
   return `${userDataPath}/shell-ready`
 }
 
@@ -152,11 +153,11 @@ fi
 # ~/.bashrc from ~/.bash_profile; forcing ~/.bashrc again here would duplicate
 # PATH edits, hooks, and prompt init in Orca startup-command shells.
 __orca_restore_attribution_path() {
-  [[ -n "\${ORCA_ATTRIBUTION_SHIM_DIR:-}" ]] || return 0
+  [[ -n "\${ANTHRASPACE_ATTRIBUTION_SHIM_DIR:-}" ]] || return 0
   case "$PATH" in
-    "\${ORCA_ATTRIBUTION_SHIM_DIR}"|"\${ORCA_ATTRIBUTION_SHIM_DIR}:"*) return 0 ;;
+    "\${ANTHRASPACE_ATTRIBUTION_SHIM_DIR}"|"\${ANTHRASPACE_ATTRIBUTION_SHIM_DIR}:"*) return 0 ;;
   esac
-  export PATH="\${ORCA_ATTRIBUTION_SHIM_DIR}:$PATH"
+  export PATH="\${ANTHRASPACE_ATTRIBUTION_SHIM_DIR}:$PATH"
 }
 __orca_restore_attribution_path
 # Why: user startup files may set the default OpenCode config after Orca's
@@ -264,11 +265,11 @@ if [[ "$_orca_home" != "$ZDOTDIR" && -o interactive && -f "$_orca_home/.zshrc" ]
   source "$_orca_home/.zshrc"
 fi
 __orca_restore_attribution_path() {
-  [[ -n "\${ORCA_ATTRIBUTION_SHIM_DIR:-}" ]] || return 0
+  [[ -n "\${ANTHRASPACE_ATTRIBUTION_SHIM_DIR:-}" ]] || return 0
   case "$PATH" in
-    "\${ORCA_ATTRIBUTION_SHIM_DIR}"|"\${ORCA_ATTRIBUTION_SHIM_DIR}:"*) return 0 ;;
+    "\${ANTHRASPACE_ATTRIBUTION_SHIM_DIR}"|"\${ANTHRASPACE_ATTRIBUTION_SHIM_DIR}:"*) return 0 ;;
   esac
-  export PATH="\${ORCA_ATTRIBUTION_SHIM_DIR}:$PATH"
+  export PATH="\${ANTHRASPACE_ATTRIBUTION_SHIM_DIR}:$PATH"
 }
 [[ ! -o login ]] && __orca_restore_attribution_path
 if [[ ! -o login ]]; then
@@ -333,11 +334,11 @@ if [[ -o interactive && -f "$_orca_home/.zlogin" ]]; then
   source "$_orca_home/.zlogin"
 fi
 __orca_restore_attribution_path() {
-  [[ -n "\${ORCA_ATTRIBUTION_SHIM_DIR:-}" ]] || return 0
+  [[ -n "\${ANTHRASPACE_ATTRIBUTION_SHIM_DIR:-}" ]] || return 0
   case "$PATH" in
-    "\${ORCA_ATTRIBUTION_SHIM_DIR}"|"\${ORCA_ATTRIBUTION_SHIM_DIR}:"*) return 0 ;;
+    "\${ANTHRASPACE_ATTRIBUTION_SHIM_DIR}"|"\${ANTHRASPACE_ATTRIBUTION_SHIM_DIR}:"*) return 0 ;;
   esac
-  export PATH="\${ORCA_ATTRIBUTION_SHIM_DIR}:$PATH"
+  export PATH="\${ANTHRASPACE_ATTRIBUTION_SHIM_DIR}:$PATH"
 }
 __orca_restore_attribution_path
 # Why: .zlogin is the final login startup file before the prompt is shown.

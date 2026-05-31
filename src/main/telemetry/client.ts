@@ -63,13 +63,15 @@ const TELEMETRY_ENABLED = true
 // in tests — both of which resolve to `IS_OFFICIAL_BUILD === false`, which
 // is the fail-closed default we want anywhere outside an official CI build.
 const BUILD_IDENTITY: 'stable' | 'rc' | null =
-  typeof ORCA_BUILD_IDENTITY !== 'undefined'
-    ? ORCA_BUILD_IDENTITY
-    : ((globalThis as { ORCA_BUILD_IDENTITY?: 'stable' | 'rc' | null }).ORCA_BUILD_IDENTITY ?? null)
+  typeof ANTHRASPACE_BUILD_IDENTITY !== 'undefined'
+    ? ANTHRASPACE_BUILD_IDENTITY
+    : ((globalThis as { ANTHRASPACE_BUILD_IDENTITY?: 'stable' | 'rc' | null })
+        .ANTHRASPACE_BUILD_IDENTITY ?? null)
 const WRITE_KEY: string | null =
-  typeof ORCA_POSTHOG_WRITE_KEY !== 'undefined'
-    ? ORCA_POSTHOG_WRITE_KEY
-    : ((globalThis as { ORCA_POSTHOG_WRITE_KEY?: string | null }).ORCA_POSTHOG_WRITE_KEY ?? null)
+  typeof ANTHRASPACE_POSTHOG_WRITE_KEY !== 'undefined'
+    ? ANTHRASPACE_POSTHOG_WRITE_KEY
+    : ((globalThis as { ANTHRASPACE_POSTHOG_WRITE_KEY?: string | null })
+        .ANTHRASPACE_POSTHOG_WRITE_KEY ?? null)
 const IS_OFFICIAL_BUILD: boolean =
   (BUILD_IDENTITY === 'stable' || BUILD_IDENTITY === 'rc') &&
   typeof WRITE_KEY === 'string' &&
@@ -252,8 +254,8 @@ function waitForCaptureEnqueue(client: PostHog, event: EventName, uuid: string):
 // In `pnpm dev` and any contributor / non-official build, `track()` is a
 // no-op: it returns immediately without transmitting, logging, or running
 // the burst-cap / consent / validator pipeline. Telemetry only flows in
-// official stable/rc builds where CI injects `ORCA_BUILD_IDENTITY` and
-// `ORCA_POSTHOG_WRITE_KEY`.
+// official stable/rc builds where CI injects `ANTHRASPACE_BUILD_IDENTITY` and
+// `ANTHRASPACE_POSTHOG_WRITE_KEY`.
 export function track<N extends EventName>(name: N, props: EventProps<N>): void {
   if (!testTransportEnabled && (!IS_OFFICIAL_BUILD || !TELEMETRY_ENABLED)) {
     return

@@ -125,7 +125,7 @@ function Terminal(): React.JSX.Element | null {
   const activeTabType = useAppStore((s) => s.activeTabType)
   const keybindings = useAppStore((s) => s.keybindings)
   const terminalShortcutPolicy = useAppStore(
-    (s) => s.settings?.terminalShortcutPolicy ?? 'orca-first'
+    (s) => s.settings?.terminalShortcutPolicy ?? 'anthraspace-first'
   )
   const setActiveTabType = useAppStore((s) => s.setActiveTabType)
   const setActiveFile = useAppStore((s) => s.setActiveFile)
@@ -1115,7 +1115,7 @@ function Terminal(): React.JSX.Element | null {
           terminalShortcutPolicy
         })
       const notifyTerminalCapture = (actionId: KeybindingActionId): void => {
-        if (context !== 'terminal' || terminalShortcutPolicy !== 'orca-first') {
+        if (context !== 'terminal' || terminalShortcutPolicy !== 'anthraspace-first') {
           return
         }
         showTerminalShortcutCaptureNotification({

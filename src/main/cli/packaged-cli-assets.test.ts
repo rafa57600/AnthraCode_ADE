@@ -11,8 +11,9 @@ const execFileAsync = promisify(execFile)
 const itRunsUnixShell = process.platform === 'win32' ? it.skip : it
 const builderConfig = require('../../../config/electron-builder.config.cjs') as {
   asarUnpack?: string[]
+  npmRebuild?: boolean
 }
-const linuxLauncherAsset = new URL('../../../resources/linux/bin/orca', import.meta.url)
+const linuxLauncherAsset = new URL('../../../resources/linux/bin/anthraspace', import.meta.url)
 
 describe('packaged CLI assets', () => {
   it('unpacks runtime dependencies used before Electron asar integration is available', () => {
@@ -26,17 +27,21 @@ describe('packaged CLI assets', () => {
     )
   })
 
+  it('keeps native rebuild policy platform-specific for packaging', () => {
+    expect(builderConfig.npmRebuild).toBe(process.platform !== 'win32')
+  })
+
   itRunsUnixShell(
     'runs the Linux launcher from its packaged path and installed symlink',
     async () => {
-      const root = await mkdtemp(join(tmpdir(), 'orca-linux-cli-'))
+      const root = await mkdtemp(join(tmpdir(), 'anthraspace-linux-cli-'))
       try {
-        const appDir = join(root, 'Orca')
+        const appDir = join(root, 'AnthraSpace')
         const resourcesDir = join(appDir, 'resources')
         const launcherDir = join(resourcesDir, 'bin')
         const cliDir = join(resourcesDir, 'app.asar.unpacked', 'out', 'cli')
-        const launcherPath = join(launcherDir, 'orca')
-        const electronPath = join(appDir, 'orca-ide')
+        const launcherPath = join(launcherDir, 'anthraspace')
+        const electronPath = join(appDir, 'anthraspace-ide')
         const cliPath = join(cliDir, 'index.js')
 
         await mkdir(launcherDir, { recursive: true })
@@ -62,9 +67,9 @@ printf 'arg=%s\\n' "$@"
 
         const homeDir = join(root, 'home')
         const commandDir = join(homeDir, '.local', 'bin')
-        const commandPath = join(commandDir, 'orca')
+        const commandPath = join(commandDir, 'anthraspace')
         await mkdir(commandDir, { recursive: true })
-        await mkdir(join(homeDir, 'orca'), { recursive: true })
+        await mkdir(join(homeDir, 'anthraspace'), { recursive: true })
         await symlink(launcherPath, commandPath)
 
         const symlinked = await execFileAsync(commandPath, ['--help'], {

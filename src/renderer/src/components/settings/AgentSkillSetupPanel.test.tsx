@@ -7,8 +7,8 @@ function renderPanel(overrides: Partial<ComponentProps<typeof AgentSkillSetupPan
   return renderToStaticMarkup(
     <AgentSkillSetupPanel
       title="CLI skill"
-      description="Enables agents to use Orca workflows."
-      command="npx skills add https://github.com/stablyai/orca --skill orca-cli --global"
+      description="Enables agents to use AnthraSpace workflows."
+      command="npx skills add https://github.com/stablyai/anthraspace --skill anthraspace-cli --global"
       terminalTitle="CLI skill setup"
       terminalAriaLabel="CLI skill install terminal"
       terminalWorktreeId="settings-cli-skill-terminal"

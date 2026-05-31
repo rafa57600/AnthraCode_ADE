@@ -32,12 +32,12 @@ export const DEFAULT_HIDE_SLEEPING_WORKSPACES = false
 // clamps, and UI step references all agree on the same upper bound.
 export const ONBOARDING_FINAL_STEP = 7
 
-export const ORCA_BROWSER_PARTITION = 'persist:orca-browser'
+export const ANTHRASPACE_BROWSER_PARTITION = 'persist:anthraspace-browser'
 // Why: blank browser tabs must start from an inert guest URL that does not
 // navigate the privileged main window to about:blank. Renderer and main both
 // need the exact same value so the attach policy can allow only this one safe
 // data URL while still rejecting arbitrary renderer-provided data URLs.
-export const ORCA_BROWSER_BLANK_URL = 'data:text/html,'
+export const ANTHRASPACE_BROWSER_BLANK_URL = 'data:text/html,'
 
 // Why: Electron's invoke error path preserves message text, not arbitrary
 // custom Error fields. Keep this stable token shared across main/renderer.
@@ -221,7 +221,7 @@ export function getDefaultSettings(homedir: string): GlobalSettings {
     ctrlTabOrderMode: 'mru',
     // Why: switching worktrees and opening command surfaces from a focused
     // terminal is a core Orca workflow; users who prefer TUI ownership opt in.
-    terminalShortcutPolicy: 'orca-first',
+    terminalShortcutPolicy: 'anthraspace-first',
     floatingTerminalEnabled: true,
     floatingTerminalDefaultedForAllUsers: true,
     floatingTerminalCwd: '~',

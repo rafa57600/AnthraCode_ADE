@@ -77,7 +77,7 @@ export function patchPackagedProcessPath(): void {
         // Pi's vite-plus installer). GUI-launched Electron inherits a minimal PATH
         // without shell rc files, so these stay invisible to `which` probes — and
         // the Agents settings page reports them as "Not installed" even when the
-        // user can run them from Terminal. See stablyai/orca#829.
+        // user can run them from Terminal. See rafa57600/AnthraSpace#829.
         join(home, '.opencode/bin'),
         join(home, '.vite-plus/bin')
       )
@@ -120,7 +120,7 @@ export function configureDevUserDataPath(isDev: boolean): void {
   if (!isDev) {
     return
   }
-  const overrideUserDataPath = process.env.ORCA_DEV_USER_DATA_PATH
+  const overrideUserDataPath = process.env.ANTHRASPACE_DEV_USER_DATA_PATH
   if (overrideUserDataPath) {
     // Why: automated Electron repros need an isolated profile so persisted
     // tabs/worktrees from the developer's normal `orca-dev` session do not

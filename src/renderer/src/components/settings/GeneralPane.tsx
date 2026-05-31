@@ -432,7 +432,7 @@ export function GeneralPane({ settings, updateSettings }: GeneralPaneProps): Rea
       <section key="editor" className="space-y-4">
         <SettingsSubsectionHeader
           title="Editor"
-          description="Configure how Orca persists file edits."
+          description="Configure how AnthraSpace persists file edits."
         />
 
         <SearchableSetting
@@ -450,15 +450,15 @@ export function GeneralPane({ settings, updateSettings }: GeneralPaneProps): Rea
 
         <SearchableSetting
           title="Auto Save Delay"
-          description="How long Orca waits after your last edit before saving automatically."
+          description="How long AnthraSpace waits after your last edit before saving automatically."
           keywords={['autosave', 'delay', 'milliseconds']}
           className="flex items-center justify-between gap-4 py-2"
         >
           <div className="min-w-0 flex-1 space-y-0.5">
             <Label>Auto Save Delay</Label>
             <p className="text-xs text-muted-foreground">
-              How long Orca waits after your last edit before saving automatically. First launch
-              defaults to {DEFAULT_EDITOR_AUTO_SAVE_DELAY_MS} ms.
+              How long AnthraSpace waits after your last edit before saving automatically. First
+              launch defaults to {DEFAULT_EDITOR_AUTO_SAVE_DELAY_MS} ms.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -643,7 +643,7 @@ export function GeneralPane({ settings, updateSettings }: GeneralPaneProps): Rea
 
         <SearchableSetting
           title="Check for Updates"
-          description="Check for app updates and install a newer Orca version."
+          description="Check for app updates and install a newer AnthraSpace version."
           keywords={['update', 'version', 'release notes', 'download']}
           className="space-y-3"
         >
@@ -704,7 +704,7 @@ export function GeneralPane({ settings, updateSettings }: GeneralPaneProps): Rea
                 <a
                   href={
                     updateStatus.releaseUrl ??
-                    `https://github.com/stablyai/orca/releases/tag/v${updateStatus.version}`
+                    `https://github.com/stablyai/anthraspace/releases/tag/v${updateStatus.version}`
                   }
                   target="_blank"
                   rel="noopener noreferrer"
@@ -723,7 +723,7 @@ export function GeneralPane({ settings, updateSettings }: GeneralPaneProps): Rea
                 <a
                   href={
                     updateStatus.releaseUrl ??
-                    `https://github.com/stablyai/orca/releases/tag/v${updateStatus.version}`
+                    `https://github.com/stablyai/anthraspace/releases/tag/v${updateStatus.version}`
                   }
                   target="_blank"
                   rel="noopener noreferrer"
@@ -801,7 +801,7 @@ function SupportSection({
         <div className="space-y-8">
           {hasPrecedingSections ? <Separator /> : null}
           <div className="space-y-4">
-            <SettingsSubsectionHeader title="Support Orca" />
+            <SettingsSubsectionHeader title="Support AnthraSpace" />
             {state === 'loading' ? <SupportRowSkeleton /> : null}
             {state !== 'loading' && state !== 'hidden' ? (
               <SupportRow state={state} onStarClick={onStarClick} />
@@ -830,19 +830,19 @@ function SupportRow({
   onStarClick: () => void | Promise<void>
 }): React.JSX.Element {
   // Why: the left-hand label is the setting's identity and must not change
-  // when the user clicks — the row should still read "Star Orca on GitHub"
+  // when the user clicks — the row should still read "Star AnthraSpace on GitHub"
   // afterwards. The right-hand control is what changes: before starring it
   // is a button; after a successful star we swap in a small inline "Thanks"
   // confirmation so the row keeps the same shape without showing a stale,
   // disabled button.
   return (
     <SearchableSetting
-      title="Star Orca on GitHub"
+      title="Star AnthraSpace on GitHub"
       description="Support the project with a GitHub star via the gh CLI."
       keywords={['star', 'github', 'support', 'feedback', 'like']}
       className="flex items-center justify-between gap-4 py-2"
     >
-      <Label>Star Orca on GitHub</Label>
+      <Label>Star AnthraSpace on GitHub</Label>
       {state === 'starred' ? (
         <SupportRowThanks />
       ) : (

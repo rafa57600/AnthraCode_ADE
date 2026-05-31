@@ -37,10 +37,10 @@ describe('getRequiredReleaseAssetNames', () => {
   it('includes both mac updater ZIP names for the tag version', () => {
     expect(getRequiredReleaseAssetNames('v1.4.27')).toEqual(
       expect.arrayContaining([
-        'Orca-1.4.27-mac.zip',
-        'Orca-1.4.27-mac.zip.blockmap',
-        'Orca-1.4.27-arm64-mac.zip',
-        'Orca-1.4.27-arm64-mac.zip.blockmap'
+        'AnthraSpace-1.4.27-mac.zip',
+        'AnthraSpace-1.4.27-mac.zip.blockmap',
+        'AnthraSpace-1.4.27-arm64-mac.zip',
+        'AnthraSpace-1.4.27-arm64-mac.zip.blockmap'
       ])
     )
   })
@@ -52,12 +52,12 @@ describe('extractManifestAssetNames', () => {
       extractManifestAssetNames(
         [
           'files:',
-          '  - url: Orca-1.4.27-arm64-mac.zip',
-          '  - url: https://example.com/downloads/orca-windows-setup.exe',
-          'path: orca-linux.AppImage'
+          '  - url: AnthraSpace-1.4.27-arm64-mac.zip',
+          '  - url: https://example.com/downloads/anthraspace-windows-setup.exe',
+          'path: anthraspace-linux.AppImage'
         ].join('\n')
       )
-    ).toEqual(['Orca-1.4.27-arm64-mac.zip', 'orca-windows-setup.exe', 'orca-linux.AppImage'])
+    ).toEqual(['AnthraSpace-1.4.27-arm64-mac.zip', 'anthraspace-windows-setup.exe', 'anthraspace-linux.AppImage'])
   })
 })
 
@@ -65,7 +65,7 @@ describe('verifyRequiredReleaseAssets', () => {
   it('fails when a manifest-referenced asset has not been uploaded', async () => {
     const tag = 'v1.4.27'
     const required = getRequiredReleaseAssetNames(tag)
-    const assets = required.filter((name) => name !== 'Orca-1.4.27-arm64-mac.zip')
+    const assets = required.filter((name) => name !== 'AnthraSpace-1.4.27-arm64-mac.zip')
     const release = releaseWithAssets(tag, assets)
     const latestMacAsset = release.assets.find((asset) => asset.name === 'latest-mac.yml')
     const fetchMock = vi
@@ -76,9 +76,9 @@ describe('verifyRequiredReleaseAssets', () => {
           [
             'version: 1.4.27',
             'files:',
-            '  - url: Orca-1.4.27-arm64-mac.zip',
+            '  - url: AnthraSpace-1.4.27-arm64-mac.zip',
             '    sha512: test',
-            'path: Orca-1.4.27-arm64-mac.zip'
+            'path: AnthraSpace-1.4.27-arm64-mac.zip'
           ].join('\n')
         )
       )
@@ -86,8 +86,8 @@ describe('verifyRequiredReleaseAssets', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     await expect(
-      verifyRequiredReleaseAssets({ repo: 'stablyai/orca', tag, token: 'token' })
-    ).rejects.toThrow('Missing: Orca-1.4.27-arm64-mac.zip')
+      verifyRequiredReleaseAssets({ repo: 'rafa57600/AnthraSpace', tag, token: 'token' })
+    ).rejects.toThrow('Missing: AnthraSpace-1.4.27-arm64-mac.zip')
     expect(latestMacAsset).toBeTruthy()
   })
 })

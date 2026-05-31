@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Info } from 'lucide-react'
-import type { OrcaHooks } from '../../../../shared/types'
+import type { AnthraSpaceHooks } from '../../../../shared/types'
 import { isFolderRepo } from '../../../../shared/repo-kind'
 import { useAppStore } from '../../store'
 import { useSystemPrefersDark } from '@/components/terminal-pane/use-system-prefers-dark'
@@ -158,7 +158,7 @@ function Settings(): React.JSX.Element {
   const setSettingsSearchQuery = useAppStore((s) => s.setSettingsSearchQuery)
 
   const [repoHooksMap, setRepoHooksMap] = useState<
-    Record<string, { hasHooks: boolean; hooks: OrcaHooks | null; mayNeedUpdate: boolean }>
+    Record<string, { hasHooks: boolean; hooks: AnthraSpaceHooks | null; mayNeedUpdate: boolean }>
   >({})
   const systemPrefersDark = useSystemPrefersDark()
   const isWindows = isWindowsUserAgent()
@@ -472,7 +472,10 @@ function Settings(): React.JSX.Element {
     setRepoHooksMap((previous) => {
       const next = Object.fromEntries(
         Object.entries(previous).filter(([repoId]) => repoIdSet.has(repoId))
-      ) as Record<string, { hasHooks: boolean; hooks: OrcaHooks | null; mayNeedUpdate: boolean }>
+      ) as Record<
+        string,
+        { hasHooks: boolean; hooks: AnthraSpaceHooks | null; mayNeedUpdate: boolean }
+      >
       return Object.keys(next).length === Object.keys(previous).length ? previous : next
     })
   }, [repos])
@@ -740,7 +743,7 @@ function Settings(): React.JSX.Element {
                 <SettingsSection
                   id="accounts"
                   title="AI Provider Accounts"
-                  description="Optional. Orca works with your existing provider logins; add accounts only if you want Orca to help switch between them."
+                  description="Optional. AnthraSpace works with your existing provider logins; add accounts only if you want AnthraSpace to help switch between them."
                   badge="Optional"
                   searchEntries={getSectionSearchEntries('accounts')}
                 >
@@ -928,7 +931,7 @@ function Settings(): React.JSX.Element {
                 <SettingsSection
                   id="stats"
                   title="Stats & Usage"
-                  description="Orca stats plus Claude, Codex, and OpenCode usage analytics."
+                  description="AnthraSpace stats plus Claude, Codex, and OpenCode usage analytics."
                   searchEntries={getSectionSearchEntries('stats')}
                 >
                   {isSectionMounted('stats') ? <StatsPane /> : null}
@@ -937,7 +940,7 @@ function Settings(): React.JSX.Element {
                 <SettingsSection
                   id="orchestration"
                   title="Orchestration"
-                  description="Coordinate multiple coding agents through Orca."
+                  description="Coordinate multiple coding agents through AnthraSpace."
                   searchEntries={getSectionSearchEntries('orchestration')}
                 >
                   {isSectionMounted('orchestration') ? <OrchestrationPane /> : null}
@@ -994,12 +997,12 @@ function Settings(): React.JSX.Element {
 
                 <SettingsSection
                   id="servers"
-                  title="Remote Orca Servers"
+                  title="Remote AnthraSpace Servers"
                   badge="Beta"
                   description={
                     isWebClient
-                      ? 'Connect this browser to a saved Orca server.'
-                      : 'Switch between local desktop mode and paired remote Orca runtimes.'
+                      ? 'Connect this browser to a saved AnthraSpace server.'
+                      : 'Switch between local desktop mode and paired remote AnthraSpace runtimes.'
                   }
                   searchEntries={getSectionSearchEntries('servers')}
                 >

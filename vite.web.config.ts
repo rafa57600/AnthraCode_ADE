@@ -10,7 +10,7 @@ export default defineConfig({
   base: './',
   plugins: [react(), tailwindcss()],
   define: {
-    ORCA_FEATURE_WALL_ENABLED: 'true'
+    ANTHRASPACE_FEATURE_WALL_ENABLED: 'true'
   },
   resolve: {
     alias: {

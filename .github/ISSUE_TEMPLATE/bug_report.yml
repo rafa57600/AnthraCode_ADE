@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a problem with Orca
+description: Report a problem with AnthraSpace
 title: "[Bug]: "
 labels:
   - bug
@@ -7,7 +7,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Use this form for Orca bugs. Include enough detail for someone else to reproduce the issue.
+        Use this form for AnthraSpace bugs. Include enough detail for someone else to reproduce the issue.
 
   - type: dropdown
     id: os
@@ -22,10 +22,10 @@ body:
       required: true
 
   - type: input
-    id: orca_version
+    id: anthraspace_version
     attributes:
-      label: Orca version
-      description: Include the exact Orca version if you can. You can find it in `Orca > About Orca`.
+      label: AnthraSpace version
+      description: Include the exact AnthraSpace version if you can. You can find it in `AnthraSpace > About AnthraSpace`.
       placeholder: v0.14.2
     validations:
       required: false
@@ -37,7 +37,7 @@ body:
       description: Describe the bug in your own words. Include a short summary, reproduction steps, and anything else that seems relevant.
       placeholder: |
         Short summary:
-        Orca crashes when ...
+        AnthraSpace crashes when ...
 
         What happened?
 

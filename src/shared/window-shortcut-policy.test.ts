@@ -85,7 +85,7 @@ describe('resolveWindowShortcutAction', () => {
     expect(
       resolveWindowShortcutAction(macWorktreePalette, 'darwin', undefined, {
         context: 'terminal',
-        terminalShortcutPolicy: 'orca-first'
+        terminalShortcutPolicy: 'anthraspace-first'
       })
     ).toEqual({ type: 'toggleWorktreePalette' })
     expect(

@@ -16,7 +16,7 @@ import { randomUUID } from 'crypto'
 import { basename, dirname, join } from 'path'
 import { homedir } from 'os'
 
-import { ORCA_HOOK_PROTOCOL_VERSION } from '../shared/agent-hook-types'
+import { ANTHRASPACE_HOOK_PROTOCOL_VERSION } from '../shared/agent-hook-types'
 import {
   clearAllListenerCaches,
   clearPaneCacheState,
@@ -155,7 +155,7 @@ export class RelayAgentHookServer {
       port: this.port,
       token: this.token,
       env: this.env,
-      version: ORCA_HOOK_PROTOCOL_VERSION
+      version: ANTHRASPACE_HOOK_PROTOCOL_VERSION
     })
     return this.endpointFileWritten
   }
@@ -216,7 +216,7 @@ export class RelayAgentHookServer {
       ORCA_AGENT_HOOK_PORT: String(this.port),
       ORCA_AGENT_HOOK_TOKEN: this.token,
       ORCA_AGENT_HOOK_ENV: this.env,
-      ORCA_AGENT_HOOK_VERSION: ORCA_HOOK_PROTOCOL_VERSION
+      ORCA_AGENT_HOOK_VERSION: ANTHRASPACE_HOOK_PROTOCOL_VERSION
     }
     if (this.endpointFileWritten) {
       env.ORCA_AGENT_HOOK_ENDPOINT = this.endpointFilePath

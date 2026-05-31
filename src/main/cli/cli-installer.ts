@@ -9,7 +9,7 @@ import { promisify } from 'node:util'
 import type { CliInstallMethod, CliInstallStatus } from '../../shared/cli-install-types'
 
 const execFileAsync = promisify(execFile)
-const DEFAULT_MAC_COMMAND_PATH = '/usr/local/bin/orca'
+const DEFAULT_MAC_COMMAND_PATH = '/usr/local/bin/anthraspace'
 const DEV_LAUNCHER_DIR = ['cli', 'bin']
 
 type CliInstallerOptions = {
@@ -73,7 +73,7 @@ export class CliInstaller {
     if (!spec) {
       return {
         platform: this.platform,
-        commandName: 'orca',
+        commandName: 'anthraspace',
         commandPath: null,
         pathDirectory: null,
         pathConfigured: false,
@@ -91,7 +91,7 @@ export class CliInstaller {
     if (!launcherPath) {
       return {
         platform: this.platform,
-        commandName: 'orca',
+        commandName: 'anthraspace',
         commandPath: spec.commandPath,
         pathDirectory: dirname(spec.commandPath),
         pathConfigured: false,
@@ -102,7 +102,7 @@ export class CliInstaller {
         currentTarget: null,
         unsupportedReason: this.isPackaged ? 'launcher_missing' : 'launch_mode_unavailable',
         detail: this.isPackaged
-          ? 'The bundled CLI launcher is missing from this Orca build.'
+          ? 'The bundled CLI launcher is missing from this AnthraSpace build.'
           : 'Development mode uses a generated launcher for validation only.'
       }
     }
@@ -122,7 +122,7 @@ export class CliInstaller {
       throw new Error(status.detail ?? 'CLI registration is unavailable on this build.')
     }
     if (status.state === 'conflict') {
-      throw new Error(`Refusing to replace non-Orca command at ${status.commandPath}.`)
+      throw new Error(`Refusing to replace non-AnthraSpace command at ${status.commandPath}.`)
     }
 
     await mkdir(dirname(status.commandPath), { recursive: true })
@@ -157,10 +157,12 @@ export class CliInstaller {
       return status
     }
     if (status.state === 'conflict') {
-      throw new Error(`Refusing to remove non-Orca command at ${status.commandPath}.`)
+      throw new Error(`Refusing to remove non-AnthraSpace command at ${status.commandPath}.`)
     }
     if (status.state === 'stale') {
-      throw new Error(`Refusing to remove a command not owned by Orca at ${status.commandPath}.`)
+      throw new Error(
+        `Refusing to remove a command not owned by AnthraSpace at ${status.commandPath}.`
+      )
     }
 
     if (status.installMethod === 'symlink') {
@@ -209,11 +211,11 @@ export class CliInstaller {
       // Why: Linux does not have a single privileged global shell-command flow
       // equivalent to macOS's /usr/local/bin integration. ~/.local/bin is the
       // least surprising user-scoped location that many distros already expose.
-      return join(this.homePath, '.local', 'bin', 'orca')
+      return join(this.homePath, '.local', 'bin', 'anthraspace')
     }
 
     if (this.platform === 'win32') {
-      return join(this.localAppDataPath, 'Programs', 'Orca', 'bin', 'orca.cmd')
+      return join(this.localAppDataPath, 'Programs', 'AnthraSpace', 'bin', 'anthraspace.cmd')
     }
 
     return null
@@ -293,7 +295,7 @@ export class CliInstaller {
           supported: true,
           state: 'conflict',
           currentTarget: null,
-          detail: `${commandPath} exists but is not an Orca symlink.`
+          detail: `${commandPath} exists but is not an AnthraSpace symlink.`
         })
       }
 
@@ -321,7 +323,7 @@ export class CliInstaller {
           supported: true,
           state: 'not_installed',
           currentTarget: null,
-          detail: `Register ${commandPath} to use Orca from the terminal.`
+          detail: `Register ${commandPath} to use AnthraSpace from the terminal.`
         })
       }
       throw error
@@ -342,7 +344,7 @@ export class CliInstaller {
           supported: true,
           state: 'conflict',
           currentTarget: null,
-          detail: `${commandPath} exists but is not an Orca launcher script.`
+          detail: `${commandPath} exists but is not an AnthraSpace launcher script.`
         })
       }
 
@@ -369,7 +371,7 @@ export class CliInstaller {
           supported: true,
           state: 'not_installed',
           currentTarget: null,
-          detail: `Register ${commandPath} to use Orca from Command Prompt or PowerShell.`
+          detail: `Register ${commandPath} to use AnthraSpace from Command Prompt or PowerShell.`
         })
       }
       throw error
@@ -387,7 +389,7 @@ export class CliInstaller {
   }): CliInstallStatus {
     return {
       platform: this.platform,
-      commandName: 'orca',
+      commandName: 'anthraspace',
       commandPath: args.commandPath,
       pathDirectory: dirname(args.commandPath),
       pathConfigured: false,
@@ -480,11 +482,11 @@ async function ensureDevLauncher(args: {
   const launcherPath = join(
     args.userDataPath,
     ...DEV_LAUNCHER_DIR,
-    args.platform === 'win32' ? 'orca.cmd' : 'orca'
+    args.platform === 'win32' ? 'anthraspace.cmd' : 'anthraspace'
   )
   await mkdir(dirname(launcherPath), { recursive: true })
 
-  // Why: packaged Orca ships real platform launchers under resources/bin, but
+  // Why: packaged AnthraSpace ships real platform launchers under resources/bin, but
   // development builds do not have that stable asset layout. Generating a
   // launcher in userData lets us validate the shell-command flow without
   // changing the packaged registration contract.
@@ -504,8 +506,8 @@ function buildUnixDevLauncher(execPathValue: string, cliEntryPath: string): stri
 set -euo pipefail
 ELECTRON=${quoteShell(execPathValue)}
 CLI=${quoteShell(cliEntryPath)}
-export ORCA_NODE_OPTIONS="\${NODE_OPTIONS-}"
-export ORCA_NODE_REPL_EXTERNAL_MODULE="\${NODE_REPL_EXTERNAL_MODULE-}"
+export ANTHRASPACE_NODE_OPTIONS="\${NODE_OPTIONS-}"
+export ANTHRASPACE_NODE_REPL_EXTERNAL_MODULE="\${NODE_REPL_EXTERNAL_MODULE-}"
 unset NODE_OPTIONS
 unset NODE_REPL_EXTERNAL_MODULE
 ELECTRON_RUN_AS_NODE=1 "$ELECTRON" "$CLI" "$@"
@@ -517,8 +519,8 @@ function buildWindowsDevLauncher(execPathValue: string, cliEntryPath: string): s
 setlocal
 set "ELECTRON=${escapeWindowsBatchValue(execPathValue)}"
 set "CLI=${escapeWindowsBatchValue(cliEntryPath)}"
-set "ORCA_NODE_OPTIONS=%NODE_OPTIONS%"
-set "ORCA_NODE_REPL_EXTERNAL_MODULE=%NODE_REPL_EXTERNAL_MODULE%"
+set "ANTHRASPACE_NODE_OPTIONS=%NODE_OPTIONS%"
+set "ANTHRASPACE_NODE_REPL_EXTERNAL_MODULE=%NODE_REPL_EXTERNAL_MODULE%"
 set NODE_OPTIONS=
 set NODE_REPL_EXTERNAL_MODULE=
 set ELECTRON_RUN_AS_NODE=1
@@ -608,7 +610,7 @@ async function writeWindowsUserPath(value: string): Promise<void> {
   await execFileAsync('powershell', [
     '-NoProfile',
     '-Command',
-    // Why: PATH registration must stay user-scoped on Windows so the Orca
+    // Why: PATH registration must stay user-scoped on Windows so the AnthraSpace
     // desktop app can manage the public shell command without requiring
     // elevation or mutating machine-wide environment state.
     `[Environment]::SetEnvironmentVariable('Path', ${quotePowerShell(value)}, 'User')`
@@ -624,10 +626,10 @@ export function getBundledLauncherPath(
   resourcesPath: string
 ): string | null {
   if (platform === 'darwin' || platform === 'linux') {
-    return join(resourcesPath, 'bin', 'orca')
+    return join(resourcesPath, 'bin', 'anthraspace')
   }
   if (platform === 'win32') {
-    return join(resourcesPath, 'bin', 'orca.cmd')
+    return join(resourcesPath, 'bin', 'anthraspace.cmd')
   }
   return null
 }

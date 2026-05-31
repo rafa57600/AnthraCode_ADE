@@ -180,7 +180,10 @@ export async function fetchViaPty(options?: {
       name: 'xterm-256color',
       cols: 120,
       rows: 40,
-      env: spawnEnv
+      env: spawnEnv,
+      // Why: hidden Windows PTYs are killed on timeout; the bundled ConPTY DLL
+      // avoids node-pty's AttachConsole-based process-list helper crash.
+      ...(isWin32 ? { useConptyDll: true } : {})
     })
     const termDisposables: { dispose: () => void }[] = []
 

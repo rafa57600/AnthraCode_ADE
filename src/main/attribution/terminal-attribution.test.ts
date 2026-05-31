@@ -41,13 +41,13 @@ describe('applyTerminalAttributionEnv', () => {
 
   function cleanAttributionEnv(env?: Record<string, string>): Record<string, string> {
     const base = { ...process.env }
-    delete base.ORCA_ENABLE_GIT_ATTRIBUTION
-    delete base.ORCA_GIT_COMMIT_TRAILER
-    delete base.ORCA_GH_PR_FOOTER
-    delete base.ORCA_GH_ISSUE_FOOTER
-    delete base.ORCA_ATTRIBUTION_SHIM_DIR
-    delete base.ORCA_REAL_GIT
-    delete base.ORCA_REAL_GH
+    delete base.ANTHRASPACE_ENABLE_GIT_ATTRIBUTION
+    delete base.ANTHRASPACE_GIT_COMMIT_TRAILER
+    delete base.ANTHRASPACE_GH_PR_FOOTER
+    delete base.ANTHRASPACE_GH_ISSUE_FOOTER
+    delete base.ANTHRASPACE_ATTRIBUTION_SHIM_DIR
+    delete base.ANTHRASPACE_REAL_GIT
+    delete base.ANTHRASPACE_REAL_GH
     base.PATH = stripInheritedAttributionPath(base.PATH ?? '')
     const next = { ...base, ...env }
     return next as Record<string, string>
@@ -86,12 +86,12 @@ describe('applyTerminalAttributionEnv', () => {
     runGit(repo, ['commit', '--dry-run', '-m', 'second'], attributionEnv)
 
     expect(runGit(repo, ['rev-parse', 'HEAD']).trim()).toBe(beforeHead)
-    expect(runGit(repo, ['log', '-1', '--format=%B'])).not.toContain('Co-authored-by: Orca')
+    expect(runGit(repo, ['log', '-1', '--format=%B'])).not.toContain('Co-authored-by: AnthraSpace')
 
     runGit(repo, ['commit', '-m', 'second'], attributionEnv)
     expect(runGit(repo, ['rev-parse', 'HEAD']).trim()).not.toBe(beforeHead)
     expect(runGit(repo, ['log', '-1', '--format=%B'])).toContain(
-      'Co-authored-by: Orca <help@stably.ai>'
+      'Co-authored-by: AnthraSpace <help@anthracode.com>'
     )
   })
 
@@ -114,7 +114,7 @@ describe('applyTerminalAttributionEnv', () => {
     runGit(repo, ['commit', '-n', '-m', 'initial'], attributionEnv)
 
     expect(runGit(repo, ['log', '-1', '--format=%B'])).toContain(
-      'Co-authored-by: Orca <help@stably.ai>'
+      'Co-authored-by: AnthraSpace <help@anthracode.com>'
     )
   })
 
@@ -139,7 +139,7 @@ describe('applyTerminalAttributionEnv', () => {
     runGit(repo, ['commit', '-am', 'combined message'], attributionEnv)
 
     expect(runGit(repo, ['log', '-1', '--format=%B'])).toContain(
-      'Co-authored-by: Orca <help@stably.ai>'
+      'Co-authored-by: AnthraSpace <help@anthracode.com>'
     )
   })
 
@@ -162,7 +162,7 @@ describe('applyTerminalAttributionEnv', () => {
     runGit(repo, ['-c', 'core.quotePath=false', 'commit', '-m', 'initial'], attributionEnv)
 
     expect(runGit(repo, ['log', '-1', '--format=%B'])).toContain(
-      'Co-authored-by: Orca <help@stably.ai>'
+      'Co-authored-by: AnthraSpace <help@anthracode.com>'
     )
   })
 
@@ -187,7 +187,7 @@ describe('applyTerminalAttributionEnv', () => {
     runGit(repo, ['commit', '-F', messagePath], attributionEnv)
 
     expect(runGit(repo, ['log', '-1', '--format=%B'])).toContain(
-      'Co-authored-by: Orca <help@stably.ai>'
+      'Co-authored-by: AnthraSpace <help@anthracode.com>'
     )
     expect(readFileSync(messagePath, 'utf8')).toBe('initial from file\n')
   })
@@ -226,7 +226,7 @@ exit 1
       })
     ).toThrow()
 
-    expect(readFileSync(argsPath, 'utf8')).not.toContain('Co-authored-by: Orca')
+    expect(readFileSync(argsPath, 'utf8')).not.toContain('Co-authored-by: AnthraSpace')
   })
 
   it('passes reuse and fixup commit message modes through without attribution', () => {
@@ -271,7 +271,7 @@ exit 1
       env: cleanAttributionEnv(attributionEnv)
     })
 
-    expect(readFileSync(argsPath, 'utf8')).not.toContain('Co-authored-by: Orca')
+    expect(readFileSync(argsPath, 'utf8')).not.toContain('Co-authored-by: AnthraSpace')
   })
 
   it('adds the trailer before commit-msg hooks validate the commit', () => {
@@ -292,7 +292,7 @@ if [[ -f "${hookCounterPath}" ]]; then
   count="$(cat "${hookCounterPath}")"
 fi
 printf '%s\\n' "$((count + 1))" >"${hookCounterPath}"
-grep -Fq 'Co-authored-by: Orca <help@stably.ai>' "$1"
+grep -Fq 'Co-authored-by: AnthraSpace <help@anthracode.com>' "$1"
 `,
       'utf8'
     )
@@ -310,7 +310,7 @@ grep -Fq 'Co-authored-by: Orca <help@stably.ai>' "$1"
 
     expect(readFileSync(hookCounterPath, 'utf8').trim()).toBe('1')
     expect(runGit(repo, ['log', '-1', '--format=%B'])).toContain(
-      'Co-authored-by: Orca <help@stably.ai>'
+      'Co-authored-by: AnthraSpace <help@anthracode.com>'
     )
   })
 
@@ -359,7 +359,9 @@ exit 1
 
     expect(existsSync(commitPath)).toBe(true)
     expect(existsSync(amendPath)).toBe(false)
-    expect(readFileSync(argsPath, 'utf8')).toContain('Co-authored-by: Orca <help@stably.ai>')
+    expect(readFileSync(argsPath, 'utf8')).toContain(
+      'Co-authored-by: AnthraSpace <help@anthracode.com>'
+    )
   })
 
   it('passes editor-based commits through without attribution', () => {
@@ -411,14 +413,14 @@ if [[ "$1 $2" == "pr create" ]]; then
   exit 0
 fi
 if [[ "$1 $2 $3 $4" == "pr view --json url" ]]; then
-  printf '%s\\n' 'https://github.com/stablyai/orca/pull/123'
+  printf '%s\\n' 'https://github.com/rafa57600/AnthraSpace/pull/123'
   exit 0
 fi
-if [[ "$1 $2" == "api repos/stablyai/orca/pulls/123" && "\${3:-}" == "--jq" ]]; then
+if [[ "$1 $2" == "api repos/rafa57600/AnthraSpace/pulls/123" && "\${3:-}" == "--jq" ]]; then
   printf '%s\\n' 'Existing body'
   exit 0
 fi
-if [[ "$1 $2 $3 $4" == "api -X PATCH repos/stablyai/orca/pulls/123" ]]; then
+if [[ "$1 $2 $3 $4" == "api -X PATCH repos/rafa57600/AnthraSpace/pulls/123" ]]; then
   touch "${markerPath}"
   exit 0
 fi
@@ -456,27 +458,27 @@ exit 1
       `#!/usr/bin/env bash
 set -euo pipefail
 if [[ "$1 $2" == "pr create" ]]; then
-  printf '%s\\n' 'https://github.com/stablyai/orca/pull/123'
+  printf '%s\\n' 'https://github.com/rafa57600/AnthraSpace/pull/123'
   exit 0
 fi
 if [[ "$1 $2" == "issue create" ]]; then
-  printf '%s\\n' 'https://github.com/stablyai/orca/issues/456'
+  printf '%s\\n' 'https://github.com/rafa57600/AnthraSpace/issues/456'
   exit 0
 fi
-if [[ "$1 $2" == "api repos/stablyai/orca/pulls/123" && "\${3:-}" == "--jq" ]]; then
+if [[ "$1 $2" == "api repos/rafa57600/AnthraSpace/pulls/123" && "\${3:-}" == "--jq" ]]; then
   printf '%s\\n' 'PR body'
   exit 0
 fi
-if [[ "$1 $2" == "api repos/stablyai/orca/issues/456" && "\${3:-}" == "--jq" ]]; then
+if [[ "$1 $2" == "api repos/rafa57600/AnthraSpace/issues/456" && "\${3:-}" == "--jq" ]]; then
   printf '%s\\n' 'Issue body'
   exit 0
 fi
-if [[ "$1 $2 $3 $4" == "api -X PATCH repos/stablyai/orca/pulls/123" ]]; then
+if [[ "$1 $2 $3 $4" == "api -X PATCH repos/rafa57600/AnthraSpace/pulls/123" ]]; then
   printf '%s\\n' "$@" >"${patchArgsPath}"
   touch "${prMarkerPath}"
   exit 0
 fi
-if [[ "$1 $2 $3 $4" == "api -X PATCH repos/stablyai/orca/issues/456" ]]; then
+if [[ "$1 $2 $3 $4" == "api -X PATCH repos/rafa57600/AnthraSpace/issues/456" ]]; then
   touch "${issueMarkerPath}"
   exit 0
 fi
@@ -498,13 +500,13 @@ exit 1
         encoding: 'utf8',
         env: cleanAttributionEnv(attributionEnv)
       })
-    ).toBe('https://github.com/stablyai/orca/pull/123\n')
+    ).toBe('https://github.com/rafa57600/AnthraSpace/pull/123\n')
     expect(
       execFileSync('gh', ['issue', 'create', '--title', 'Issue', '--body', 'Body'], {
         encoding: 'utf8',
         env: cleanAttributionEnv(attributionEnv)
       })
-    ).toBe('https://github.com/stablyai/orca/issues/456\n')
+    ).toBe('https://github.com/rafa57600/AnthraSpace/issues/456\n')
 
     expect(existsSync(prMarkerPath)).toBe(true)
     expect(existsSync(issueMarkerPath)).toBe(true)
@@ -530,18 +532,18 @@ if [[ "$1 $2 $3" == "issue create --help" ]]; then
   exit 0
 fi
 if [[ "$1 $2 $3 $4" == "pr view --json url" ]]; then
-  printf '%s\\n' 'https://github.com/stablyai/orca/pull/123'
+  printf '%s\\n' 'https://github.com/rafa57600/AnthraSpace/pull/123'
   exit 0
 fi
 if [[ "$1 $2" == "issue list" ]]; then
-  printf '%s\\n' 'https://github.com/stablyai/orca/issues/456'
+  printf '%s\\n' 'https://github.com/rafa57600/AnthraSpace/issues/456'
   exit 0
 fi
-if [[ "$1 $2 $3 $4" == "api -X PATCH repos/stablyai/orca/pulls/123" ]]; then
+if [[ "$1 $2 $3 $4" == "api -X PATCH repos/rafa57600/AnthraSpace/pulls/123" ]]; then
   touch "${markerPath}"
   exit 0
 fi
-if [[ "$1 $2 $3 $4" == "api -X PATCH repos/stablyai/orca/issues/456" ]]; then
+if [[ "$1 $2 $3 $4" == "api -X PATCH repos/rafa57600/AnthraSpace/issues/456" ]]; then
   touch "${markerPath}"
   exit 0
 fi
@@ -587,10 +589,10 @@ if [[ "$1 $2" == "issue create" ]]; then
   exit 0
 fi
 if [[ "$1 $2" == "issue list" ]]; then
-  printf '%s\\n' 'https://github.com/stablyai/orca/issues/456'
+  printf '%s\\n' 'https://github.com/rafa57600/AnthraSpace/issues/456'
   exit 0
 fi
-if [[ "$1 $2 $3 $4" == "api -X PATCH repos/stablyai/orca/issues/456" ]]; then
+if [[ "$1 $2 $3 $4" == "api -X PATCH repos/rafa57600/AnthraSpace/issues/456" ]]; then
   touch "${markerPath}"
   exit 0
 fi
@@ -626,13 +628,13 @@ exit 1
       `#!/usr/bin/env bash
 set -euo pipefail
 if [[ "$1 $2" == "pr create" ]]; then
-  printf '%s\\n' 'https://github.com/stablyai/orca/pull/123'
+  printf '%s\\n' 'https://github.com/rafa57600/AnthraSpace/pull/123'
   exit 0
 fi
-if [[ "$1 $2" == "api repos/stablyai/orca/pulls/123" && "\${3:-}" == "--jq" ]]; then
+if [[ "$1 $2" == "api repos/rafa57600/AnthraSpace/pulls/123" && "\${3:-}" == "--jq" ]]; then
   exit 7
 fi
-if [[ "$1 $2 $3 $4" == "api -X PATCH repos/stablyai/orca/pulls/123" ]]; then
+if [[ "$1 $2 $3 $4" == "api -X PATCH repos/rafa57600/AnthraSpace/pulls/123" ]]; then
   touch "${markerPath}"
   exit 0
 fi
@@ -654,7 +656,7 @@ exit 1
       env: cleanAttributionEnv(attributionEnv)
     })
 
-    expect(output).toBe('https://github.com/stablyai/orca/pull/123\n')
+    expect(output).toBe('https://github.com/rafa57600/AnthraSpace/pull/123\n')
     expect(existsSync(markerPath)).toBe(false)
   })
 
@@ -667,14 +669,14 @@ exit 1
       `#!/usr/bin/env bash
 set -euo pipefail
 if [[ "$1 $2" == "pr create" ]]; then
-  printf '%s\\n' 'https://github.com/stablyai/orca/pull/123'
+  printf '%s\\n' 'https://github.com/rafa57600/AnthraSpace/pull/123'
   exit 0
 fi
-if [[ "$1 $2" == "api repos/stablyai/orca/pulls/123" && "\${3:-}" == "--jq" ]]; then
+if [[ "$1 $2" == "api repos/rafa57600/AnthraSpace/pulls/123" && "\${3:-}" == "--jq" ]]; then
   printf '%s\\n' 'Existing body'
   exit 0
 fi
-if [[ "$1 $2 $3 $4" == "api -X PATCH repos/stablyai/orca/pulls/123" ]]; then
+if [[ "$1 $2 $3 $4" == "api -X PATCH repos/rafa57600/AnthraSpace/pulls/123" ]]; then
   exit 9
 fi
 exit 1
@@ -695,7 +697,7 @@ exit 1
       env: cleanAttributionEnv(attributionEnv)
     })
 
-    expect(output).toBe('https://github.com/stablyai/orca/pull/123\n')
+    expect(output).toBe('https://github.com/rafa57600/AnthraSpace/pull/123\n')
   })
 
   it('fails open when shim files cannot be written', () => {
@@ -709,7 +711,7 @@ exit 1
       userDataPath: blockedUserDataPath
     })
 
-    expect(baseEnv.ORCA_ENABLE_GIT_ATTRIBUTION).toBeUndefined()
+    expect(baseEnv.ANTHRASPACE_ENABLE_GIT_ATTRIBUTION).toBeUndefined()
     expect(baseEnv.PATH).toBe('/usr/bin')
   })
 

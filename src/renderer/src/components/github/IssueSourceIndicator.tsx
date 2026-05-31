@@ -40,7 +40,7 @@ export function sameGitHubOwnerRepo(
     return false
   }
   // Why: GitHub treats owner/repo names case-insensitively, so remotes with
-  // different casing (e.g. StablyAI/Orca vs stablyai/orca) resolve to the
+  // different casing (e.g. StablyAI/Orca vs rafa57600/AnthraSpace) resolve to the
   // same repo and must suppress the indicator.
   return (
     left.owner.toLowerCase() === right.owner.toLowerCase() &&

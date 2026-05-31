@@ -3,12 +3,12 @@ import { FolderOpen, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import type { CliInstallStatus } from '../../../../shared/cli-install-types'
 import {
-  ORCA_CLI_SKILL_INSTALL_COMMAND,
-  ORCA_CLI_SKILL_NAME
+  ANTHRASPACE_CLI_SKILL_INSTALL_COMMAND,
+  ANTHRASPACE_CLI_SKILL_NAME
 } from '@/lib/agent-feature-install-commands'
 import {
   AGENT_SKILL_CLI_PREREQUISITE_NOTICE,
-  ensureOrcaCliAvailableForAgentSkillTerminal
+  ensureAnthraSpaceCliAvailableForAgentSkillTerminal
 } from '@/lib/agent-skill-cli-prerequisite'
 import {
   GLOBAL_AGENT_SKILL_SOURCE_KINDS,
@@ -44,13 +44,13 @@ function getRevealLabel(platform: string): string {
 
 function getInstallDescription(platform: string): string {
   if (platform === 'darwin') {
-    return 'Register `orca` in /usr/local/bin.'
+    return 'Register `anthraspace` in /usr/local/bin.'
   }
   if (platform === 'linux') {
-    return 'Register `orca` in ~/.local/bin.'
+    return 'Register `anthraspace` in ~/.local/bin.'
   }
   if (platform === 'win32') {
-    return 'Register `orca` in your user PATH.'
+    return 'Register `anthraspace` in your user PATH.'
   }
   return 'CLI registration is not yet available on this platform.'
 }
@@ -65,7 +65,7 @@ export function CliSection({ currentPlatform }: CliSectionProps): React.JSX.Elem
     loading: cliSkillLoading,
     error: cliSkillError,
     refresh: refreshCliSkill
-  } = useInstalledAgentSkill(ORCA_CLI_SKILL_NAME, {
+  } = useInstalledAgentSkill(ANTHRASPACE_CLI_SKILL_NAME, {
     sourceKinds: GLOBAL_AGENT_SKILL_SOURCE_KINDS
   })
 
@@ -97,9 +97,11 @@ export function CliSection({ currentPlatform }: CliSectionProps): React.JSX.Elem
       const next = await window.api.cli.install()
       setStatus(next)
       setDialogOpen(false)
-      toast.success('Registered `orca` in PATH.')
+      toast.success('Registered `anthraspace` in PATH.')
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to register `orca` in PATH.')
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to register `anthraspace` in PATH.'
+      )
     } finally {
       setBusyAction(null)
     }
@@ -111,9 +113,11 @@ export function CliSection({ currentPlatform }: CliSectionProps): React.JSX.Elem
       const next = await window.api.cli.remove()
       setStatus(next)
       setDialogOpen(false)
-      toast.success('Removed `orca` from PATH.')
+      toast.success('Removed `anthraspace` from PATH.')
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to remove `orca` from PATH.')
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to remove `anthraspace` from PATH.'
+      )
     } finally {
       setBusyAction(null)
     }
@@ -122,10 +126,10 @@ export function CliSection({ currentPlatform }: CliSectionProps): React.JSX.Elem
   return (
     <section className="space-y-4">
       <div className="space-y-1">
-        <h2 className="text-sm font-semibold">Orca CLI</h2>
+        <h2 className="text-sm font-semibold">AnthraSpace CLI</h2>
         <p className="text-xs text-muted-foreground">
-          Use Orca from your terminal to open the app, manage worktrees, and interact with Orca
-          terminals.
+          Use AnthraSpace from your terminal to open the app, manage worktrees, and interact with
+          AnthraSpace terminals.
         </p>
       </div>
 
@@ -221,7 +225,7 @@ export function CliSection({ currentPlatform }: CliSectionProps): React.JSX.Elem
             <div className="space-y-0.5">
               <Label>Agent skills</Label>
               <p className="text-xs text-muted-foreground">
-                Give agents Orca-aware workspace, terminal, and progress workflows.
+                Give agents AnthraSpace-aware workspace, terminal, and progress workflows.
               </p>
             </div>
 
@@ -229,8 +233,8 @@ export function CliSection({ currentPlatform }: CliSectionProps): React.JSX.Elem
               className="mt-3"
               variant="inline"
               title="CLI skill"
-              description="Enables agents to use Orca workspace, terminal, and progress commands."
-              command={ORCA_CLI_SKILL_INSTALL_COMMAND}
+              description="Enables agents to use AnthraSpace workspace, terminal, and progress commands."
+              command={ANTHRASPACE_CLI_SKILL_INSTALL_COMMAND}
               terminalTitle="CLI skill setup"
               terminalAriaLabel="CLI skill install terminal"
               terminalWorktreeId="settings-cli-skill-terminal"
@@ -239,7 +243,9 @@ export function CliSection({ currentPlatform }: CliSectionProps): React.JSX.Elem
               error={cliSkillError}
               preInstallNotice={AGENT_SKILL_CLI_PREREQUISITE_NOTICE}
               onBeforeOpenTerminal={async () => {
-                await ensureOrcaCliAvailableForAgentSkillTerminal({ onStatusChange: setStatus })
+                await ensureAnthraSpaceCliAvailableForAgentSkillTerminal({
+                  onStatusChange: setStatus
+                })
               }}
               onRecheck={refreshCliSkill}
             />
@@ -253,12 +259,12 @@ export function CliSection({ currentPlatform }: CliSectionProps): React.JSX.Elem
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {isEnabled ? 'Remove `orca` from PATH?' : 'Register `orca` in PATH?'}
+              {isEnabled ? 'Remove `anthraspace` from PATH?' : 'Register `anthraspace` in PATH?'}
             </DialogTitle>
             <DialogDescription>
               {isEnabled
-                ? 'This removes the shell command symlink. Orca itself remains installed.'
-                : `Orca will register ${status?.commandPath ?? '`orca`'} so the command works from your terminal.`}
+                ? 'This removes the shell command symlink. AnthraSpace itself remains installed.'
+                : `AnthraSpace will register ${status?.commandPath ?? '`anthraspace`'} so the command works from your terminal.`}
             </DialogDescription>
           </DialogHeader>
           {status?.commandPath ? (

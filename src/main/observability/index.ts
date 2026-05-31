@@ -76,8 +76,8 @@ export type ObservabilityConsent = {
   /** Reason any of the lanes are disabled, for debug surfaces. */
   readonly disabledReason?:
     | 'do_not_track'
-    | 'orca_telemetry_disabled'
-    | 'orca_diagnostics_disabled'
+    | 'anthraspace_telemetry_disabled'
+    | 'anthraspace_diagnostics_disabled'
     | 'ci'
 }
 
@@ -119,7 +119,7 @@ export function resolveObservabilityConsent(): ObservabilityConsent {
       otlpEnabled: false,
       bundleEnabled: false,
       otlpStatus: 'Disabled by ORCA_DIAGNOSTICS_DISABLED',
-      disabledReason: 'orca_diagnostics_disabled'
+      disabledReason: 'anthraspace_diagnostics_disabled'
     }
   }
   if (dnt || orcaDisabled) {
@@ -130,7 +130,7 @@ export function resolveObservabilityConsent(): ObservabilityConsent {
       otlpEnabled: false,
       bundleEnabled: false,
       otlpStatus: dnt ? 'Disabled by DO_NOT_TRACK' : 'Disabled by ORCA_TELEMETRY_DISABLED',
-      disabledReason: dnt ? 'do_not_track' : 'orca_telemetry_disabled'
+      disabledReason: dnt ? 'do_not_track' : 'anthraspace_telemetry_disabled'
     }
   }
 
@@ -163,11 +163,11 @@ export function getTraceFilePath(): string {
     // without spinning up the full Electron runtime.
     const home = homedir()
     if (platform() === 'darwin') {
-      userData = join(home, 'Library', 'Application Support', 'Orca')
+      userData = join(home, 'Library', 'Application Support', 'AnthraSpace')
     } else if (platform() === 'win32') {
-      userData = join(process.env.APPDATA ?? home, 'Orca')
+      userData = join(process.env.APPDATA ?? home, 'AnthraSpace')
     } else {
-      userData = join(home, '.config', 'Orca')
+      userData = join(home, '.config', 'AnthraSpace')
     }
   }
   return join(userData, 'logs', 'main.trace.ndjson')

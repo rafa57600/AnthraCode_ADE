@@ -56,24 +56,24 @@ const pendingBundles = new Map<string, PendingBundle>()
 // at which point the upload path returns a clear "endpoint not configured"
 // error rather than POSTing to a placeholder.
 //
-// The dev escape hatch is `ORCA_DIAGNOSTICS_TOKEN_URL` — set this env var
+// The dev escape hatch is `ANTHRASPACE_DIAGNOSTICS_TOKEN_URL` — set this env var
 // to point at a local server during development. Mirrors the
 // `ORCA_OTLP_TRACES_URL` env-var pattern for OTLP.
 function resolveBuildTokenEndpoint(): string | null {
   const endpoint =
-    typeof ORCA_DIAGNOSTICS_TOKEN_URL !== 'undefined'
-      ? ORCA_DIAGNOSTICS_TOKEN_URL
-      : ((globalThis as { ORCA_DIAGNOSTICS_TOKEN_URL?: string | null })
-          .ORCA_DIAGNOSTICS_TOKEN_URL ?? null)
+    typeof ANTHRASPACE_DIAGNOSTICS_TOKEN_URL !== 'undefined'
+      ? ANTHRASPACE_DIAGNOSTICS_TOKEN_URL
+      : ((globalThis as { ANTHRASPACE_DIAGNOSTICS_TOKEN_URL?: string | null })
+          .ANTHRASPACE_DIAGNOSTICS_TOKEN_URL ?? null)
   return typeof endpoint === 'string' && endpoint.length > 0 ? endpoint : null
 }
 
 function resolveBuildIdentity(): 'stable' | 'rc' | null {
   const ident =
-    typeof ORCA_BUILD_IDENTITY !== 'undefined'
-      ? ORCA_BUILD_IDENTITY
-      : ((globalThis as { ORCA_BUILD_IDENTITY?: 'stable' | 'rc' | null }).ORCA_BUILD_IDENTITY ??
-        null)
+    typeof ANTHRASPACE_BUILD_IDENTITY !== 'undefined'
+      ? ANTHRASPACE_BUILD_IDENTITY
+      : ((globalThis as { ANTHRASPACE_BUILD_IDENTITY?: 'stable' | 'rc' | null })
+          .ANTHRASPACE_BUILD_IDENTITY ?? null)
   return ident === 'stable' || ident === 'rc' ? ident : null
 }
 
@@ -86,7 +86,7 @@ function resolveTokenEndpoint(): string | null {
   }
   // Env wins only for dev / unofficial builds so contributors can point a
   // local packaged app at staging without re-running a release pipeline.
-  const fromEnv = process.env.ORCA_DIAGNOSTICS_TOKEN_URL
+  const fromEnv = process.env.ANTHRASPACE_DIAGNOSTICS_TOKEN_URL
   if (fromEnv && fromEnv.length > 0) {
     return fromEnv
   }

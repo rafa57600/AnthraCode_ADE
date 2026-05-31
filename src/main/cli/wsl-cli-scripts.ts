@@ -1,9 +1,9 @@
-const MANAGED_MARKER = '# Orca managed WSL CLI launcher'
-const BRIDGE_MANAGED_MARKER = '# Orca managed WSL CLI PowerShell bridge'
+const MANAGED_MARKER = '# AnthraSpace managed WSL CLI launcher'
+const BRIDGE_MANAGED_MARKER = '# AnthraSpace managed WSL CLI PowerShell bridge'
 
 export function buildWslLauncher(
   windowsLauncherPath: string,
-  bridgePath = '${XDG_DATA_HOME:-$HOME/.local/share}/orca/orca-wsl-bridge.ps1'
+  bridgePath = '${XDG_DATA_HOME:-$HOME/.local/share}/anthraspace/anthraspace-wsl-bridge.ps1'
 ): string {
   const encodedTarget = Buffer.from(windowsLauncherPath, 'utf8').toString('base64')
   return `#!/usr/bin/env bash
@@ -21,14 +21,14 @@ export function buildWslBridgeScript(): string {
   return `${BRIDGE_MANAGED_MARKER}
 param(
   [Parameter(Mandatory=$true)]
-  [string]$OrcaLauncher,
+  [string]$AnthraSpaceLauncher,
 
   [Parameter(ValueFromRemainingArguments=$true)]
   [string[]]$ForwardArgs
 )
 
 try {
-  & $OrcaLauncher @ForwardArgs
+  & $AnthraSpaceLauncher @ForwardArgs
   if (-not $?) {
     exit 1
   }
@@ -44,7 +44,7 @@ try {
 }
 
 export function getBridgePathFromCommandPath(commandPath: string): string {
-  return `${commandPath.replace(/\/\.local\/bin\/orca$/, '/.local/share/orca')}/orca-wsl-bridge.ps1`
+  return `${commandPath.replace(/\/\.local\/bin\/anthraspace$/, '/.local/share/anthraspace')}/anthraspace-wsl-bridge.ps1`
 }
 
 export function buildSafeReplaceGuard(path: string, managedMarker: string): string {

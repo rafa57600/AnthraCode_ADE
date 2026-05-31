@@ -14,6 +14,7 @@ import type { TuiAgent } from './types'
 type ConcreteAgentKind = Exclude<AgentKind, 'other'>
 
 const TUI_AGENT_KIND_BY_AGENT = {
+  anthraspace: 'anthraspace',
   claude: 'claude-code',
   codex: 'codex',
   autohand: 'autohand',

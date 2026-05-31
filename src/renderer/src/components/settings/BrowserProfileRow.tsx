@@ -184,7 +184,7 @@ export function BrowserProfileRow({
             onClick={async () => {
               const ok = await useAppStore.getState().clearDefaultSessionCookies()
               if (ok) {
-                toast.success('Default cookies cleared.')
+                toast.success('Default browser session reset.')
               }
             }}
           >

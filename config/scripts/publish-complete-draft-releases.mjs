@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import { appendFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { verifyRequiredReleaseAssets } from './verify-release-required-assets.mjs'
@@ -120,7 +118,7 @@ export function writeGithubOutputs({ published, skipped }, outputPath = process.
 
 async function main() {
   const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN
-  const repo = process.env.GITHUB_REPOSITORY || 'stablyai/orca'
+  const repo = process.env.GITHUB_REPOSITORY || 'rafa57600/AnthraSpace'
   const result = await publishCompleteDraftReleases({ repo, token })
   writeGithubOutputs(result)
 }

@@ -632,9 +632,9 @@ export function CommitMessageAiPane({
         <div className="space-y-0.5">
           <Label>Agent</Label>
           <p className="text-xs text-muted-foreground">
-            Which agent drafts your commit messages. Orca invokes its CLI in the background, so the
-            agent must be installed on the machine that hosts the worktree - your computer for local
-            worktrees, or the SSH host for remote ones.
+            Which agent drafts your commit messages. AnthraSpace invokes its CLI in the background,
+            so the agent must be installed on the machine that hosts the worktree - your computer
+            for local worktrees, or the SSH host for remote ones.
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
@@ -697,7 +697,7 @@ export function CommitMessageAiPane({
     isCustom &&
     matchesSettingsSearch(searchQuery, {
       title: 'Custom command',
-      description: 'Command line Orca runs to generate the commit message.',
+      description: 'Command line AnthraSpace runs to generate the commit message.',
       keywords: ['custom', 'command', 'cli', 'binary', 'prompt', 'placeholder']
     })
   ) {
@@ -705,7 +705,7 @@ export function CommitMessageAiPane({
       <SearchableSetting
         key="custom-command"
         title="Custom command"
-        description="Command line Orca runs to generate the commit message."
+        description="Command line AnthraSpace runs to generate the commit message."
         keywords={['custom', 'command', 'cli', 'binary', 'prompt', 'placeholder']}
         className="space-y-2 py-2"
       >
@@ -762,7 +762,7 @@ export function CommitMessageAiPane({
           <p className="text-xs text-muted-foreground">
             {activeCapability.modelSource === 'dynamic'
               ? 'Refreshes from the selected CLI when the CLI exposes model discovery.'
-              : 'This agent does not expose model discovery, so Orca uses a manual catalog.'}
+              : 'This agent does not expose model discovery, so AnthraSpace uses a manual catalog.'}
           </p>
           {activeDiscovery?.status === 'error' && (
             <p className="text-xs text-destructive">{activeDiscovery.error}</p>
@@ -910,7 +910,7 @@ export function CommitMessageAiPane({
   }
   // Why: this pane lives nested inside the Git section, so we draw an explicit
   // sub-heading + top border to keep its toggles visually distinct from the
-  // Branch Prefix / Refresh Local Base Ref / Orca Attribution rows above.
+  // Branch Prefix / Refresh Local Base Ref / AnthraSpace Attribution rows above.
   return (
     <div className="space-y-4 border-t border-border/40 pt-4">
       <div className="space-y-0.5">

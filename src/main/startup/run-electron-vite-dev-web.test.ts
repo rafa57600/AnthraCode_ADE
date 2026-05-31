@@ -76,9 +76,9 @@ describe('run-electron-vite-dev web client prepare', () => {
           ORCA_VITE_CLI: fakeVitePath,
           ORCA_SKIP_DEV_CLI_PREPARE: '1',
           ORCA_SKIP_DEV_ELECTRON_APP_PREPARE: '1',
-          ORCA_DEV_WRAPPER_TEST_PID_FILE: pidFile,
-          ORCA_DEV_WRAPPER_TEST_ENV_FILE: envFile,
-          ORCA_DEV_WRAPPER_TEST_VITE_FILE: viteFile
+          ANTHRASPACE_DEV_WRAPPER_TEST_PID_FILE: pidFile,
+          ANTHRASPACE_DEV_WRAPPER_TEST_ENV_FILE: envFile,
+          ANTHRASPACE_DEV_WRAPPER_TEST_VITE_FILE: viteFile
         },
         stdio: ['ignore', 'ignore', 'pipe']
       })
@@ -130,10 +130,10 @@ describe('run-electron-vite-dev web client prepare', () => {
           ORCA_VITE_CLI: fakeVitePath,
           ORCA_SKIP_DEV_CLI_PREPARE: '1',
           ORCA_SKIP_DEV_ELECTRON_APP_PREPARE: '1',
-          ORCA_DEV_WEB_PREPARE: '1',
-          ORCA_DEV_WRAPPER_TEST_PID_FILE: pidFile,
-          ORCA_DEV_WRAPPER_TEST_ENV_FILE: envFile,
-          ORCA_DEV_WRAPPER_TEST_VITE_FILE: viteFile
+          ANTHRASPACE_DEV_WEB_PREPARE: '1',
+          ANTHRASPACE_DEV_WRAPPER_TEST_PID_FILE: pidFile,
+          ANTHRASPACE_DEV_WRAPPER_TEST_ENV_FILE: envFile,
+          ANTHRASPACE_DEV_WRAPPER_TEST_VITE_FILE: viteFile
         },
         stdio: 'ignore'
       })

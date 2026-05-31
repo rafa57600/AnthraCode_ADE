@@ -5,7 +5,7 @@ import type { Store } from '../persistence'
 import type { StatsCollector } from '../stats/collector'
 
 /**
- * Service that decides when to prompt the user with the "star Orca on GitHub"
+ * Service that decides when to prompt the user with the "star AnthraSpace on GitHub"
  * notification. Counts agents spawned since the current app version was first
  * seen; crosses a doubling threshold (default 50 → 100 → 200 …) to fire the
  * renderer notification via 'star-nag:show'.

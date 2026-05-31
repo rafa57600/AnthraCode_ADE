@@ -976,7 +976,7 @@ export default function TerminalPane({
     searchStateRef,
     macOptionAsAltRef,
     keybindings,
-    terminalShortcutPolicy: settings?.terminalShortcutPolicy ?? 'orca-first'
+    terminalShortcutPolicy: settings?.terminalShortcutPolicy ?? 'anthraspace-first'
   })
 
   useTerminalPaneGlobalEffects({

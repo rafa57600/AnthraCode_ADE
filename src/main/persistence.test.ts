@@ -782,7 +782,7 @@ describe('Store', () => {
     })
 
     const store = await createStore()
-    expect(store.getSettings().terminalShortcutPolicy).toBe('orca-first')
+    expect(store.getSettings().terminalShortcutPolicy).toBe('anthraspace-first')
   })
 
   it('repairs drifted task provider defaults on load', async () => {
@@ -1574,7 +1574,7 @@ describe('Store', () => {
     expect(store.getSettings().terminalShortcutPolicy).toBe('terminal-first')
 
     store.updateSettings({ terminalShortcutPolicy: 'terminal-maybe' as never })
-    expect(store.getSettings().terminalShortcutPolicy).toBe('orca-first')
+    expect(store.getSettings().terminalShortcutPolicy).toBe('anthraspace-first')
   })
 
   it('reloads sourceControlViewMode from global settings without touching workspace state', async () => {

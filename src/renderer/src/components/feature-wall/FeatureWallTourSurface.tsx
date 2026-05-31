@@ -53,7 +53,7 @@ export function FeatureWallTourSurface({
   className,
   panelClassName,
   doneLabel = 'Done',
-  footerText = 'Reopen any time from Help > Explore Orca.',
+  footerText = 'Reopen any time from Help > Explore AnthraSpace.',
   enableKeyboardShortcut = true,
   compactRail = false,
   detachedFooter = false,

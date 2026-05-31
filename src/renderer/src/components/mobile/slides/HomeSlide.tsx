@@ -6,8 +6,8 @@ export function HomeSlide({ tapping }: { tapping: boolean }): React.JSX.Element 
     <div className="mp-device-screen">
       <div className="mp-app-topbar">
         <div className="mp-app-brand">
-          <OrcaLogo />
-          <span className="mp-app-brand-name">Orca</span>
+          <AnthraSpaceLogo />
+          <span className="mp-app-brand-name">AnthraSpace</span>
         </div>
         <button type="button" className="mp-icon-button" aria-label="Settings">
           <SettingsIcon />
@@ -68,7 +68,7 @@ export function HomeSlide({ tapping }: { tapping: boolean }): React.JSX.Element 
             <div className="mp-resume-title">feat/mobile-page</div>
             <div className="mp-resume-sub">
               <span className="mp-repo-dot" style={{ background: '#3b82f6' }} />
-              <span>orca&nbsp;&nbsp;·&nbsp;&nbsp;feat/mobile-page</span>
+              <span>anthraspace&nbsp;&nbsp;·&nbsp;&nbsp;feat/mobile-page</span>
             </div>
           </div>
           <div className="mp-chevron-right">
@@ -185,7 +185,7 @@ function UsageBar({ label, pct }: { label: string; pct: number }): React.JSX.Ele
   )
 }
 
-function OrcaLogo(): React.JSX.Element {
+function AnthraSpaceLogo(): React.JSX.Element {
   return (
     <svg className="mp-orca-logo" viewBox="0 0 318.60232 202.66667" fill="currentColor" aria-hidden>
       <g transform="translate(-6.6666669,-70.666669)">

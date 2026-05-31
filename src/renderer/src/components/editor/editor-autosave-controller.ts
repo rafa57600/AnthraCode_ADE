@@ -30,7 +30,7 @@ import {
   getDuplicateDirtySavePaths
 } from './editor-autosave-state-projections'
 import {
-  ORCA_EDITOR_SAVE_DIRTY_FILES_EVENT,
+  ANTHRASPACE_EDITOR_SAVE_DIRTY_FILES_EVENT,
   type EditorSaveDirtyFilesDetail
 } from '../../../../shared/editor-save-events'
 
@@ -341,7 +341,10 @@ export function attachEditorAutosaveController(store: AppStoreApi): () => void {
   })
   syncAutoSave()
 
-  window.addEventListener(ORCA_EDITOR_SAVE_DIRTY_FILES_EVENT, handleSaveDirtyFiles as EventListener)
+  window.addEventListener(
+    ANTHRASPACE_EDITOR_SAVE_DIRTY_FILES_EVENT,
+    handleSaveDirtyFiles as EventListener
+  )
   window.addEventListener(ORCA_EDITOR_SAVE_AND_CLOSE_EVENT, handleSaveAndClose as EventListener)
   window.addEventListener(ORCA_EDITOR_SAVE_FILE_EVENT, handleSaveFile as EventListener)
   window.addEventListener(ORCA_EDITOR_QUIESCE_FILE_SAVES_EVENT, handleQuiesce as EventListener)
@@ -353,7 +356,7 @@ export function attachEditorAutosaveController(store: AppStoreApi): () => void {
   return () => {
     unsubscribe()
     window.removeEventListener(
-      ORCA_EDITOR_SAVE_DIRTY_FILES_EVENT,
+      ANTHRASPACE_EDITOR_SAVE_DIRTY_FILES_EVENT,
       handleSaveDirtyFiles as EventListener
     )
     window.removeEventListener(

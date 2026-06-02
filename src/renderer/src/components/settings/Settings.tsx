@@ -38,7 +38,6 @@ import { TasksPane } from './TasksPane'
 import { QuickCommandsPane } from './QuickCommandsPane'
 import { DeveloperPermissionsPane } from './DeveloperPermissionsPane'
 import { ComputerUsePane } from './ComputerUsePane'
-import { MobileSettingsPane } from './MobileSettingsPane'
 import { RuntimeEnvironmentsPane } from './RuntimeEnvironmentsPane'
 import { PrivacyPane } from './PrivacyPane'
 import { SettingsSidebar } from './SettingsSidebar'
@@ -1017,28 +1016,14 @@ function Settings(): React.JSX.Element {
                 </SettingsSection>
 
                 {showDesktopOnlySettings ? (
-                  <>
-                    <SettingsSection
-                      id="ssh"
-                      title="SSH Hosts"
-                      description="Remote SSH hosts for files, terminals, and git."
-                      searchEntries={getSectionSearchEntries('ssh')}
-                    >
-                      {isSectionMounted('ssh') ? <SshPane /> : null}
-                    </SettingsSection>
-
-                    <SettingsSection
-                      id="mobile"
-                      title="Mobile"
-                      badge="Beta"
-                      description="Control terminals and agents from your phone."
-                      searchEntries={getSectionSearchEntries('mobile')}
-                    >
-                      {isSectionMounted('mobile') ? (
-                        <MobileSettingsPane settings={settings} updateSettings={updateSettings} />
-                      ) : null}
-                    </SettingsSection>
-                  </>
+                  <SettingsSection
+                    id="ssh"
+                    title="SSH Hosts"
+                    description="Remote SSH hosts for files, terminals, and git."
+                    searchEntries={getSectionSearchEntries('ssh')}
+                  >
+                    {isSectionMounted('ssh') ? <SshPane /> : null}
+                  </SettingsSection>
                 ) : null}
 
                 {showDesktopOnlySettings && isMac ? (

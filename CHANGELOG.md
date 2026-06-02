@@ -2,6 +2,22 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-02 — Remove Mobile shortcut from left sidebar
+
+### Production patch
+
+- Removed the left-sidebar “Orca Mobile” navigation button, its context menu entry, the Mobile entry from the Toolbox dropdown, and Mobile surfaces from Settings.
+- Cleaned up the now-unused mobile sidebar visibility helper and related SidebarNav tests.
+
+### Verification
+
+- `pnpm typecheck` passed with 0 TypeScript errors.
+- `pnpm exec vitest run --config config/vitest.config.ts src/renderer/src/components/sidebar/SidebarNav.test.tsx` passed — 1 file, 3 tests.
+
+### Production impact
+
+- The left sidebar no longer shows the stale Orca Mobile shortcut while the remaining Mobile access paths stay untouched.
+
 ## 2026-06-02 — Sticky notes right-sidebar CRUD
 
 ### Production patch

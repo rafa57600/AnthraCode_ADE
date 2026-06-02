@@ -25,7 +25,6 @@ export type SettingsNavTarget =
   | 'agents'
   | 'orchestration'
   | 'servers'
-  | 'mobile'
   | 'repo'
 
 export type SettingsNavSection = {

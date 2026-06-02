@@ -111,11 +111,6 @@ export const SIDEBAR_ENTRIES: SettingsSearchEntry[] = [
     title: 'Show Tasks Button',
     description: 'Show the Tasks button at the top of the left sidebar.',
     keywords: ['tasks', 'sidebar', 'button', 'hide', 'show', 'github', 'linear']
-  },
-  {
-    title: 'Show Orca Mobile Button',
-    description: 'Show the Orca Mobile button at the top of the left sidebar.',
-    keywords: ['mobile', 'phone', 'sidebar', 'button', 'hide', 'show', 'toolbox']
   }
 ]
 

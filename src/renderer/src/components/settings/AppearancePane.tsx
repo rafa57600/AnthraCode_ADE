@@ -249,21 +249,6 @@ export function AppearancePane({
               onChange={() => updateSettings({ showTasksButton: !settings.showTasksButton })}
             />
           </SearchableSetting>
-
-          <SearchableSetting
-            title="Show AnthraSpace Mobile Button"
-            description="Show the AnthraSpace Mobile button at the top of the left sidebar."
-            keywords={['mobile', 'phone', 'sidebar', 'button', 'hide', 'show', 'toolbox']}
-          >
-            <SettingsSwitchRow
-              label="Show AnthraSpace Mobile Button"
-              description="Show the AnthraSpace Mobile shortcut in the sidebar. It remains available from Toolbox."
-              checked={settings.showMobileButton !== false}
-              onChange={() =>
-                updateSettings({ showMobileButton: !(settings.showMobileButton !== false) })
-              }
-            />
-          </SearchableSetting>
         </div>
       </section>
     ) : null

@@ -40,6 +40,7 @@ export type KeybindingActionId =
   | 'sidebar.sourceControl.toggle'
   | 'sidebar.checks.toggle'
   | 'sidebar.ports.toggle'
+  | 'sidebar.sticky.toggle'
   | 'sidebar.focusWorktreeList'
   | 'floatingTerminal.toggle'
   | 'zoom.in'
@@ -304,6 +305,14 @@ export const KEYBINDING_DEFINITIONS: readonly KeybindingDefinition[] = [
       linux: [],
       win32: []
     }
+  },
+  {
+    id: 'sidebar.sticky.toggle',
+    title: 'Show Sticky',
+    group: 'Global',
+    scope: 'global',
+    searchKeywords: ['shortcut', 'sidebar', 'sticky', 'notes', 'markdown'],
+    defaultBindings: platformBindings(['Mod+Shift+S'])
   },
   {
     id: 'sidebar.focusWorktreeList',

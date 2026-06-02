@@ -1268,6 +1268,14 @@ function App(): React.JSX.Element {
         notifyTerminalCapture('sidebar.ports.toggle')
         actions.setRightSidebarTab('ports')
         actions.setRightSidebarOpen(true)
+        return
+      }
+
+      if (matchShortcut('sidebar.sticky.toggle')) {
+        e.preventDefault()
+        notifyTerminalCapture('sidebar.sticky.toggle')
+        actions.setRightSidebarTab('sticky')
+        actions.setRightSidebarOpen(true)
       }
     }
 

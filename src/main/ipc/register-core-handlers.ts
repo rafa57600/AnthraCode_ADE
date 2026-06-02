@@ -43,6 +43,7 @@ import { registerShellHandlers } from './shell'
 import { registerPetHandlers } from './pet'
 import { registerUIHandlers } from './ui'
 import { registerSpeechHandlers } from './speech'
+import { registerStickyHandlers } from './sticky'
 import { registerCodexAccountHandlers } from './codex-accounts'
 import { registerAgentHookHandlers } from './agent-hooks'
 import { registerAgentTrustHandlers } from './agent-trust'
@@ -148,6 +149,7 @@ export function registerCoreHandlers(
   registerPetHandlers()
   registerSessionHandlers(store)
   registerUIHandlers(store)
+  registerStickyHandlers()
   registerWorkspaceSpaceHandlers(store)
   registerWorkspacePortHandlers(store)
   if (commitMessageAgentEnv) {

@@ -2,6 +2,29 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-02 — Sticky notes right-sidebar CRUD
+
+### Production patch
+
+- Added a Sticky activity tab to the right-sidebar tab model and persistence validator so project notes are available alongside Explorer, Search, Source Control, Checks, and Ports.
+- Added scoped main/preload IPC for recursively listing, reading, writing, renaming, and deleting markdown notes under each active worktree/project’s `.anthraspace/sticky/` directory.
+- Replaced the Sticky placeholder panel with a compact note list, create/rename/delete controls, a markdown textarea editor with save support, an Edit/Preview toggle that renders markdown with the existing sanitized renderer, an inline Markdown help popover, and a separate header warning for secret handling.
+- Restyled the active Sticky note toolbar controls as icon-only tooltip buttons to match the existing right-sidebar tool button pattern.
+- Restyled the Sticky safety and Markdown help popover triggers with the same icon-button sizing, color, and hover treatment.
+- Added app-styled hover tooltip labels to the Sticky safety and Markdown help icon buttons.
+- Added a configurable Sticky right-sidebar shortcut (`Mod+Shift+S`, shown as Ctrl/Cmd+Shift+S by platform) and surfaced it in the Sticky activity tooltip.
+
+### Verification
+
+- `pnpm typecheck` passed with 0 TypeScript errors.
+
+### Production impact
+
+- Sticky notes now load from the existing active workspace storage path instead of using the repository root and showing an empty placeholder for linked worktrees.
+- File operations are constrained to the sticky directory to avoid exposing arbitrary filesystem access through the renderer.
+- Users can verify reusable prompt/setup notes in rendered form before copying or editing, including headings, blockquotes, lists, tables, and code blocks.
+- The help popover gives users quick syntax examples for common Markdown features without leaving the Sticky panel.
+
 ## 2026-05-31 — Landing page and brand asset cleanup
 
 ### Production patch

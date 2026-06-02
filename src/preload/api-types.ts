@@ -2126,6 +2126,22 @@ export type PreloadApi = {
     onStopped: (callback: (data: SpeechLifecycleEvent) => void) => () => void
     onError: (callback: (data: SpeechErrorEvent) => void) => () => void
   }
+
+  sticky: {
+    list: (projectDir: string) => Promise<MarkdownDocument[]>
+    read: (projectDir: string, fileName: string) => Promise<{ content: string } | null>
+    write: (
+      projectDir: string,
+      fileName: string,
+      content: string
+    ) => Promise<MarkdownDocument | null>
+    rename: (
+      projectDir: string,
+      oldFileName: string,
+      newFileName: string
+    ) => Promise<MarkdownDocument | null>
+    delete: (projectDir: string, fileName: string) => Promise<boolean>
+  }
 }
 
 declare global {

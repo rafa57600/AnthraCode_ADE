@@ -3307,6 +3307,31 @@ const api = {
       ipcRenderer.on('speech:error', listener)
       return () => ipcRenderer.removeListener('speech:error', listener)
     }
+  },
+
+  sticky: {
+    list: (projectDir: string): Promise<MarkdownDocument[]> =>
+      ipcRenderer.invoke('sticky:list', projectDir),
+
+    read: (projectDir: string, fileName: string): Promise<{ content: string } | null> =>
+      ipcRenderer.invoke('sticky:read', projectDir, fileName),
+
+    write: (
+      projectDir: string,
+      fileName: string,
+      content: string
+    ): Promise<MarkdownDocument | null> =>
+      ipcRenderer.invoke('sticky:write', projectDir, fileName, content),
+
+    rename: (
+      projectDir: string,
+      oldFileName: string,
+      newFileName: string
+    ): Promise<MarkdownDocument | null> =>
+      ipcRenderer.invoke('sticky:rename', projectDir, oldFileName, newFileName),
+
+    delete: (projectDir: string, fileName: string): Promise<boolean> =>
+      ipcRenderer.invoke('sticky:delete', projectDir, fileName)
   }
 }
 

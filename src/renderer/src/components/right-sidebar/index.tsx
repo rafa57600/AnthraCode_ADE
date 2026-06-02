@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Plug, Files, Search, GitBranch, ListChecks, PanelRight } from 'lucide-react'
+import { Plug, Files, Search, GitBranch, ListChecks, PanelRight, StickyNote } from 'lucide-react'
 import { useAppStore } from '@/store'
 import { useActiveWorktree, useRepoById } from '@/store/selectors'
 import { cn } from '@/lib/utils'
@@ -29,6 +29,7 @@ import {
 import { getActiveChecksStatus } from './active-checks-status'
 import { getVisibleRightSidebarActivityItems } from './right-sidebar-activity-visibility'
 import { useShortcutLabel } from '@/hooks/useShortcutLabel'
+import StickyPanel from './StickyPanel'
 
 const MIN_WIDTH = 220
 // Why: long file names (e.g. construction drawing sheets, multi-part document
@@ -49,6 +50,7 @@ function RightSidebarInner(): React.JSX.Element {
   const sourceControlShortcut = useShortcutLabel('sidebar.sourceControl.toggle')
   const checksShortcut = useShortcutLabel('sidebar.checks.toggle')
   const portsShortcut = useShortcutLabel('sidebar.ports.toggle')
+  const stickyShortcut = useShortcutLabel('sidebar.sticky.toggle')
   const activeWorktree = useActiveWorktree()
   const rightSidebarOpen = useAppStore((s) => s.rightSidebarOpen)
   const rightSidebarWidth = useAppStore((s) => s.rightSidebarWidth)
@@ -100,9 +102,22 @@ function RightSidebarInner(): React.JSX.Element {
         title: 'Ports',
         shortcut: portsShortcut === 'Unassigned' ? '' : portsShortcut,
         sshOnly: true
+      },
+      {
+        id: 'sticky',
+        icon: StickyNote,
+        title: 'Sticky',
+        shortcut: stickyShortcut === 'Unassigned' ? '' : stickyShortcut
       }
     ],
-    [checksShortcut, explorerShortcut, portsShortcut, searchShortcut, sourceControlShortcut]
+    [
+      checksShortcut,
+      explorerShortcut,
+      portsShortcut,
+      searchShortcut,
+      sourceControlShortcut,
+      stickyShortcut
+    ]
   )
 
   const visibleItems = useMemo(
@@ -153,6 +168,7 @@ function RightSidebarInner(): React.JSX.Element {
         {effectiveTab === 'ports' && (
           <PortsPanel isVisible={rightSidebarOpen && effectiveTab === 'ports'} />
         )}
+        {effectiveTab === 'sticky' && <StickyPanel />}
       </div>
     </div>
   )

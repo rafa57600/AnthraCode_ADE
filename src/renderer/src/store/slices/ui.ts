@@ -113,7 +113,8 @@ function normalizePersistedRightSidebarTab(
     tab === 'search' ||
     tab === 'source-control' ||
     tab === 'checks' ||
-    tab === 'ports'
+    tab === 'ports' ||
+    tab === 'sticky'
   ) {
     return tab
   }

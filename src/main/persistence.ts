@@ -37,7 +37,7 @@ import type {
   WorktreeMeta,
   WorktreeLineage,
   GlobalSettings,
-  OrcaWorkspaceLayout,
+  AnthraSpaceWorkspaceLayout as OrcaWorkspaceLayout,
   NotificationSettings,
   OnboardingChecklistState,
   OnboardingOutcome,

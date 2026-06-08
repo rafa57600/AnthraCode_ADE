@@ -10,7 +10,7 @@ import type {
   DetectedWorktree,
   ExternalWorktreeVisibility,
   GlobalSettings,
-  OrcaWorkspaceLayout,
+  AnthraSpaceWorkspaceLayout as OrcaWorkspaceLayout,
   Repo,
   Worktree,
   WorktreeMeta,

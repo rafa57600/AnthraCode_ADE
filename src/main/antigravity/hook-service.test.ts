@@ -69,7 +69,7 @@ describe('AntigravityHookService', () => {
     expect(config['orca-status'].Stop[0].command).toContain("ORCA_ANTIGRAVITY_EVENT='Stop'")
 
     const script = readFileSync(
-      join(homeDir, '.orca', 'agent-hooks', 'antigravity-hook.sh'),
+      join(homeDir, '.anthraspace', 'agent-hooks', 'antigravity-hook.sh'),
       'utf8'
     )
     expect(script).toContain('/hook/antigravity')
@@ -145,13 +145,16 @@ describe('AntigravityHookService', () => {
         expect(command).not.toContain('ORCA_ANTIGRAVITY_EVENT')
         expect(command).not.toContain('"')
 
-        const wrapper = readFileSync(join(homeDir, '.orca', 'agent-hooks', wrapperFileName), 'utf8')
+        const wrapper = readFileSync(
+          join(homeDir, '.anthraspace', 'agent-hooks', wrapperFileName),
+          'utf8'
+        )
         expect(wrapper).toContain(`set "ORCA_ANTIGRAVITY_EVENT=${eventName}"`)
         expect(wrapper).toContain('call "%ORCA_ANTIGRAVITY_CORE%"')
       }
 
       const script = readFileSync(
-        join(homeDir, '.orca', 'agent-hooks', 'antigravity-hook.cmd'),
+        join(homeDir, '.anthraspace', 'agent-hooks', 'antigravity-hook.cmd'),
         'utf8'
       )
       expect(script).toContain('/hook/antigravity')
@@ -230,6 +233,8 @@ describe('AntigravityHookService', () => {
       (definition.hooks ?? []).map((hook) => hook.command)
     )
     expect(commands).toHaveLength(1)
-    expect(commands[0]).toContain(join(homeDir, '.orca', 'agent-hooks', 'antigravity-hook.sh'))
+    expect(commands[0]).toContain(
+      join(homeDir, '.anthraspace', 'agent-hooks', 'antigravity-hook.sh')
+    )
   })
 })

@@ -84,10 +84,10 @@ describe('CopilotHookService', () => {
       expect(firstPromptHook.powershell).toContain('UserPromptSubmit')
     } else {
       expect(firstPromptHook.bash).toContain('if [ -x ')
-      expect(firstPromptHook.bash).toContain('.orca/agent-hooks/copilot-hook.sh')
+      expect(firstPromptHook.bash).toContain('.anthraspace/agent-hooks/copilot-hook.sh')
       expect(firstPromptHook.bash).toContain("ORCA_COPILOT_HOOK_EVENT='UserPromptSubmit'")
     }
-    expect(existsSync(join(tmpDir, '.orca', 'agent-hooks', 'copilot-hook.sh'))).toBe(
+    expect(existsSync(join(tmpDir, '.anthraspace', 'agent-hooks', 'copilot-hook.sh'))).toBe(
       process.platform !== 'win32'
     )
   })

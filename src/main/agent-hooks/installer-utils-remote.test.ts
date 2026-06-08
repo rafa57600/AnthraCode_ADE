@@ -224,9 +224,13 @@ describe('installer-utils-remote', () => {
 
   it('writes the managed script and chmods 0o755', async () => {
     const { sftp, fs } = createFakeSftp()
-    await writeManagedScriptRemote(sftp, '/home/u/.orca/agent-hooks/claude-hook.sh', '#!/bin/sh\n')
-    expect(fs.files.get('/home/u/.orca/agent-hooks/claude-hook.sh')).toBe('#!/bin/sh\n')
-    expect(fs.modes.get('/home/u/.orca/agent-hooks/claude-hook.sh')).toBe(0o755)
+    await writeManagedScriptRemote(
+      sftp,
+      '/home/u/.anthraspace/agent-hooks/claude-hook.sh',
+      '#!/bin/sh\n'
+    )
+    expect(fs.files.get('/home/u/.anthraspace/agent-hooks/claude-hook.sh')).toBe('#!/bin/sh\n')
+    expect(fs.modes.get('/home/u/.anthraspace/agent-hooks/claude-hook.sh')).toBe(0o755)
   })
 
   it('replaces an existing managed script atomically via temp file rename', async () => {
@@ -234,7 +238,7 @@ describe('installer-utils-remote', () => {
       plainRenameOverwrites: false,
       openSshRename: true
     })
-    const path = '/home/u/.orca/agent-hooks/claude-hook.sh'
+    const path = '/home/u/.anthraspace/agent-hooks/claude-hook.sh'
     fs.files.set(path, 'old script')
 
     await writeManagedScriptRemote(sftp, path, 'new script')
@@ -246,7 +250,7 @@ describe('installer-utils-remote', () => {
 
   it('leaves the existing managed script intact when temp write fails', async () => {
     const { sftp, fs } = createFakeSftp({ failDotFileWrites: true })
-    const path = '/home/u/.orca/agent-hooks/claude-hook.sh'
+    const path = '/home/u/.anthraspace/agent-hooks/claude-hook.sh'
     fs.files.set(path, 'old script')
 
     await expect(writeManagedScriptRemote(sftp, path, 'new script')).rejects.toMatchObject({

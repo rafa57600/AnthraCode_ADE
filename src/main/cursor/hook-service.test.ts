@@ -57,11 +57,14 @@ describe('CursorHookService', () => {
     for (const eventName of CURSOR_EVENTS) {
       const definition = config.hooks[eventName]?.[0]
       expect(definition?.command).toContain('cursor-hook')
-      expect(definition?.command).toContain(join(homeDir, '.orca'))
+      expect(definition?.command).toContain(join(homeDir, '.anthraspace'))
       expect(definition?.hooks).toBeUndefined()
     }
 
-    const script = readFileSync(join(homeDir, '.orca', 'agent-hooks', 'cursor-hook.sh'), 'utf8')
+    const script = readFileSync(
+      join(homeDir, '.anthraspace', 'agent-hooks', 'cursor-hook.sh'),
+      'utf8'
+    )
     expect(script).toContain('/hook/cursor')
     expect(script).toContain('payload=$(cat)')
   })

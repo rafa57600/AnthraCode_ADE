@@ -167,7 +167,7 @@ export class ClaudeHookService {
     // relay's capability RPC at a higher layer; we cannot detect it from
     // `process.platform` here (that's the local box).
     const remoteConfigPath = getRemoteConfigPath(remoteHome)
-    const remoteScriptPath = `${remoteHome.replace(/\/$/, '')}/.orca/agent-hooks/claude-hook.sh`
+    const remoteScriptPath = `${remoteHome.replace(/\/$/, '')}/.anthraspace/agent-hooks/claude-hook.sh`
     // Why: SFTP reads/writes fail far more often than local fs (network drops,
     // EACCES on remote dirs, disk full, channel closed). Wrap the entire
     // install flow in try/catch so a transient I/O failure surfaces as a

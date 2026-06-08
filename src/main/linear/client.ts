@@ -63,24 +63,36 @@ let legacyViewerLoadedFromDisk = false
 let cachedWorkspaceFile: LinearWorkspaceFile | null = null
 let workspaceFileLoadedFromDisk = false
 
-function getOrcaDir(): string {
+function getAnthraSpaceDir(): string {
+  return join(homedir(), '.anthraspace')
+}
+
+function getLegacyOrcaDir(): string {
   return join(homedir(), '.orca')
 }
 
 function getLegacyTokenPath(): string {
-  return join(getOrcaDir(), 'linear-token.enc')
+  return join(getAnthraSpaceDir(), 'linear-token.enc')
 }
 
 function getLegacyViewerPath(): string {
-  return join(getOrcaDir(), 'linear-viewer.json')
+  return join(getAnthraSpaceDir(), 'linear-viewer.json')
 }
 
 function getWorkspaceFilePath(): string {
-  return join(getOrcaDir(), 'linear-workspaces.json')
+  return join(getAnthraSpaceDir(), 'linear-workspaces.json')
 }
 
 function getWorkspaceTokenDir(): string {
-  return join(getOrcaDir(), 'linear-tokens')
+  return join(getAnthraSpaceDir(), 'linear-tokens')
+}
+
+function getLegacyWorkspaceFilePath(): string {
+  return join(getLegacyOrcaDir(), 'linear-workspaces.json')
+}
+
+function getLegacyWorkspaceTokenDir(): string {
+  return join(getLegacyOrcaDir(), 'linear-tokens')
 }
 
 function getWorkspaceTokenPath(workspaceId: string): string {
@@ -90,8 +102,16 @@ function getWorkspaceTokenPath(workspaceId: string): string {
   return join(getWorkspaceTokenDir(), `${Buffer.from(workspaceId).toString('base64url')}.enc`)
 }
 
-function ensureOrcaDir(): void {
-  const dir = getOrcaDir()
+/** Legacy .orca fallback for token reads */
+function getLegacyWorkspaceTokenPath(workspaceId: string): string {
+  if (workspaceId === LEGACY_WORKSPACE_ID) {
+    return join(getLegacyOrcaDir(), 'linear-token.enc')
+  }
+  return join(getLegacyWorkspaceTokenDir(), `${Buffer.from(workspaceId).toString('base64url')}.enc`)
+}
+
+function ensureAnthraSpaceDir(): void {
+  const dir = getAnthraSpaceDir()
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true })
   }
@@ -104,8 +124,17 @@ function ensureWorkspaceTokenDir(): void {
   }
 }
 
+/** Legacy Orca fallback path for viewer data */
+function getLegacyOrcaViewerPath(): string {
+  return join(getLegacyOrcaDir(), 'linear-viewer.json')
+}
+
 function readLegacyViewerFromDisk(): LinearViewer | null {
-  const path = getLegacyViewerPath()
+  // Why: new-first, legacy-fallback so existing .orca/ data isn't orphaned
+  let path = getLegacyViewerPath()
+  if (!existsSync(path)) {
+    path = getLegacyOrcaViewerPath()
+  }
   if (!existsSync(path)) {
     return null
   }
@@ -174,7 +203,11 @@ function emptyWorkspaceFile(): LinearWorkspaceFile {
 }
 
 function readWorkspaceFileFromDisk(): LinearWorkspaceFile {
-  const path = getWorkspaceFilePath()
+  // Why: new-first, legacy-fallback so existing .orca/ data isn't orphaned
+  let path = getWorkspaceFilePath()
+  if (!existsSync(path)) {
+    path = getLegacyWorkspaceFilePath()
+  }
   if (!existsSync(path)) {
     return emptyWorkspaceFile()
   }
@@ -219,7 +252,7 @@ function getWorkspaceFile(): LinearWorkspaceFile {
 }
 
 function writeWorkspaceFile(file: LinearWorkspaceFile): void {
-  ensureOrcaDir()
+  ensureAnthraSpaceDir()
   const persistedWorkspaces = file.workspaces.filter(
     (workspace) => workspace.id !== LEGACY_WORKSPACE_ID
   )
@@ -316,7 +349,7 @@ function writeEncryptedToken(path: string, apiKey: string): void {
 }
 
 function saveWorkspaceToken(workspaceId: string, apiKey: string): void {
-  ensureOrcaDir()
+  ensureAnthraSpaceDir()
   if (workspaceId !== LEGACY_WORKSPACE_ID) {
     ensureWorkspaceTokenDir()
   }
@@ -342,7 +375,11 @@ export function loadToken(options: { force?: boolean; workspaceId?: string } = {
   if (!options.force) {
     return null
   }
-  const tokenPath = getWorkspaceTokenPath(workspaceId)
+  // Why: new-first, legacy-fallback so existing .orca/ data isn't orphaned
+  let tokenPath = getWorkspaceTokenPath(workspaceId)
+  if (!existsSync(tokenPath)) {
+    tokenPath = getLegacyWorkspaceTokenPath(workspaceId)
+  }
   if (!existsSync(tokenPath)) {
     return null
   }
@@ -365,13 +402,23 @@ export function hasStoredToken(workspaceId?: string): boolean {
   if (cachedTokens.has(workspaceId)) {
     return true
   }
-  return existsSync(getWorkspaceTokenPath(workspaceId))
+  // Why: new-first, legacy-fallback so existing .orca/ data isn't orphaned
+  if (existsSync(getWorkspaceTokenPath(workspaceId))) {
+    return true
+  }
+  return existsSync(getLegacyWorkspaceTokenPath(workspaceId))
 }
 
 function clearTokenFile(workspaceId: string): void {
   cachedTokens.delete(workspaceId)
   try {
     unlinkSync(getWorkspaceTokenPath(workspaceId))
+  } catch {
+    // File may not exist — safe to ignore.
+  }
+  // Best-effort cleanup of legacy .orca/ location
+  try {
+    unlinkSync(getLegacyWorkspaceTokenPath(workspaceId))
   } catch {
     // File may not exist — safe to ignore.
   }

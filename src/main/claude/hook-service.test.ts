@@ -194,12 +194,12 @@ describe('ClaudeHookService.installRemote', () => {
     ]) {
       expect(parsed.hooks[event]).toBeTruthy()
       const cmd = parsed.hooks[event][0].hooks[0].command as string
-      expect(cmd).toContain('/home/dev/.orca/agent-hooks/claude-hook.sh')
+      expect(cmd).toContain('/home/dev/.anthraspace/agent-hooks/claude-hook.sh')
       expect(cmd).toMatch(/^if \[ -x /)
     }
     // Managed script body
-    expect(fs.files.get('/home/dev/.orca/agent-hooks/claude-hook.sh')).toContain('#!/bin/sh')
-    expect(fs.modes.get('/home/dev/.orca/agent-hooks/claude-hook.sh')).toBe(0o755)
+    expect(fs.files.get('/home/dev/.anthraspace/agent-hooks/claude-hook.sh')).toContain('#!/bin/sh')
+    expect(fs.modes.get('/home/dev/.anthraspace/agent-hooks/claude-hook.sh')).toBe(0o755)
   })
 
   it('reports parse error when remote settings.json cannot be parsed', async () => {

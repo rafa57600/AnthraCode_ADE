@@ -823,7 +823,7 @@ export class CodexHookService {
   async installRemote(sftp: SFTPWrapper, remoteHome: string): Promise<AgentHookInstallStatus> {
     const remoteConfigPath = `${remoteHome.replace(/\/$/, '')}/.codex/hooks.json`
     const remoteTomlPath = `${remoteHome.replace(/\/$/, '')}/.codex/config.toml`
-    const remoteScriptPath = `${remoteHome.replace(/\/$/, '')}/.orca/agent-hooks/codex-hook.sh`
+    const remoteScriptPath = `${remoteHome.replace(/\/$/, '')}/.anthraspace/agent-hooks/codex-hook.sh`
     try {
       const config = await readHooksJsonRemote(sftp, remoteConfigPath)
       if (!config) {

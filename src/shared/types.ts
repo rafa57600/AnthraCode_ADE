@@ -16,7 +16,6 @@ import type { FeatureTipId } from './feature-tips'
 import type { GitBranchChangeStatus } from './git-status-types'
 import type { KeybindingOverrides, TerminalShortcutPolicy } from './keybindings'
 import type { RepoIcon } from './repo-icon'
-
 // Re-exported for backward compat with renderer call sites that import
 // `WorkspaceCreateTelemetrySource` from '../../../shared/types'.
 export type { WorkspaceSource as WorkspaceCreateTelemetrySource } from './workspace-source'
@@ -247,7 +246,7 @@ export type WorktreeMeta = {
   orcaCreatedAt?: number
   orcaCreationSource?: 'desktop' | 'runtime' | 'cli' | 'ssh'
   /** Workspace layout active when Orca created the worktree. */
-  orcaCreationWorkspaceLayout?: OrcaWorkspaceLayout
+  orcaCreationWorkspaceLayout?: AnthraSpaceWorkspaceLayout
   /** User-assigned workspace board status for manual sidebar organization. */
   workspaceStatus?: WorkspaceStatus
   diffComments?: DiffComment[]
@@ -615,6 +614,9 @@ export type WorkspaceSessionState = {
    *  older builds — hydration tolerates missing/partial maps and the
    *  active worktree is seeded on first restore. */
   lastVisitedAtByWorktreeId?: Record<string, number>
+  /** Managed native agent sessions keyed by session id. Restored as
+   *  recoverable metadata because live PTY ids are process-lifetime handles. */
+  managedAgentSessionsById?: Record<string, unknown>
 }
 
 // ─── GitHub ──────────────────────────────────────────────────────────
@@ -1576,7 +1578,7 @@ export type FloatingTerminalCwdRequest = {
 export type GlobalSettings = {
   workspaceDir: string
   nestWorkspaces: boolean
-  workspaceDirHistory?: OrcaWorkspaceLayout[]
+  workspaceDirHistory?: AnthraSpaceWorkspaceLayout[]
   refreshLocalBaseRefOnWorktreeCreate: boolean
   branchPrefix: 'git-username' | 'custom' | 'none'
   branchPrefixCustom: string
@@ -1713,7 +1715,7 @@ export type GlobalSettings = {
    *  button for discoverability. */
   floatingTerminalTriggerLocation: FloatingTerminalTriggerLocation
   /** Legacy pre-file-backed keyboard shortcut overrides. New writes go to
-   *  ~/.orca/keybindings.json; main migrates this once when present. */
+   *  ~/.anthraspace/keybindings.json; main migrates this once when present. */
   keybindings?: KeybindingOverrides
   diffDefaultView: 'inline' | 'side-by-side'
   combinedDiffFileTreeVisibleByDefault: boolean
@@ -1894,7 +1896,7 @@ export type GlobalSettings = {
   voice?: VoiceSettings
 }
 
-export type OrcaWorkspaceLayout = {
+export type AnthraSpaceWorkspaceLayout = {
   path: string
   nestWorkspaces: boolean
 }

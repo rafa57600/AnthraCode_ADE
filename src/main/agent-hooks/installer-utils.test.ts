@@ -167,13 +167,13 @@ describe('createManagedCommandMatcher', () => {
     ).toBe(true)
   })
 
-  it('matches the legacy per-userData script path AND the new shared ~/.orca path', () => {
+  it('matches the legacy per-userData script path AND the new shared ~/.anthraspace path', () => {
     // Why: install() must sweep old per-userData commands when migrating to
-    // the shared ~/.orca script path, or stale launchers keep failing.
+    // the shared ~/.anthraspace script path, or stale launchers keep failing.
     expect(
       match("/bin/sh '/Users/alice/Library/Application Support/orca/agent-hooks/claude-hook.sh'")
     ).toBe(true)
-    expect(match("/bin/sh '/Users/alice/.orca/agent-hooks/claude-hook.sh'")).toBe(true)
+    expect(match("/bin/sh '/Users/alice/.anthraspace/agent-hooks/claude-hook.sh'")).toBe(true)
   })
 })
 
@@ -243,9 +243,9 @@ describe('hookDefinitionHasManagedCommand', () => {
 })
 
 describe('getSharedManagedScriptPath', () => {
-  it("returns ~/.orca/agent-hooks/<scriptFileName> rooted at the user's home", () => {
+  it("returns ~/.anthraspace/agent-hooks/<scriptFileName> rooted at the user's home", () => {
     expect(getSharedManagedScriptPath('claude-hook.sh')).toBe(
-      join(homedir(), '.orca', 'agent-hooks', 'claude-hook.sh')
+      join(homedir(), '.anthraspace', 'agent-hooks', 'claude-hook.sh')
     )
   })
 

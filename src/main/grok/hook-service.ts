@@ -206,7 +206,7 @@ export class GrokHookService {
   async installRemote(sftp: SFTPWrapper, remoteHome: string): Promise<AgentHookInstallStatus> {
     const home = remoteHome.replace(/\/$/, '')
     const remoteConfigPath = `${home}/.grok/hooks/orca-status.json`
-    const remoteScriptPath = `${home}/.orca/agent-hooks/grok-hook.sh`
+    const remoteScriptPath = `${home}/.anthraspace/agent-hooks/grok-hook.sh`
     try {
       const config = await readHooksJsonRemote(sftp, remoteConfigPath)
       if (!config) {

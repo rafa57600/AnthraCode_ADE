@@ -23,6 +23,11 @@ const PLATFORM_KEYS: readonly KeybindingPlatform[] = ['darwin', 'linux', 'win32'
 const ROOT_KEYS = new Set(['$schema', 'version', 'keybindings', 'platforms'])
 
 export function getUserKeybindingsPath(homePath: string): string {
+  return join(homePath, '.anthraspace', 'keybindings.json')
+}
+
+/** Legacy read-fallback path — returns ~/.orca/keybindings.json */
+export function getLegacyUserKeybindingsPath(homePath: string): string {
   return join(homePath, '.orca', 'keybindings.json')
 }
 

@@ -163,8 +163,8 @@ describe('Linear client workspace storage', () => {
     })
     expect(status.workspaces?.some((workspace) => workspace.id === 'legacy')).toBe(false)
     expect(existsSync(join(tempHome, '.orca', 'linear-token.enc'))).toBe(false)
-    expect(readFileSync(join(tempHome, '.orca', 'linear-workspaces.json'), 'utf-8')).toContain(
-      'org-alpha'
-    )
+    expect(
+      readFileSync(join(tempHome, '.anthraspace', 'linear-workspaces.json'), 'utf-8')
+    ).toContain('org-alpha')
   })
 })

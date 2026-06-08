@@ -197,7 +197,7 @@ export class GeminiHookService {
   // docs/design/agent-status-over-ssh.md §8.
   async installRemote(sftp: SFTPWrapper, remoteHome: string): Promise<AgentHookInstallStatus> {
     const remoteConfigPath = `${remoteHome.replace(/\/$/, '')}/.gemini/settings.json`
-    const remoteScriptPath = `${remoteHome.replace(/\/$/, '')}/.orca/agent-hooks/gemini-hook.sh`
+    const remoteScriptPath = `${remoteHome.replace(/\/$/, '')}/.anthraspace/agent-hooks/gemini-hook.sh`
     try {
       const config = await readHooksJsonRemote(sftp, remoteConfigPath)
       if (!config) {

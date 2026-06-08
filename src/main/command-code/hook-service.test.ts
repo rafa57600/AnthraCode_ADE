@@ -49,7 +49,7 @@ describe('CommandCodeHookService', () => {
     expect(config.hooks.PostToolUse[0].matcher).toBe('.*')
     expect(config.hooks.Stop[0].matcher).toBeUndefined()
     expect(config.hooks.PreToolUse[0].hooks[0].command).toContain('command-code-hook')
-    expect(config.hooks.PreToolUse[0].hooks[0].command).toContain(join(homeDir, '.orca'))
+    expect(config.hooks.PreToolUse[0].hooks[0].command).toContain(join(homeDir, '.anthraspace'))
     expect(config.hooks.PreToolUse[0].hooks[0].command).toMatch(/^if \[ -x /)
   })
 
@@ -58,7 +58,10 @@ describe('CommandCodeHookService', () => {
 
     const scriptFileName =
       process.platform === 'win32' ? 'command-code-hook.cmd' : 'command-code-hook.sh'
-    const script = readFileSync(join(homeDir, '.orca', 'agent-hooks', scriptFileName), 'utf8')
+    const script = readFileSync(
+      join(homeDir, '.anthraspace', 'agent-hooks', scriptFileName),
+      'utf8'
+    )
 
     if (process.platform === 'win32') {
       expect(script).toContain('sourceEndpointByPort')
@@ -110,7 +113,7 @@ describe('CommandCodeHookService', () => {
     try {
       await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
       const address = server.address() as AddressInfo
-      const scriptPath = join(homeDir, '.orca', 'agent-hooks', 'command-code-hook.sh')
+      const scriptPath = join(homeDir, '.anthraspace', 'agent-hooks', 'command-code-hook.sh')
       const child = spawn('/bin/sh', [scriptPath], {
         env: {
           ...process.env,

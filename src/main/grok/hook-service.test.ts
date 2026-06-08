@@ -58,9 +58,12 @@ describe('GrokHookService', () => {
     expect(config.hooks.PostToolUseFailure[0].matcher).toBe('*')
     expect(config.hooks.Notification[0].matcher).toBeUndefined()
     expect(config.hooks.PreToolUse[0].hooks[0].command).toContain('grok-hook')
-    expect(config.hooks.PreToolUse[0].hooks[0].command).toContain(join(homeDir, '.orca'))
+    expect(config.hooks.PreToolUse[0].hooks[0].command).toContain(join(homeDir, '.anthraspace'))
 
-    const script = readFileSync(join(homeDir, '.orca', 'agent-hooks', 'grok-hook.sh'), 'utf8')
+    const script = readFileSync(
+      join(homeDir, '.anthraspace', 'agent-hooks', 'grok-hook.sh'),
+      'utf8'
+    )
     expect(script).toContain('/hook/grok')
     expect(script).toContain('payload=$(cat)')
   })

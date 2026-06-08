@@ -2,7 +2,12 @@ import { lstat, readFile } from 'fs/promises'
 import { homedir } from 'os'
 import { posix, win32 } from 'path'
 import { isWindowsAbsolutePathLike } from '../shared/cross-platform-path'
-import type { GitWorktreeInfo, OrcaWorkspaceLayout, Repo, WorktreeMeta } from '../shared/types'
+import type {
+  GitWorktreeInfo,
+  AnthraSpaceWorkspaceLayout as OrcaWorkspaceLayout,
+  Repo,
+  WorktreeMeta
+} from '../shared/types'
 import { matchesStrongOrcaCreatePath } from '../shared/worktree-ownership'
 import { areWorktreePathsEqual } from './ipc/worktree-logic'
 import {

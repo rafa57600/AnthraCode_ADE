@@ -75,7 +75,7 @@ export function createManagedCommandMatcher(
 // Why: prod, dev, and parallel Orca instances must write the same managed
 // settings entry instead of racing between per-userData script paths.
 export function getSharedManagedScriptPath(scriptFileName: string): string {
-  return join(homedir(), '.orca', 'agent-hooks', scriptFileName)
+  return join(homedir(), '.anthraspace', 'agent-hooks', scriptFileName)
 }
 
 // Why: a stale managed hook entry (left over after the user wiped userData,

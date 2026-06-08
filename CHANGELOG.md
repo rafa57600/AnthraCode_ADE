@@ -2,6 +2,29 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-08 — Phase 1 completion: user-home `.orca-*` directory migration
+
+### Production patch
+
+- Completed migration of all user-home `.orca-*` directory references to `.anthraspace-*` equivalents across source and test files.
+- SSH relay staging directories: `.orca-relay/` → `.anthraspace-relay/` in relay agent hooks, plugin overlays, PTY shell launch paths, and shell-ready rcfile references.
+- SSH relay remote directories on managed hosts: `.orca-remote/` → `.anthraspace-remote/` in relay-protocol constant, deploy/install/gc, cross-version isolation, and system transport integration.
+- Managed account markers: `.orca-managed-claude-auth` → `.anthraspace-managed-claude-auth` and `.orca-managed-home` → `.anthraspace-managed-home` in Claude Accounts and Codex Accounts auth-path creation and runtime-home detection.
+- Resource and session copy directories: `.orca-resource-copies/` → `.anthraspace-resource-copies/` in Codex home paths, `.orca-session-copies/` → `.anthraspace-session-copies/` in session bridge and usage scanner.
+- Temp file prefixes: `.orca-link-` → `.anthraspace-link-`, `.orca-upload-` → `.anthraspace-upload-`, `.orca-legacy-` → `.anthraspace-legacy-`, `.orca-test-hidden` → `.anthraspace-test-hidden`, `.orca-backup-` → `.anthraspace-backup-` in session bridge, runtime file client, legacy home service, daemon FD leak test, and remote installer utils.
+- Preserved wire-protocol message type strings (`orca-relay-handshake` family) and code comments documenting legacy paths.
+
+### Verification
+
+- `pnpm typecheck` passes with 0 TypeScript errors.
+- All 40+ file modifications verified via grep for remaining `.orca-` prefix references matching the migration scope — only intentional comments and protocol-name strings remain.
+
+### Production impact
+
+- Completes the AnthraSpace rebrand for all user-home directory paths, eliminating `orca`/`Orca` directory name leakage into `$HOME/` on managed hosts.
+- New SSH relay sessions, managed account homes, and temp file artifacts will use `.anthraspace-*` directories exclusively.
+- Existing sessions with old `.orca-*` directories remain readable but new writes go to the new paths, leaving a future backward-compat read-fallback pass as a follow-up.
+
 ## 2026-06-02 — Remove Mobile shortcut from left sidebar
 
 ### Production patch

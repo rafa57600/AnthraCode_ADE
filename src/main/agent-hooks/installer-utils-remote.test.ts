@@ -245,7 +245,9 @@ describe('installer-utils-remote', () => {
 
     expect(fs.files.get(path)).toBe('new script')
     expect(fs.modes.get(path)).toBe(0o755)
-    expect(Array.from(fs.files.keys()).some((key) => key.includes('.orca-backup-'))).toBe(false)
+    expect(Array.from(fs.files.keys()).some((key) => key.includes('.anthraspace-backup-'))).toBe(
+      false
+    )
   })
 
   it('leaves the existing managed script intact when temp write fails', async () => {

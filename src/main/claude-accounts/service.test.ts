@@ -168,7 +168,7 @@ describe('ClaudeAccountService credential capture', () => {
     rmSync(tempDir, { recursive: true, force: true })
     const managedAuthPath = join(tempDir, 'claude-accounts', 'account-1', 'auth')
     mkdirSync(managedAuthPath, { recursive: true })
-    writeFileSync(join(managedAuthPath, '.orca-managed-claude-auth'), 'account-1\n', 'utf-8')
+    writeFileSync(join(managedAuthPath, '.anthraspace-managed-claude-auth'), 'account-1\n', 'utf-8')
     writeFileSync(join(managedAuthPath, '.credentials.json'), '{"old":true}\n', 'utf-8')
     writeFileSync(join(managedAuthPath, 'oauth-account.json'), '{"oldOauth":true}\n', 'utf-8')
     let settings = {
@@ -238,7 +238,7 @@ describe('ClaudeAccountService credential capture', () => {
     rmSync(tempDir, { recursive: true, force: true })
     const managedAuthPath = join(tempDir, 'claude-accounts', 'account-1', 'auth')
     mkdirSync(managedAuthPath, { recursive: true })
-    writeFileSync(join(managedAuthPath, '.orca-managed-claude-auth'), 'account-1\n', 'utf-8')
+    writeFileSync(join(managedAuthPath, '.anthraspace-managed-claude-auth'), 'account-1\n', 'utf-8')
     writeFileSync(join(managedAuthPath, 'oauth-account.json'), '{"oldOauth":true}\n', 'utf-8')
     vi.mocked(readManagedClaudeKeychainCredentials).mockResolvedValue('{"old":true}\n')
     vi.mocked(writeManagedClaudeKeychainCredentials)
@@ -312,7 +312,7 @@ describe('ClaudeAccountService credential capture', () => {
     rmSync(tempDir, { recursive: true, force: true })
     const managedAuthPath = join(tempDir, 'claude-accounts', 'account-1', 'auth')
     mkdirSync(managedAuthPath, { recursive: true })
-    writeFileSync(join(managedAuthPath, '.orca-managed-claude-auth'), 'account-1\n', 'utf-8')
+    writeFileSync(join(managedAuthPath, '.anthraspace-managed-claude-auth'), 'account-1\n', 'utf-8')
     writeFileSync(join(managedAuthPath, 'oauth-account.json'), '{"oldOauth":true}\n', 'utf-8')
     vi.mocked(readManagedClaudeKeychainCredentials).mockResolvedValue('{"old":true}\n')
     vi.mocked(writeManagedClaudeKeychainCredentials)
@@ -391,7 +391,7 @@ describe('ClaudeAccountService credential capture', () => {
     const managedAuthPath = join(tempDir, 'claude-accounts', 'account-1', 'auth')
     const oauthPath = join(managedAuthPath, 'oauth-account.json')
     mkdirSync(managedAuthPath, { recursive: true })
-    writeFileSync(join(managedAuthPath, '.orca-managed-claude-auth'), 'account-1\n', 'utf-8')
+    writeFileSync(join(managedAuthPath, '.anthraspace-managed-claude-auth'), 'account-1\n', 'utf-8')
     writeFileSync(join(managedAuthPath, '.credentials.json'), '{"old":true}\n', 'utf-8')
     writeFileSync(oauthPath, '{"oldOauth":true}\n', 'utf-8')
     let settings = {
@@ -462,7 +462,7 @@ describe('ClaudeAccountService credential capture', () => {
     rmSync(tempDir, { recursive: true, force: true })
     const managedAuthPath = join(tempDir, 'claude-accounts', 'account-1', 'auth')
     mkdirSync(managedAuthPath, { recursive: true })
-    writeFileSync(join(managedAuthPath, '.orca-managed-claude-auth'), 'account-1\n', 'utf-8')
+    writeFileSync(join(managedAuthPath, '.anthraspace-managed-claude-auth'), 'account-1\n', 'utf-8')
     writeFileSync(join(managedAuthPath, '.credentials.json'), '{"old":true}\n', 'utf-8')
     let settings = {
       claudeManagedAccounts: [
@@ -518,7 +518,7 @@ describe('ClaudeAccountService credential capture', () => {
     rmSync(tempDir, { recursive: true, force: true })
     const managedAuthPath = join(tempDir, 'claude-accounts', 'account-1', 'auth')
     mkdirSync(managedAuthPath, { recursive: true })
-    writeFileSync(join(managedAuthPath, '.orca-managed-claude-auth'), 'account-1\n', 'utf-8')
+    writeFileSync(join(managedAuthPath, '.anthraspace-managed-claude-auth'), 'account-1\n', 'utf-8')
     writeFileSync(join(managedAuthPath, '.credentials.json'), '{"old":true}\n', 'utf-8')
     writeFileSync(join(managedAuthPath, 'oauth-account.json'), '{"oldOauth":true}\n', 'utf-8')
     let settings = {

@@ -20,7 +20,7 @@ vi.mock('fs', () => ({
 
 vi.mock('./relay-protocol', () => ({
   RELAY_VERSION: '0.1.0',
-  RELAY_REMOTE_DIR: '.orca-remote',
+  RELAY_REMOTE_DIR: '.anthraspace-remote',
   parseUnameToRelayPlatform: vi.fn().mockReturnValue('linux-x64'),
   RELAY_SENTINEL: 'ORCA-RELAY v0.1.0 READY\n',
   RELAY_SENTINEL_TIMEOUT_MS: 10_000
@@ -86,8 +86,8 @@ describe('cross-version isolation', () => {
     const mockExec = vi.mocked(execCommand)
 
     // Simulated remote where:
-    //   v1 dir = ~/.orca-remote/relay-0.1.0+v1hash/  (live daemon, listening)
-    //   v2 dir = ~/.orca-remote/relay-0.1.0+v2hash/  (does not yet exist)
+    //   v1 dir = ~/.anthraspace-remote/relay-0.1.0+v1hash/  (live daemon, listening)
+    //   v2 dir = ~/.anthraspace-remote/relay-0.1.0+v2hash/  (does not yet exist)
     // The v2 client has fullVersion='0.1.0+v2hash' (from the fs mock above).
     //
     // We feed enough exec results to walk through the deploy: platform,

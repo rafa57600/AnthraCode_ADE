@@ -43,7 +43,7 @@ export type RelayHookForward = (envelope: AgentHookRelayEnvelope) => void
 // shared dev box gets their own dir, owned 0o700. Mirrors RELAY_REMOTE_DIR
 // from `ssh-relay-deploy.ts` but stays local to this module — the hook
 // server is the only consumer.
-const RELAY_HOOKS_DIR_NAME = '.orca-relay'
+const RELAY_HOOKS_DIR_NAME = '.anthraspace-relay'
 const RELAY_HOOKS_SUBDIR = 'agent-hooks'
 const ASSISTANT_MESSAGE_RETRY_ATTEMPTS = 5
 const ASSISTANT_MESSAGE_RETRY_MS = 50

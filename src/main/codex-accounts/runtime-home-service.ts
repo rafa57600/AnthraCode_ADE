@@ -612,7 +612,7 @@ export class CodexRuntimeHomeService {
         continue
       }
       const managedHomePath = join(managedAccountsRoot, entry.name, 'home')
-      if (existsSync(join(managedHomePath, '.orca-managed-home'))) {
+      if (existsSync(join(managedHomePath, '.anthraspace-managed-home'))) {
         managedHomes.push(managedHomePath)
       }
     }
@@ -702,7 +702,7 @@ export class CodexRuntimeHomeService {
   private getPreservedLegacySessionPath(runtimeFilePath: string, accountId: string): string {
     const extension = extname(runtimeFilePath)
     const basename = runtimeFilePath.slice(0, runtimeFilePath.length - extension.length)
-    return `${basename}.orca-legacy-${accountId}${extension}`
+    return `${basename}.anthraspace-legacy-${accountId}${extension}`
   }
 
   private appendMigrationDiagnostic(record: Record<string, string>): void {

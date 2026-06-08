@@ -340,14 +340,14 @@ describe('file RPC methods', () => {
     const response = await dispatcher.dispatch(
       makeRequest('files.commitUpload', {
         worktree: 'id:wt-1',
-        tempRelativePath: 'assets/.logo.png.orca-upload-a',
+        tempRelativePath: 'assets/.logo.png.anthraspace-upload-a',
         finalRelativePath: 'assets/logo.png'
       })
     )
 
     expect(runtime.commitFileExplorerUpload).toHaveBeenCalledWith(
       'id:wt-1',
-      'assets/.logo.png.orca-upload-a',
+      'assets/.logo.png.anthraspace-upload-a',
       'assets/logo.png'
     )
     expect(response).toMatchObject({ ok: true, result: { ok: true } })

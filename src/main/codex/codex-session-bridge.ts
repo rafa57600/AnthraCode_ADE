@@ -131,7 +131,7 @@ function replaceSymlinkSessionBridgeWithHardlink(
       return false
     }
 
-    replacementPath = `${targetPath}.orca-link-${process.pid}-${Date.now()}`
+    replacementPath = `${targetPath}.anthraspace-link-${process.pid}-${Date.now()}`
     if (!tryHardlinkSystemCodexSessionFile(sourcePath, replacementPath)) {
       return false
     }
@@ -171,7 +171,7 @@ function migrateLegacyCopiedSessionBridge(
     if (!fileStatsMatchMarker(targetStat, marker, 'target')) {
       return
     }
-    replacementPath = `${targetPath}.orca-link-${process.pid}-${Date.now()}`
+    replacementPath = `${targetPath}.anthraspace-link-${process.pid}-${Date.now()}`
     if (!tryLinkSystemCodexSessionFile(sourcePath, replacementPath)) {
       return
     }
@@ -227,7 +227,7 @@ export function getLegacyCopiedCodexSessionBridgeScanPreference(
 }
 
 function getLegacySessionCopyMarkerPath(relativePath: string): string {
-  return join(getOrcaManagedCodexHomePath(), '.orca-session-copies', `${relativePath}.json`)
+  return join(getOrcaManagedCodexHomePath(), '.anthraspace-session-copies', `${relativePath}.json`)
 }
 
 function readLegacyCopiedSessionMarker(relativePath: string): LegacyCopiedSessionMarker | null {

@@ -304,7 +304,7 @@ describe('fetchClaudeRateLimits', () => {
     appGetPathMock.mockReturnValue(tempDir)
     const unownedAuthPath = join(tempDir, 'unowned', 'auth')
     mkdirSync(unownedAuthPath, { recursive: true })
-    writeFileSync(join(unownedAuthPath, '.orca-managed-claude-auth'), 'account-1\n', 'utf-8')
+    writeFileSync(join(unownedAuthPath, '.anthraspace-managed-claude-auth'), 'account-1\n', 'utf-8')
     writeFileSync(
       join(unownedAuthPath, '.credentials.json'),
       JSON.stringify({

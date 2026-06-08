@@ -15,7 +15,7 @@ vi.mock('fs', () => ({
 
 vi.mock('./relay-protocol', () => ({
   RELAY_VERSION: '0.1.0',
-  RELAY_REMOTE_DIR: '.orca-remote',
+  RELAY_REMOTE_DIR: '.anthraspace-remote',
   parseUnameToRelayPlatform: vi.fn().mockReturnValue('linux-x64'),
   RELAY_SENTINEL: 'ORCA-RELAY v0.1.0 READY\n',
   RELAY_SENTINEL_TIMEOUT_MS: 10_000
@@ -37,7 +37,7 @@ vi.mock('./ssh-relay-deploy-helpers', () => ({
 // happy-path is exercised without a real SSH connection.
 vi.mock('./ssh-relay-versioned-install', () => ({
   readLocalFullVersion: vi.fn().mockReturnValue('0.1.0+abcdef012345'),
-  computeRemoteRelayDir: (home: string, v: string) => `${home}/.orca-remote/relay-${v}`,
+  computeRemoteRelayDir: (home: string, v: string) => `${home}/.anthraspace-remote/relay-${v}`,
   isRelayAlreadyInstalled: vi.fn().mockResolvedValue(true),
   acquireInstallLock: vi.fn().mockResolvedValue(undefined),
   finalizeInstall: vi.fn().mockResolvedValue(undefined),
@@ -188,7 +188,7 @@ describe('deployAndLaunchRelay', () => {
     const execArgs = vi.mocked(conn.exec).mock.calls.map(([cmd]) => cmd as string)
     const allCmds = [...execArgs, ...mockExecCommand.mock.calls.map(([, cmd]) => cmd)]
     const sawVersionedDir = allCmds.some((cmd) =>
-      cmd.includes('/.orca-remote/relay-0.1.0+abcdef012345')
+      cmd.includes('/.anthraspace-remote/relay-0.1.0+abcdef012345')
     )
     expect(sawVersionedDir).toBe(true)
     const sawLegacyDir = allCmds.some((cmd) => cmd.includes('relay-v0.1.0'))

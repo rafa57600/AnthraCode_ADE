@@ -523,7 +523,11 @@ export class ClaudeAccountService {
   private createManagedAuthDir(accountId: string): string {
     const managedAuthPath = join(this.getManagedAccountsRoot(), accountId, 'auth')
     mkdirSync(managedAuthPath, { recursive: true })
-    writeFileSync(join(managedAuthPath, '.orca-managed-claude-auth'), `${accountId}\n`, 'utf-8')
+    writeFileSync(
+      join(managedAuthPath, '.anthraspace-managed-claude-auth'),
+      `${accountId}\n`,
+      'utf-8'
+    )
     return this.assertManagedAuthPath(managedAuthPath, accountId)
   }
 

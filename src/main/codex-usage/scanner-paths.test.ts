@@ -171,7 +171,7 @@ describe('listCodexSessionFiles', () => {
       userDataDir,
       'codex-runtime-home',
       'home',
-      '.orca-session-copies'
+      '.anthraspace-session-copies'
     )
     const systemSessionsDir = join(fakeHomeDir, '.codex', 'sessions')
     mkdirSync(runtimeSessionsDir, { recursive: true })
@@ -209,7 +209,7 @@ describe('listCodexSessionFiles', () => {
       userDataDir,
       'codex-runtime-home',
       'home',
-      '.orca-session-copies'
+      '.anthraspace-session-copies'
     )
     const systemSessionsDir = join(fakeHomeDir, '.codex', 'sessions')
     mkdirSync(runtimeSessionsDir, { recursive: true })
@@ -248,7 +248,7 @@ describe('listCodexSessionFiles', () => {
       userDataDir,
       'codex-runtime-home',
       'home',
-      '.orca-session-copies'
+      '.anthraspace-session-copies'
     )
     const systemSessionsDir = join(fakeHomeDir, '.codex', 'sessions')
     mkdirSync(runtimeSessionsDir, { recursive: true })
@@ -307,7 +307,7 @@ describe('listCodexSessionFiles', () => {
       userDataDir,
       'codex-runtime-home',
       'home',
-      '.orca-session-copies'
+      '.anthraspace-session-copies'
     )
     const systemSessionsDir = join(fakeHomeDir, '.codex', 'sessions')
     mkdirSync(runtimeSessionsDir, { recursive: true })

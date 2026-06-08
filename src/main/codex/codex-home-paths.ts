@@ -130,7 +130,7 @@ function normalizeWindowsLinkTarget(linkTarget: string): string {
 }
 
 function getResourceCopyMarkerPath(managedHomePath: string, entryName: string): string {
-  return join(managedHomePath, '.orca-resource-copies', `${entryName}.json`)
+  return join(managedHomePath, '.anthraspace-resource-copies', `${entryName}.json`)
 }
 
 function markCopiedResource(managedHomePath: string, entryName: string, sourcePath: string): void {

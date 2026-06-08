@@ -256,7 +256,7 @@ export class CodexAccountService {
     // Why: Codex expects CODEX_HOME to be a concrete directory it can own. We
     // pre-create the directory and leave a marker so future cleanup code can
     // prove the path belongs to Orca before deleting anything.
-    writeFileSync(join(managedHomePath, '.orca-managed-home'), `${accountId}\n`, 'utf-8')
+    writeFileSync(join(managedHomePath, '.anthraspace-managed-home'), `${accountId}\n`, 'utf-8')
     return this.assertManagedHomePath(managedHomePath)
   }
 
@@ -369,7 +369,7 @@ export class CodexAccountService {
       throw new Error('Managed Codex home escaped Orca account storage.')
     }
 
-    if (!existsSync(join(canonicalCandidate, '.orca-managed-home'))) {
+    if (!existsSync(join(canonicalCandidate, '.anthraspace-managed-home'))) {
       throw new Error('Managed Codex home is missing Orca ownership marker.')
     }
 

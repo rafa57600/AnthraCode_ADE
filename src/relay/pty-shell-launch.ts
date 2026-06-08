@@ -3,7 +3,7 @@ import { homedir } from 'os'
 import { basename, dirname, join } from 'path'
 import { getPosixOmpShellWrapper } from '../main/pty/omp-shell-wrapper'
 
-const RELAY_SHELL_READY_DIR = '.orca-relay/shell-ready'
+const RELAY_SHELL_READY_DIR = '.anthraspace-relay/shell-ready'
 const POSIX_LOGIN_ARGS = ['-l']
 
 export type RelayShellLaunchConfig = {

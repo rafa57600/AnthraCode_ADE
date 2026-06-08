@@ -163,8 +163,8 @@ describe('PluginOverlayManager', () => {
       const dir = manager.materializePi('tab-relay-pi-both:0', undefined, 'pi')
 
       expect(dir).not.toBeNull()
-      // Pi overlays live under .orca-relay/pi-overlays, separate from OMP's tree.
-      expect(dir!).toMatch(/[\\/]\.orca-relay[\\/]pi-overlays[\\/]/)
+      // Pi overlays live under .anthraspace-relay/pi-overlays, separate from OMP's tree.
+      expect(dir!).toMatch(/[\\/]\.anthraspace-relay[\\/]pi-overlays[\\/]/)
       expect(readFileSync(join(dir!, 'auth.json'), 'utf8')).toBe('pi token')
       const overlayExtensions = readdirSync(join(dir!, 'extensions')).sort()
       expect(overlayExtensions).toContain('pi-ext')
@@ -179,9 +179,9 @@ describe('PluginOverlayManager', () => {
       const dir = manager.materializePi('tab-relay-omp-both:0', undefined, 'omp')
 
       expect(dir).not.toBeNull()
-      // CRITICAL: OMP overlays live in a distinct subtree (.orca-relay/omp-overlays)
+      // CRITICAL: OMP overlays live in a distinct subtree (.anthraspace-relay/omp-overlays)
       // so the remote box never mixes Pi and OMP overlay state for the same paneKey.
-      expect(dir!).toMatch(/[\\/]\.orca-relay[\\/]omp-overlays[\\/]/)
+      expect(dir!).toMatch(/[\\/]\.anthraspace-relay[\\/]omp-overlays[\\/]/)
       expect(dir!).not.toMatch(/[\\/]pi-overlays[\\/]/)
       // Even though ~/.pi/agent exists, the OMP launch MUST mirror OMP's
       // source dir. Cross-agent fallback would silently shadow the user's
@@ -203,7 +203,7 @@ describe('PluginOverlayManager', () => {
       const dir = manager.materializePi('tab-relay-omp-empty:0', undefined, 'omp')
 
       expect(dir).not.toBeNull()
-      expect(dir!).toMatch(/[\\/]\.orca-relay[\\/]omp-overlays[\\/]/)
+      expect(dir!).toMatch(/[\\/]\.anthraspace-relay[\\/]omp-overlays[\\/]/)
       // Pi-only home must NOT leak into the OMP overlay.
       expect(existsSync(join(dir!, 'auth.json'))).toBe(false)
       const overlayExtensions = readdirSync(join(dir!, 'extensions')).sort()

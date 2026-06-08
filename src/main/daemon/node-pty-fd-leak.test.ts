@@ -56,7 +56,7 @@ describeOnDarwin('node-pty macOS spawn fd handling', () => {
 
   it('does not leak fds when native posix_spawn setup fails', async () => {
     const helperPath = getExistingSpawnHelper()
-    const hiddenHelperPath = `${helperPath}.orca-test-hidden`
+    const hiddenHelperPath = `${helperPath}.anthraspace-test-hidden`
     expect(existsSync(hiddenHelperPath)).toBe(false)
 
     const before = currentOpenFdCount()

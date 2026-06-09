@@ -441,15 +441,6 @@ jobs:
             --generate-notes \
             --prerelease="$is_rc"
 
-  # Why: tag-scoped E2E gives release visibility, but the suite is flaky enough
-  # that publish-release must not depend on it.
-  e2e:
-    needs: cut
-    if: needs.cut.outputs.should_release == 'true'
-    uses: ./.github/workflows/e2e.yml
-    with:
-      ref: refs/tags/${{ needs.cut.outputs.tag }}
-
   build:
     needs:
       - cut
@@ -757,12 +748,4 @@ jobs:
             --prerelease="$prerelease" \
             --repo "$GITHUB_REPOSITORY"
 
-  homebrew-bump:
-    needs:
-      - cut
-      - publish-release
-    if: ${{ !contains(needs.cut.outputs.tag, '-rc.') }}
-    uses: ./.github/workflows/homebrew-bump.yml
-    with:
-      tag: ${{ needs.cut.outputs.tag }}
-    secrets: inherit
+

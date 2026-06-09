@@ -457,7 +457,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
+          # Why: pinned to windows-2022 because the windows-latest runner
+          # redirects to windows-2025-vs2026 whose Visual Studio 2025
+          # is not detectable by the node-gyp v11.5.0 bundled with
+          # pnpm@10.24.0 (cpu-features native build fails with
+          # "unknown version undefined"). Pin to the last known-good
+          # image until node-gyp upstream catches up.
+          - os: windows-2022
             platform: win
             release_command: 'node config/scripts/ensure-native-runtime.mjs --runtime=electron; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; pnpm exec electron-builder --config config/electron-builder.config.cjs --win --publish always'
             eb_cache_path: |

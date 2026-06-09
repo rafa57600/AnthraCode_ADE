@@ -97,6 +97,9 @@ playwright-report/
 # Agent skill installations (machine-local, populated by agent tooling)
 /.claude/skills/
 /.agents/skills/
+
+# Agent tooling metadata (working memory, decisions, plans, skills)
+/.anthracode/
 /skills-lock.json
 
 # Agent hook runtime endpoints (machine-local secrets)

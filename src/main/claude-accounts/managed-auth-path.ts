@@ -1,9 +1,11 @@
 import { existsSync, lstatSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
-import { join, relative, resolve, sep } from 'node:path'
+import { dirname, join, relative, resolve, sep } from 'node:path'
 import { app } from 'electron'
 import { writeFileAtomically } from '../codex-accounts/fs-utils'
 
 const MANAGED_AUTH_MARKER = '.anthraspace-managed-claude-auth'
+// Why: backward-compat fallback for auth dirs with legacy .orca-managed-claude-auth marker
+const LEGACY_MANAGED_AUTH_MARKER = '.orca-managed-claude-auth'
 
 export function getClaudeManagedAccountsRoot(): string {
   return join(app.getPath('userData'), 'claude-accounts')
@@ -90,7 +92,12 @@ function isManagedAuthMarkerValid(markerPath: string, accountId: string): boolea
       lstatSync(markerPath).isSymbolicLink() ||
       !lstatSync(markerPath).isFile()
     ) {
-      return false
+      // Why: backward-compat fallback for auth dirs with legacy .orca-managed-claude-auth marker
+      const legacyPath = join(dirname(markerPath), LEGACY_MANAGED_AUTH_MARKER)
+      if (!existsSync(legacyPath) || lstatSync(legacyPath).isSymbolicLink() || !lstatSync(legacyPath).isFile()) {
+        return false
+      }
+      return readFileSync(legacyPath, 'utf-8').trim() === accountId
     }
     return readFileSync(markerPath, 'utf-8').trim() === accountId
   } catch {

@@ -612,7 +612,11 @@ export class CodexRuntimeHomeService {
         continue
       }
       const managedHomePath = join(managedAccountsRoot, entry.name, 'home')
-      if (existsSync(join(managedHomePath, '.anthraspace-managed-home'))) {
+      if (
+        existsSync(join(managedHomePath, '.anthraspace-managed-home')) ||
+        // Why: backward-compat fallback for homes with legacy .orca-managed-home marker
+        existsSync(join(managedHomePath, '.orca-managed-home'))
+      ) {
         managedHomes.push(managedHomePath)
       }
     }

@@ -133,6 +133,11 @@ function getResourceCopyMarkerPath(managedHomePath: string, entryName: string): 
   return join(managedHomePath, '.anthraspace-resource-copies', `${entryName}.json`)
 }
 
+// Why: backward-compat fallback for resource copy markers from legacy .orca-resource-copies/
+function getLegacyResourceCopyMarkerPath(managedHomePath: string, entryName: string): string {
+  return join(managedHomePath, '.orca-resource-copies', `${entryName}.json`)
+}
+
 function markCopiedResource(managedHomePath: string, entryName: string, sourcePath: string): void {
   const markerPath = getResourceCopyMarkerPath(managedHomePath, entryName)
   mkdirSync(dirname(markerPath), { recursive: true })
@@ -143,18 +148,26 @@ function markCopiedResource(managedHomePath: string, entryName: string, sourcePa
 }
 
 function readCopiedResourceSourcePath(managedHomePath: string, entryName: string): string | null {
-  try {
-    const parsed: unknown = JSON.parse(
-      readFileSync(getResourceCopyMarkerPath(managedHomePath, entryName), 'utf-8')
-    )
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+  const tryRead = (markerPath: string): string | null => {
+    try {
+      const parsed: unknown = JSON.parse(readFileSync(markerPath, 'utf-8'))
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return null
+      }
+      const sourcePath = 'sourcePath' in parsed ? parsed.sourcePath : null
+      return typeof sourcePath === 'string' ? sourcePath : null
+    } catch {
       return null
     }
-    const sourcePath = 'sourcePath' in parsed ? parsed.sourcePath : null
-    return typeof sourcePath === 'string' ? sourcePath : null
-  } catch {
-    return null
   }
+
+  const result = tryRead(getResourceCopyMarkerPath(managedHomePath, entryName))
+  if (result !== null) {
+    return result
+  }
+
+  // Why: backward-compat fallback for markers from legacy .orca-resource-copies/
+  return tryRead(getLegacyResourceCopyMarkerPath(managedHomePath, entryName))
 }
 
 function clearCopiedResourceMarker(managedHomePath: string, entryName: string): void {

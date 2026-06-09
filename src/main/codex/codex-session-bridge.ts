@@ -230,28 +230,41 @@ function getLegacySessionCopyMarkerPath(relativePath: string): string {
   return join(getOrcaManagedCodexHomePath(), '.anthraspace-session-copies', `${relativePath}.json`)
 }
 
+// Why: backward-compat fallback for session copy markers from legacy .orca-session-copies/
+function getLegacySessionCopyMarkerPathOld(relativePath: string): string {
+  return join(getOrcaManagedCodexHomePath(), '.orca-session-copies', `${relativePath}.json`)
+}
+
 function readLegacyCopiedSessionMarker(relativePath: string): LegacyCopiedSessionMarker | null {
-  try {
-    const parsed: unknown = JSON.parse(
-      readFileSync(getLegacySessionCopyMarkerPath(relativePath), 'utf-8')
-    )
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+  const tryRead = (markerPath: string): LegacyCopiedSessionMarker | null => {
+    try {
+      const parsed: unknown = JSON.parse(readFileSync(markerPath, 'utf-8'))
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return null
+      }
+      const marker = parsed as Record<string, unknown>
+      if (
+        typeof marker.sourcePath !== 'string' ||
+        typeof marker.sourceSize !== 'number' ||
+        typeof marker.sourceMtimeMs !== 'number' ||
+        typeof marker.targetSize !== 'number' ||
+        typeof marker.targetMtimeMs !== 'number'
+      ) {
+        return null
+      }
+      return marker as LegacyCopiedSessionMarker
+    } catch {
       return null
     }
-    const marker = parsed as Record<string, unknown>
-    if (
-      typeof marker.sourcePath !== 'string' ||
-      typeof marker.sourceSize !== 'number' ||
-      typeof marker.sourceMtimeMs !== 'number' ||
-      typeof marker.targetSize !== 'number' ||
-      typeof marker.targetMtimeMs !== 'number'
-    ) {
-      return null
-    }
-    return marker as LegacyCopiedSessionMarker
-  } catch {
-    return null
   }
+
+  const result = tryRead(getLegacySessionCopyMarkerPath(relativePath))
+  if (result !== null) {
+    return result
+  }
+
+  // Why: backward-compat fallback for markers from legacy .orca-session-copies/
+  return tryRead(getLegacySessionCopyMarkerPathOld(relativePath))
 }
 
 function fileStatsMatchMarker(

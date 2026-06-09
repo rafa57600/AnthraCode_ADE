@@ -2,6 +2,29 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-09 — Phase 1 backward-compat: legacy `.orca-*` read fallbacks
+
+### Production patch
+
+- Added backward-compatible read fallbacks in all 5 user-home directory migration read sites so old `.orca-*` directories remain readable after the Phase 1 write-migration:
+  - `runtime-home-service.ts:615` — `getLegacyManagedHomes()` now checks both `.anthraspace-managed-home` and `.orca-managed-home` markers.
+  - `service.ts:372` — `assertManagedHomePath()` falls back to `.orca-managed-home` marker if `.anthraspace-managed-home` is missing.
+  - `managed-auth-path.ts:45-50` — `isManagedAuthMarkerValid()` defines `LEGACY_MANAGED_AUTH_MARKER`, falls back to `.orca-managed-claude-auth` if new marker absent.
+  - `codex-home-paths.ts:145-158` — `readCopiedResourceSourcePath()` uses `getLegacyResourceCopyMarkerPath()` to fall back to `.orca-resource-copies/`.
+  - `codex-session-bridge.ts:233-255` — `readLegacyCopiedSessionMarker()` uses `getLegacySessionCopyMarkerPathOld()` to fall back to `.orca-session-copies/`.
+- Relay paths (`.anthraspace-relay/`, `.anthraspace-remote/`) and temp prefixes (`.anthraspace-upload-`, `.anthraspace-link-`, `.anthraspace-legacy-`) excluded — they are write-only or created fresh per-session.
+- Follows Phase 2 pattern: legacy marker constant defined alongside each read site, only checked when the new marker file is absent.
+
+### Verification
+
+- `pnpm typecheck:tsc` (node + cli + web) passes with 0 TypeScript errors.
+- Grep audit confirms all 5 read sites have fallback logic; relay and temp-path sites intentionally omitted.
+
+### Production impact
+
+- Users migrating from Orca to AnthraSpace will have their existing `.orca-managed-home`, `.orca-managed-claude-auth`, `.orca-resource-copies/`, and `.orca-session-copies/` directories honored during reads until they are migrated or cleaned up.
+- New writes continue to use `.anthraspace-*` paths exclusively — no behavioral change for new sessions.
+
 ## 2026-06-08 — Phase 1 completion: user-home `.orca-*` directory migration
 
 ### Production patch

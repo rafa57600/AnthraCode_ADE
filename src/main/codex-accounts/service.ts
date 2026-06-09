@@ -369,7 +369,11 @@ export class CodexAccountService {
       throw new Error('Managed Codex home escaped Orca account storage.')
     }
 
-    if (!existsSync(join(canonicalCandidate, '.anthraspace-managed-home'))) {
+    if (
+      !existsSync(join(canonicalCandidate, '.anthraspace-managed-home')) &&
+      // Why: backward-compat fallback for homes with legacy .orca-managed-home marker
+      !existsSync(join(canonicalCandidate, '.orca-managed-home'))
+    ) {
       throw new Error('Managed Codex home is missing Orca ownership marker.')
     }
 

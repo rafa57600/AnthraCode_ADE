@@ -146,7 +146,7 @@ export function getRepositoryPaneSearchEntries(repo: Repo): SettingsSearchEntry[
               'workflow',
               'github',
               'orca.yaml',
-              '.orca/issue-command'
+              '.anthraspace/issue-command'
             ]
           }
         ])

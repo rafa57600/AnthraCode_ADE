@@ -25,6 +25,28 @@ Production-ready changes must be recorded here after implementation and verifica
 - New SSH relay sessions, managed account homes, and temp file artifacts will use `.anthraspace-*` directories exclusively.
 - Existing sessions with old `.orca-*` directories remain readable but new writes go to the new paths, leaving a future backward-compat read-fallback pass as a follow-up.
 
+## 2026-06-08 — Phase 2: per-worktree `.orca/` directory migration
+
+### Production patch
+
+- Migrated per-worktree `.orca/issue-command` directories to `.anthraspace/issue-command` across hooks, SSH runtime, and repository search code paths.
+- Migrated per-worktree `.orca/drops` staging directories to `.anthraspace/drops` across IPC filesystem mutations, terminal drop handler, composer state, and global file drop hooks.
+- Renamed `ORCA_DIR` constant in `hooks.ts` from `'.orca'` to `'.anthraspace'`, with a `LEGACY_ORCA_DIR` backward-compat constant for read fallbacks.
+- Added backward-compatible read-fallback in `readIssueCommand` (local) and `readRemoteIssueCommandOverride` (SSH) so existing worktrees with `.orca/issue-command` continue to be honored.
+- Updated `ensureOrcaDirIgnored` and `ensureRemoteOrcaDirIgnored` to write `.anthraspace` to `.gitignore` (while also ensuring `.orca` stays ignored so orphaned dirs aren't committed).
+- Updated 14 source and test files total.
+
+### Verification
+
+- `pnpm typecheck` passed with 0 TypeScript errors.
+- Comprehensive grep audit confirms only intentional backward-compat fallback reads and code comments still reference the legacy `.orca/` path.
+
+### Production impact
+
+- New per-worktree issue commands and file drops will use `.anthraspace/` directories.
+- Existing worktrees with `.orca/issue-command` continue to work via backward-compat fallback reads.
+- The `.gitignore` entries for both `.anthraspace` and `.orca` are maintained so neither path can be accidentally committed.
+
 ## 2026-06-02 — Remove Mobile shortcut from left sidebar
 
 ### Production patch

@@ -49,7 +49,7 @@ describe('handleTerminalFileDrop', () => {
         {
           sourcePath: '/Users/me/logo.png',
           status: 'imported',
-          destPath: '/remote/repo/.orca/drops/logo.png',
+          destPath: '/remote/repo/.anthraspace/drops/logo.png',
           kind: 'file',
           renamed: false
         }
@@ -78,9 +78,9 @@ describe('handleTerminalFileDrop', () => {
         worktreePath: '/remote/repo'
       },
       ['/Users/me/logo.png'],
-      '/remote/repo/.orca/drops'
+      '/remote/repo/.anthraspace/drops'
     )
-    expect(sendInput).toHaveBeenCalledWith('/remote/repo/.orca/drops/logo.png ')
+    expect(sendInput).toHaveBeenCalledWith('/remote/repo/.anthraspace/drops/logo.png ')
     expect(focus).toHaveBeenCalled()
     expect(mocks.toastError).not.toHaveBeenCalled()
     expect(mocks.toastDismiss).toHaveBeenCalledWith('toast-1')

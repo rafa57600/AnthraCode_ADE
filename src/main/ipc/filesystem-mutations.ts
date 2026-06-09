@@ -212,7 +212,7 @@ export function registerFilesystemMutationHandlers(store: Store): void {
         return { resolvedPaths: args.paths, skipped: [], failed: [] }
       }
       const worktreePath = args.worktreePath.replace(/\/+$/, '')
-      const destDir = `${worktreePath}/.orca/drops`
+      const destDir = `${worktreePath}/.anthraspace/drops`
       const { results } = await importExternalPathsSsh(args.paths, destDir, args.connectionId, {
         ensureDir: true
       })

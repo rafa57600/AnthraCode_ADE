@@ -196,9 +196,9 @@ function resolveWorktreePath(worktreeId: string, fallbackCwd: string | undefined
 
 function joinRuntimeDropDir(worktreePath: string): string {
   if (isWindowsPathLike(worktreePath)) {
-    return `${worktreePath.replace(/[\\/]+$/, '').replace(/\//g, '\\')}\\.orca\\drops`
+    return `${worktreePath.replace(/[\\/]+$/, '').replace(/\//g, '\\')}\\.anthraspace\\drops`
   }
-  return `${worktreePath.replace(/[\\/]+$/, '')}/.orca/drops`
+  return `${worktreePath.replace(/[\\/]+$/, '')}/.anthraspace/drops`
 }
 
 function isWindowsPathLike(path: string): boolean {

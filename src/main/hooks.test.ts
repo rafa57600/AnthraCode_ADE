@@ -204,10 +204,10 @@ describe('readIssueCommand', () => {
   it('prefers the local override over the shared orca.yaml command', async () => {
     const fs = await import('fs')
     vi.mocked(fs.existsSync).mockImplementation(
-      (path) => path === '/test/repo/.orca/issue-command' || path === '/test/repo/orca.yaml'
+      (path) => path === '/test/repo/.anthraspace/issue-command' || path === '/test/repo/orca.yaml'
     )
     vi.mocked(fs.readFileSync).mockImplementation((path) => {
-      if (path === '/test/repo/.orca/issue-command') {
+      if (path === '/test/repo/.anthraspace/issue-command') {
         return 'local command\n'
       }
       if (path === '/test/repo/orca.yaml') {
@@ -221,7 +221,7 @@ describe('readIssueCommand', () => {
       localContent: 'local command',
       sharedContent: 'shared command',
       effectiveContent: 'local command',
-      localFilePath: '/test/repo/.orca/issue-command',
+      localFilePath: '/test/repo/.anthraspace/issue-command',
       source: 'local'
     })
   })
@@ -241,17 +241,17 @@ describe('readIssueCommand', () => {
       localContent: null,
       sharedContent: 'shared command',
       effectiveContent: 'shared command',
-      localFilePath: '/test/repo/.orca/issue-command',
+      localFilePath: '/test/repo/.anthraspace/issue-command',
       source: 'shared'
     })
   })
 })
 
 describe('writeIssueCommand', () => {
-  it('writes only the local override file and keeps .orca ignored locally', async () => {
+  it('writes only the local override file and keeps .anthraspace ignored locally', async () => {
     const fs = await import('fs')
     vi.mocked(fs.existsSync).mockImplementation(
-      (path) => path === '/test/repo/.gitignore' || path === '/test/repo/.orca'
+      (path) => path === '/test/repo/.gitignore' || path === '/test/repo/.anthraspace'
     )
     vi.mocked(fs.readFileSync).mockImplementation((path) => {
       if (path === '/test/repo/.gitignore') {
@@ -265,11 +265,11 @@ describe('writeIssueCommand', () => {
 
     expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
       '/test/repo/.gitignore',
-      'node_modules/\n.orca\n',
+      'node_modules/\n.anthraspace\n.orca\n',
       'utf-8'
     )
     expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
-      '/test/repo/.orca/issue-command',
+      '/test/repo/.anthraspace/issue-command',
       'local command\n',
       'utf-8'
     )
@@ -280,7 +280,7 @@ describe('writeIssueCommand', () => {
     const { writeIssueCommand } = await import('./hooks')
     writeIssueCommand('/test/repo', '   ')
 
-    expect(vi.mocked(fs.rmSync)).toHaveBeenCalledWith('/test/repo/.orca/issue-command', {
+    expect(vi.mocked(fs.rmSync)).toHaveBeenCalledWith('/test/repo/.anthraspace/issue-command', {
       force: true
     })
   })

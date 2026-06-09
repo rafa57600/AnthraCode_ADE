@@ -1262,7 +1262,7 @@ export function useComposerState(options: UseComposerStateOptions): UseComposerS
         toast.error('No remote project path is available for attachments.')
         return { filePaths: [], folderPaths: [] }
       }
-      const destinationDir = joinPath(targetRepoPath, '.orca/drops')
+      const destinationDir = joinPath(targetRepoPath, '.anthraspace/drops')
       const { results } = await importExternalPathsToRuntime(
         {
           settings: targetSettings,

@@ -6452,7 +6452,7 @@ export class OrcaRuntimeService {
     }
 
     if (repo.connectionId) {
-      const issueCommandPath = joinWorktreeRelativePath(repo.path, '.orca/issue-command')
+      const issueCommandPath = joinWorktreeRelativePath(repo.path, '.anthraspace/issue-command')
       const fsProvider = getSshFilesystemProvider(repo.connectionId)
       if (!fsProvider) {
         return {
@@ -6463,7 +6463,14 @@ export class OrcaRuntimeService {
           source: 'none' as const
         }
       }
-      const localContent = await this.readRemoteIssueCommandOverride(fsProvider, issueCommandPath)
+      let localContent = await this.readRemoteIssueCommandOverride(fsProvider, issueCommandPath)
+      // Why: backward-compat fallback for remote worktrees still using legacy .orca/
+      if (!localContent) {
+        localContent = await this.readRemoteIssueCommandOverride(
+          fsProvider,
+          joinWorktreeRelativePath(repo.path, '.orca/issue-command')
+        )
+      }
       const sharedContent = await this.readRemoteSharedIssueCommand(fsProvider, repo.path)
       const effectiveContent = localContent ?? sharedContent
       return {
@@ -6519,7 +6526,7 @@ export class OrcaRuntimeService {
     }
 
     if (repo.connectionId) {
-      const issueCommandPath = joinWorktreeRelativePath(repo.path, '.orca/issue-command')
+      const issueCommandPath = joinWorktreeRelativePath(repo.path, '.anthraspace/issue-command')
       const fsProvider = getSshFilesystemProvider(repo.connectionId)
       if (!fsProvider) {
         return { ok: true }
@@ -6533,7 +6540,7 @@ export class OrcaRuntimeService {
         })
         return { ok: true }
       }
-      await fsProvider.createDir(joinWorktreeRelativePath(repo.path, '.orca'))
+      await fsProvider.createDir(joinWorktreeRelativePath(repo.path, '.anthraspace'))
       await this.ensureRemoteOrcaDirIgnored(fsProvider, repo.path)
       await fsProvider.writeFile(issueCommandPath, `${trimmed}\n`)
       return { ok: true }
@@ -6550,16 +6557,23 @@ export class OrcaRuntimeService {
     const gitignorePath = joinWorktreeRelativePath(repoPath, '.gitignore')
     try {
       const result = await fsProvider.readFile(gitignorePath)
-      if (result.isBinary || /^\.orca\/?$/m.test(result.content)) {
+      if (result.isBinary) {
         return
       }
-      const separator = result.content.endsWith('\n') ? '' : '\n'
-      await fsProvider.writeFile(gitignorePath, `${result.content}${separator}.orca\n`)
+      let content = result.content
+      const separator = content.endsWith('\n') ? '' : '\n'
+      if (!/^\.anthraspace\/?$/m.test(content)) {
+        content = `${content}${separator}.anthraspace\n`
+      }
+      if (!/^\.orca\/?$/m.test(content)) {
+        content = `${content}${content.endsWith('\n') ? '' : '\n'}.orca\n`
+      }
+      await fsProvider.writeFile(gitignorePath, content)
     } catch {
       try {
-        await fsProvider.writeFile(gitignorePath, '.orca\n')
+        await fsProvider.writeFile(gitignorePath, '.anthraspace\n.orca\n')
       } catch (error) {
-        console.warn('[runtime] Could not update remote .gitignore to exclude .orca', error)
+        console.warn('[runtime] Could not update remote .gitignore to exclude .anthraspace', error)
       }
     }
   }

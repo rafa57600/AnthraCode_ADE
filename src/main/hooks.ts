@@ -162,10 +162,12 @@ export function hasUnrecognizedOrcaYamlKeys(repoPath: string): boolean {
 
 // ─── Issue command files ────────────────────────────────────────────────
 // Why: `orca.yaml` is the tracked, project-wide defaults surface, while
-// `.orca/issue-command` remains the per-user override. Keeping the local file in
-// `.orca/` lets users customize agent automation without editing committed config.
+// `.anthraspace/issue-command` remains the per-user override. Keeping the
+// local file in the worktree root lets users customize agent automation without
+// editing committed config.
 
-const ORCA_DIR = '.orca'
+const ORCA_DIR = '.anthraspace'
+const LEGACY_ORCA_DIR = '.orca'
 const ISSUE_COMMAND_FILENAME = 'issue-command'
 
 export function getIssueCommandFilePath(repoPath: string): string {
@@ -200,6 +202,19 @@ export function readIssueCommand(repoPath: string): ResolvedIssueCommand {
     }
   }
 
+  // Why: backward-compat fallback for worktrees still using legacy .orca/
+  if (!localContent) {
+    const legacyPath = join(repoPath, LEGACY_ORCA_DIR, ISSUE_COMMAND_FILENAME)
+    if (existsSync(legacyPath)) {
+      try {
+        const content = readFileSync(legacyPath, 'utf-8').trim()
+        localContent = content || null
+      } catch {
+        // ignore
+      }
+    }
+  }
+
   const sharedContent = getSharedIssueCommand(repoPath)
   const effectiveContent = localContent ?? sharedContent
 
@@ -213,8 +228,8 @@ export function readIssueCommand(repoPath: string): ResolvedIssueCommand {
 }
 
 /**
- * Write the per-user issue command override to `{repoRoot}/.orca/issue-command`.
- * Creates `.orca/` and ensures it is in `.gitignore` on first write.
+ * Write the per-user issue command override to `{repoRoot}/.anthraspace/issue-command`.
+ * Creates `.anthraspace/` and ensures it is in `.gitignore` on first write.
  * If content is empty, deletes only the override so the shared `orca.yaml`
  * command becomes effective again.
  */
@@ -243,24 +258,28 @@ export function writeIssueCommand(repoPath: string, content: string): void {
 }
 
 /**
- * Ensure `.orca` is listed in the repo's `.gitignore` so the per-user
- * directory is never accidentally committed.
+ * Ensure `.anthraspace` is listed in the repo's `.gitignore` so the per-user
+ * directory is never accidentally committed. Also ensures the legacy `.orca`
+ * entry is present so orphaned directories remain ignored.
  */
 function ensureOrcaDirIgnored(repoPath: string): void {
   const gitignorePath = join(repoPath, '.gitignore')
   try {
     if (existsSync(gitignorePath)) {
-      const content = readFileSync(gitignorePath, 'utf-8')
-      if (/^\.orca\/?$/m.test(content)) {
-        return
-      }
+      let content = readFileSync(gitignorePath, 'utf-8')
       const separator = content.endsWith('\n') ? '' : '\n'
-      writeFileSync(gitignorePath, `${content}${separator}.orca\n`, 'utf-8')
+      if (!/^\.anthraspace\/?$/m.test(content)) {
+        content = `${content}${separator}.anthraspace\n`
+      }
+      if (!/^\.orca\/?$/m.test(content)) {
+        content = `${content}${content.endsWith('\n') ? '' : '\n'}.orca\n`
+      }
+      writeFileSync(gitignorePath, content, 'utf-8')
     } else {
-      writeFileSync(gitignorePath, '.orca\n', 'utf-8')
+      writeFileSync(gitignorePath, '.anthraspace\n.orca\n', 'utf-8')
     }
   } catch {
-    console.warn('[hooks] Could not update .gitignore to exclude .orca')
+    console.warn('[hooks] Could not update .gitignore to exclude .anthraspace')
   }
 }
 

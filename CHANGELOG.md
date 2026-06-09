@@ -2,6 +2,40 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-09 — Desktop release pipeline: repo target and workflow cleanup
+
+### Production change
+
+- Stripped 7 unused CI workflows (computer-e2e, e2e, homebrew-bump, issue-os-labeler,
+  mobile-build, mobile, pr, track-community-prs) — only `release-cut.yml` remains as the
+  single desktop build pipeline.
+- Removed `e2e` and `homebrew-bump` job references from `release-cut.yml` since those
+  called workflows were deleted.
+- Created `rafa57600/AnthraSpace` as the dedicated release artifacts repo.
+- Updated `release-cut.yml` to target `rafa57600/AnthraSpace` explicitly (via `env.RELEASE_REPO`)
+  instead of relying on `GITHUB_REPOSITORY` (which resolves to the development fork).
+- Updated both `verify-release-required-assets.mjs` and `publish-complete-draft-releases.mjs`
+  to always use `rafa57600/AnthraSpace` instead of the `GITHUB_REPOSITORY` env var.
+- Changed all workflow token references from `secrets.GITHUB_TOKEN` (scoped to the current
+  repo only) to `secrets.ANTHRASPACE_RELEASE_TOKEN` (PAT with `repo` scope on AnthraSpace).
+
+### Prerequisite before first run
+
+- Create a GitHub PAT with `repo` scope and save it as the `ANTHRASPACE_RELEASE_TOKEN` secret
+  in the `rafa57600/AnthraCode_ADE` repo settings (Settings → Secrets and variables → Actions).
+
+### Verification
+
+- `gh repo create rafa57600/AnthraSpace` successful.
+- No remaining `GITHUB_REPOSITORY` or `GITHUB_TOKEN` references in `release-cut.yml`.
+- Only `release-cut.yml` remains in `.github/workflows/`.
+
+### Production impact
+
+- The first manual dispatch of "Cut Release" will create a draft release in
+  `rafa57600/AnthraSpace`, build artifacts for all 3 platforms in CI, upload them to the
+  draft, and publish the release — making the app downloadable and auto-updatable.
+
 ## 2026-06-09 — Phase 1 backward-compat: legacy `.orca-*` read fallbacks
 
 ### Production patch

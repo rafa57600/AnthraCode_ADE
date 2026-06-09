@@ -118,7 +118,7 @@ export function writeGithubOutputs({ published, skipped }, outputPath = process.
 
 async function main() {
   const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN
-  const repo = process.env.GITHUB_REPOSITORY || 'rafa57600/AnthraSpace'
+  const repo = 'rafa57600/AnthraSpace'
   const result = await publishCompleteDraftReleases({ repo, token })
   writeGithubOutputs(result)
 }

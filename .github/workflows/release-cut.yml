@@ -55,6 +55,13 @@ concurrency:
   group: release-cut
   cancel-in-progress: false
 
+# Why: releases are published to a dedicated repo separate from the
+# development fork (AnthraCode_ADE). Using a PAT (ANTHRASPACE_RELEASE_TOKEN)
+# with `repo` scope on the release repo allows the workflow running in
+# AnthraCode_ADE to create releases and upload artifacts to AnthraSpace.
+env:
+  RELEASE_REPO: rafa57600/AnthraSpace
+
 jobs:
   cut:
     runs-on: ubuntu-latest
@@ -180,7 +187,7 @@ jobs:
         # later cron retry may be the first chance to unstick a complete RC draft.
         if: steps.window.outputs.allowed == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.ANTHRASPACE_RELEASE_TOKEN }}
         run: node config/scripts/publish-complete-draft-releases.mjs
 
       - name: Compute next version
@@ -190,7 +197,7 @@ jobs:
         # Stable dispatches should still cut the requested stable release.
         if: steps.window.outputs.allowed == 'true' && steps.existing.outputs.already_ran != 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry_run) && !((github.event_name == 'schedule' || inputs.kind == 'rc') && steps.publish_drafts.outputs.published_count != '0' && steps.publish_drafts.outputs.skipped_count == '0')
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.ANTHRASPACE_RELEASE_TOKEN }}
           KIND: ${{ github.event_name == 'schedule' && 'rc' || inputs.kind }}
         run: |
           set -euo pipefail
@@ -212,7 +219,7 @@ jobs:
           # produce `0.0.1` — exactly the wedge on 2026-05-04 (run
           # 25304336767). Any non-desktop tag shape must be excluded here.
           latest_stable="$(gh release list \
-              --repo "$GITHUB_REPOSITORY" \
+              --repo "${{ env.RELEASE_REPO }}" \
               --exclude-drafts \
               --limit 50 \
               --json tagName \
@@ -263,7 +270,7 @@ jobs:
             local tag="$1"
             local state_file="$RUNNER_TEMP/release-state-${tag//[^A-Za-z0-9_.-]/_}"
             if gh release view "$tag" \
-                --repo "$GITHUB_REPOSITORY" \
+                --repo "${{ env.RELEASE_REPO }}" \
                 --json isDraft \
                 --jq '.isDraft' >"$state_file" 2>/dev/null; then
               cat "$state_file"
@@ -423,10 +430,10 @@ jobs:
 
       - name: Create draft release with auto-generated notes
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.ANTHRASPACE_RELEASE_TOKEN }}
           TAG: ${{ needs.cut.outputs.tag }}
         run: |
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          if gh release view "$TAG" --repo "${{ env.RELEASE_REPO }}" >/dev/null 2>&1; then
             echo "Release $TAG already exists."
             exit 0
           fi
@@ -620,7 +627,7 @@ jobs:
           retry_wait_seconds: 30
           command: ${{ matrix.release_command }}
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.ANTHRASPACE_RELEASE_TOKEN }}
           CSC_LINK: ${{ secrets.MAC_CERTS }}
           CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTS_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -636,7 +643,7 @@ jobs:
           retry_wait_seconds: 30
           command: ${{ matrix.release_command }}
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.ANTHRASPACE_RELEASE_TOKEN }}
 
       - name: Verify release remains draft after artifact upload
         # Why: the build matrix must never be the actor that exposes a partial
@@ -644,11 +651,11 @@ jobs:
         # this platform leg and leave the diagnostic monitor artifact behind.
         shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.ANTHRASPACE_RELEASE_TOKEN }}
           TAG: ${{ needs.cut.outputs.tag }}
         run: |
           set -euo pipefail
-          releases_json="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100")"
+          releases_json="$(gh api "repos/${{ env.RELEASE_REPO }}/releases?per_page=100")"
           # Why: release upload must validate the draft before it is publicly visible.
           draft="$(jq -e -r --arg tag "$TAG" '
             map(select(.tag_name == $tag))
@@ -698,11 +705,11 @@ jobs:
 
       - name: Verify release is still draft
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.ANTHRASPACE_RELEASE_TOKEN }}
           TAG: ${{ needs.cut.outputs.tag }}
         run: |
           set -euo pipefail
-          releases_json="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100")"
+          releases_json="$(gh api "repos/${{ env.RELEASE_REPO }}/releases?per_page=100")"
           # Why: publish-release verifies the draft before making it visible.
           draft="$(jq -e -r --arg tag "$TAG" '
             map(select(.tag_name == $tag))
@@ -721,7 +728,7 @@ jobs:
         # transition. Refuse to un-draft until every updater manifest and
         # referenced installer asset is present on GitHub.
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.ANTHRASPACE_RELEASE_TOKEN }}
           TAG: ${{ needs.cut.outputs.tag }}
         run: node config/scripts/verify-release-required-assets.mjs "$TAG"
 
@@ -734,7 +741,7 @@ jobs:
         # Re-asserting here means the final release state is determined
         # by the tag — a ground truth electron-builder can't rewrite.
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.ANTHRASPACE_RELEASE_TOKEN }}
           TAG: ${{ needs.cut.outputs.tag }}
         run: |
           set -euo pipefail
@@ -746,6 +753,6 @@ jobs:
           gh release edit "$TAG" \
             --draft=false \
             --prerelease="$prerelease" \
-            --repo "$GITHUB_REPOSITORY"
+            --repo "${{ env.RELEASE_REPO }}"
 
 

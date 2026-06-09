@@ -2,24 +2,14 @@ import { pathToFileURL } from 'node:url'
 
 const API_VERSION = '2022-11-28'
 
+// Why: currently only Windows builds are published. macOS and Linux will
+// be added back when signing infrastructure and CI runners are ready.
 export function getRequiredReleaseAssetNames(tag) {
   const version = tag.replace(/^v/i, '')
   return [
-    'latest-linux.yml',
-    'latest-mac.yml',
     'latest.yml',
-    'anthraspace-linux.AppImage',
-    `anthraspace-ide_${version}_amd64.deb`,
     'anthraspace-windows-setup.exe',
-    'anthraspace-windows-setup.exe.blockmap',
-    `AnthraSpace-${version}-mac.zip`,
-    `AnthraSpace-${version}-mac.zip.blockmap`,
-    `AnthraSpace-${version}-arm64-mac.zip`,
-    `AnthraSpace-${version}-arm64-mac.zip.blockmap`,
-    'anthraspace-macos-x64.dmg',
-    'anthraspace-macos-x64.dmg.blockmap',
-    'anthraspace-macos-arm64.dmg',
-    'anthraspace-macos-arm64.dmg.blockmap'
+    'anthraspace-windows-setup.exe.blockmap'
   ]
 }
 

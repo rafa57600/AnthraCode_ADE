@@ -33,8 +33,23 @@ Production-ready changes must be recorded here after implementation and verifica
 ### Production impact
 
 - The first manual dispatch of "Cut Release" will create a draft release in
-  `rafa57600/AnthraSpace`, build artifacts for all 3 platforms in CI, upload them to the
+  `rafa57600/AnthraSpace`, build Windows artifacts in CI, upload them to the
   draft, and publish the release — making the app downloadable and auto-updatable.
+
+## 2026-06-09 — Windows-only build matrix
+
+### Production change (<a href='https://github.com/rafa57600/AnthraCode_ADE/commit/202a1df0'>202a1df0</a>)
+
+- Stripped macOS and Linux from the build matrix; only `windows-latest` remains.
+- Removed macOS signing steps, Linux node-gyp step, and Linux AT-SPI dependency step.
+- Simplified `verify-release-required-assets.mjs` to only check Windows artifacts
+  (`latest.yml`, `anthraspace-windows-setup.exe`, `.exe.blockmap`).
+- macOS and Linux builds will be restored when signing infrastructure and runners are ready.
+
+### Verification
+
+- Only `windows-latest` entry in the build matrix.
+- Asset verification only requires `latest.yml` and `.exe` / `.blockmap`.
 
 ## 2026-06-09 — Phase 1 backward-compat: legacy `.orca-*` read fallbacks
 

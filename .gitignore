@@ -104,3 +104,9 @@ playwright-report/
 
 # Agent hook runtime endpoints (machine-local secrets)
 /agent-hooks/
+
+# Agent tooling configuration (machine-local plugins, tool registration)
+/.opencode/
+
+# Generated knowledge graph data (rebuilt on git commits)
+/graphify-out/

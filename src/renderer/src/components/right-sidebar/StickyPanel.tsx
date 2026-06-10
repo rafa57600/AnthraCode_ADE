@@ -111,10 +111,15 @@ export default function StickyPanel(): React.JSX.Element {
       try {
         const result = await window.api.sticky.read(projectPath, doc.relativePath)
         if (result) {
-          setSelectedDoc(doc)
-          setEditorContent(result.content)
-          setHasUnsavedChanges(false)
-          setViewMode('edit')
+      setSelectedDoc(doc)
+      setEditorContent(result.content)
+      setHasUnsavedChanges(false)
+      // Why: skip preview for files that only have markdown heading
+      // skeletons (e.g. '# ', '## ') with no actual text content.
+      const trimmed = result.content.trim()
+      const hasRealContent =
+        trimmed.length > 2 && !/^#+\s*$/.test(trimmed)
+      setViewMode(hasRealContent ? 'preview' : 'edit')
           setShowCreateInput(false)
           setRenamingDocId(null)
         }
@@ -263,7 +268,7 @@ export default function StickyPanel(): React.JSX.Element {
 
   if (!projectPath) {
     return (
-      <div className="flex flex-col h-full overflow-y-auto scrollbar-sleek">
+      <div className="flex flex-col flex-1 min-h-0 overflow-y-auto scrollbar-sleek">
         <Header />
         <div className="flex flex-col items-center justify-center flex-1 px-4 text-center text-muted-foreground">
           <PanelRight size={32} className="mb-3 opacity-50" />
@@ -274,7 +279,7 @@ export default function StickyPanel(): React.JSX.Element {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       <Header onAddClick={() => setShowCreateInput(true)} />
 
       {showCreateInput && (
@@ -314,7 +319,7 @@ export default function StickyPanel(): React.JSX.Element {
       <div className="flex flex-col flex-1 min-h-0">
         {/* Document list — hidden if we're viewing a doc */}
         {(documents.length > 0 || showCreateInput) && !selectedDoc && (
-          <div className="flex-shrink-0 max-h-[40%] overflow-y-auto scrollbar-sleek border-b border-border">
+          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-sleek border-b border-border">
             {documents.map((doc) => (
               <div key={doc.relativePath}>
                 {renamingDocId === doc.relativePath ? (
@@ -477,21 +482,21 @@ export default function StickyPanel(): React.JSX.Element {
             </div>
 
             {/* Editor / Markdown preview */}
-            <div className="flex-1 min-h-0">
+            <div className="flex flex-col flex-1 min-h-0">
               {viewMode === 'edit' ? (
                 <textarea
                   ref={editorRef}
                   value={editorContent}
                   onChange={handleEditorChange}
                   onKeyDown={handleEditorKeyDown}
-                  className="w-full h-full resize-none bg-input text-sm text-foreground
+                  className="flex-1 min-h-0 w-full resize-none bg-input text-sm text-foreground
                              p-3 outline-none border-none font-mono leading-relaxed
                              placeholder:text-muted-foreground scrollbar-sleek"
                   placeholder="Start writing markdown..."
                   spellCheck={false}
                 />
               ) : (
-                <div className="h-full overflow-y-auto bg-editor-surface p-3 scrollbar-sleek">
+                <div className="flex-1 min-h-0 overflow-y-auto bg-editor-surface p-3 scrollbar-sleek">
                   <CommentMarkdown
                     content={editorContent}
                     variant="document"
@@ -516,9 +521,11 @@ export default function StickyPanel(): React.JSX.Element {
           </div>
         ) : (
           /* List visible, no doc selected — show a hint */
-          <div className="flex flex-col items-center justify-center flex-1 px-4 text-center text-muted-foreground">
-            <StickyNote size={24} className="mb-2 opacity-40" />
-            <p className="text-xs">Select a note or create a new one.</p>
+          <div className="flex flex-col items-center justify-center shrink-0 px-4 py-4 text-center text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <StickyNote size={16} className="opacity-40" />
+              <p className="text-xs">Select a note or create a new one.</p>
+            </div>
           </div>
         )}
       </div>

@@ -168,7 +168,12 @@ function RightSidebarInner(): React.JSX.Element {
         {effectiveTab === 'ports' && (
           <PortsPanel isVisible={rightSidebarOpen && effectiveTab === 'ports'} />
         )}
-        {effectiveTab === 'sticky' && <StickyPanel />}
+        {/* Why: StickyPanel stays mounted (hidden when not active) so the
+            user's current note, content, and unsaved changes survive tab switches.
+            Conditional unmount would reset all panel state on every switch. */}
+        <div className={effectiveTab === 'sticky' ? 'flex flex-col flex-1 min-h-0 overflow-hidden' : 'hidden'}>
+          <StickyPanel />
+        </div>
       </div>
     </div>
   )

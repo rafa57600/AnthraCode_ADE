@@ -2,6 +2,19 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-09 — Branding audit: all logos use AnthraCode assets
+
+### Production change
+
+- Replaced the last remaining old upstream logo in `HomeSlide.tsx` — the inline `AnthraSpaceLogo` SVG was still rendering the OpenCode white-flame path; now renders the AnthraCode "A" logo matching `anthracode_logo.svg`.
+- Removed stale `resources/logo.svg` (unreferenced old upstream OpenCode logo).
+- Updated `resources/icon-source/icon.icon/Assets/logo.svg` to use the AnthraCode "A" shape (for macOS icon generator toolchain).
+
+### Verification
+
+- Typecheck passes (0 errors).
+- Grep audit of all `logo.svg` references confirms no remaining code imports the old file.
+
 ## 2026-06-09 — Desktop release pipeline: repo target and workflow cleanup
 
 ### Production change
@@ -242,6 +255,24 @@ Production-ready changes must be recorded here after implementation and verifica
 
 - Windows packaging no longer re-enters node-gyp for optional `cpu-features` after the project's Electron runtime verification already handled required native modules.
 - macOS/Linux release behavior remains safer because Electron Builder can still rebuild native modules for target architectures.
+
+## 2026-06-10 — Sticky Panel: preview-by-default for existing notes + tab-switch persistence
+
+### Production change
+
+- **Preview on open**: Existing sticky notes with content now open in preview mode instead of edit mode. New or empty notes (no content beyond `'# '`) still open in edit mode so users can start typing immediately.
+- **Tab-switch persistence**: The StickyPanel component stays mounted (hidden via CSS `display: none`) when the user switches to another right-sidebar tab (Explorer, Search, Source Control, etc.). The previous note selection, text content, and unsaved-changes state are preserved across tab switches — no more lost edits or having to re-select the note.
+
+### Verification
+
+- TypeScript typecheck passes (0 errors, 5714ms).
+- Logic verified: `handleSelect` checks `content.trim().length > 2` to decide preview vs edit.
+- Layout confirmed: hidden StickyPanel uses `display: none` via Tailwind `hidden` class, consuming no flex space when inactive.
+
+### Production impact
+
+- Eliminates a common frustration point where users lost their place in a sticky note after briefly switching to another sidebar panel.
+- Saves one click per existing-note open by showing the rendered preview first instead of raw markdown.
 
 ## 2026-05-31 — AnthraCode provider logo vector cleanup
 

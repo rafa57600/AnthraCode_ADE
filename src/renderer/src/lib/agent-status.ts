@@ -131,8 +131,22 @@ export function formatAgentTypeLabel(agentType: AgentType | null | undefined): s
   if (!agentType || agentType === 'unknown') {
     return 'Agent'
   }
+  // ANTHRASPACE: normalize 'anthracode' → 'anthraspace' so the label
+  // resolution treats them as the same product.
+  const key = normalizeAgentType(agentType)
   // Capitalize well-known names nicely; pass through custom names as-is
-  return WELL_KNOWN_LABELS[agentType] ?? agentType
+  return WELL_KNOWN_LABELS[key] ?? agentType
+}
+
+// Why: AnthraCode IS AnthraSpace — the same product. Agent sessions typed
+// as 'anthracode' (from the rebranding shim that rewrites 'opencode' →
+// 'anthracode') must resolve to the AnthraSpace icon and label. Normalizing
+// upfront lets every downstream lookup (icon, label, catalog) work with the
+// canonical value without adding 'anthracode' to the TuiAgent union.
+const ANTHRACODE_TO_ANTHRASPACE = 'anthracode' as const
+
+function normalizeAgentType(agentType: AgentType): AgentType {
+  return agentType === ANTHRACODE_TO_ANTHRASPACE ? 'anthraspace' : agentType
 }
 
 // Why: AgentIcon expects a TuiAgent, but AgentType is a broader union
@@ -185,8 +199,9 @@ export function agentTypeToIconAgent(agentType: AgentType | null | undefined): T
   if (!agentType || agentType === 'unknown') {
     return null
   }
-  return Object.prototype.hasOwnProperty.call(ICONABLE_AGENT_TYPES, agentType)
-    ? (agentType as TuiAgent)
+  const normalized = normalizeAgentType(agentType)
+  return Object.prototype.hasOwnProperty.call(ICONABLE_AGENT_TYPES, normalized)
+    ? (normalized as TuiAgent)
     : null
 }
 

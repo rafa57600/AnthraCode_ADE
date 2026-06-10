@@ -2533,6 +2533,10 @@ export const HOOK_SOURCE_BY_PATHNAME: Readonly<Record<string, AgentHookSource>> 
   '/hook/gemini': 'gemini',
   '/hook/antigravity': 'antigravity',
   '/hook/anthraspace': 'anthraspace',
+  // ANTHRASPACE: AnthraCode IS AnthraSpace. The AnthraCode binary (ORCA_TUI_AGENT_TYPE=anthracode)
+  // POSTs to /hook/anthracode; route it to the 'anthraspace' source so hooks are processed
+  // identically to AnthraSpace sessions.
+  '/hook/anthracode': 'anthraspace',
   '/hook/opencode': 'opencode',
   '/hook/cursor': 'cursor',
   '/hook/pi': 'pi',

@@ -40,7 +40,7 @@ describe('shared agent-hook-listener', () => {
     expect(resolveHookSource('/hook/claude')).toBe('claude')
     expect(resolveHookSource('/hook/cursor')).toBe('cursor')
     expect(resolveHookSource('/hook/antigravity')).toBe('antigravity')
-    expect(resolveHookSource('/hook/anthracode')).toBe('anthracode')
+    expect(resolveHookSource('/hook/anthracode')).toBe('anthraspace')
     expect(resolveHookSource('/hook/grok')).toBe('grok')
     expect(resolveHookSource('/hook/hermes')).toBe('hermes')
     expect(resolveHookSource('/hook/pi')).toBe('pi')
@@ -148,7 +148,7 @@ describe('shared agent-hook-listener', () => {
     expect(event?.payload).toMatchObject({
       state: 'working',
       prompt: 'fix provider identity',
-      agentType: 'anthracode'
+      agentType: 'anthraspace'
     })
   })
 

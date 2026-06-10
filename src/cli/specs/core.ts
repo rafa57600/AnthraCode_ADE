@@ -4,14 +4,14 @@ import { GLOBAL_FLAGS } from '../args'
 export const CORE_COMMAND_SPECS: CommandSpec[] = [
   {
     path: ['open'],
-    summary: 'Launch Orca and wait for the runtime to be reachable',
+    summary: 'Launch AnthraSpace and wait for the runtime to be reachable',
     usage: 'orca open [--json]',
     allowedFlags: [...GLOBAL_FLAGS],
     examples: ['orca open', 'orca open --json']
   },
   {
     path: ['serve'],
-    summary: 'Start an Orca runtime server without opening a desktop window',
+    summary: 'Start an AnthraSpace runtime server without opening a desktop window',
     usage:
       'orca serve [--port <port>] [--pairing-address <host>] [--mobile-pairing] [--no-pairing] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'port', 'pairing-address', 'mobile-pairing', 'no-pairing'],
@@ -37,13 +37,13 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
   },
   {
     path: ['repo', 'list'],
-    summary: 'List repos registered in Orca',
+    summary: 'List repos registered in AnthraSpace',
     usage: 'orca repo list [--json]',
     allowedFlags: [...GLOBAL_FLAGS]
   },
   {
     path: ['repo', 'add'],
-    summary: 'Add a project to Orca by filesystem path',
+    summary: 'Add a project to AnthraSpace by filesystem path',
     usage: 'orca repo add --path <path> [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'path']
   },
@@ -67,7 +67,7 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
   },
   {
     path: ['worktree', 'list'],
-    summary: 'List Orca-managed worktrees',
+    summary: 'List AnthraSpace-managed worktrees',
     usage: 'orca worktree list [--repo <selector>] [--limit <n>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'repo', 'limit']
   },
@@ -79,17 +79,17 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
   },
   {
     path: ['worktree', 'current'],
-    summary: 'Show the Orca-managed worktree for the current directory',
+    summary: 'Show the AnthraSpace-managed worktree for the current directory',
     usage: 'orca worktree current [--json]',
     allowedFlags: [...GLOBAL_FLAGS],
     notes: [
-      'Resolves the current shell directory to a path: selector so agents can target the enclosing Orca worktree without spelling out $PWD.'
+      'Resolves the current shell directory to a path: selector so agents can target the enclosing AnthraSpace worktree without spelling out $PWD.'
     ],
     examples: ['orca worktree current', 'orca worktree current --json']
   },
   {
     path: ['worktree', 'create'],
-    summary: 'Create a new Orca-managed worktree',
+    summary: 'Create a new AnthraSpace-managed worktree',
     usage:
       'orca worktree create --repo <selector> --name <name> [--base-branch <ref>] [--issue <number>] [--comment <text>] [--parent-worktree <selector>] [--no-parent] [--run-hooks] [--activate] [--json]',
     allowedFlags: [
@@ -105,10 +105,10 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
       'activate'
     ],
     notes: [
-      'By default, Orca records the new worktree as a child of the caller workspace when it can infer one from the Orca terminal or current directory.',
+      'By default, AnthraSpace records the new worktree as a child of the caller workspace when it can infer one from the AnthraSpace terminal or current directory.',
       'For related work, use the inferred parent or pass --parent-worktree active to make the current workspace relationship explicit.',
       'Use --no-parent when the new worktree should be independent of the current workspace.',
-      'By default this creates the worktree and its first terminal without switching the active Orca workspace.',
+      'By default this creates the worktree and its first terminal without switching the active AnthraSpace workspace.',
       'Repo-defined setup hooks follow the repository setup policy; pass --run-hooks to force them.',
       'Pass --activate when the CLI caller intentionally wants to reveal the new worktree in the app.',
       'Passing --run-hooks reveals the worktree so the setup hook can run in its first terminal.'
@@ -121,7 +121,7 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
   },
   {
     path: ['worktree', 'set'],
-    summary: 'Update Orca metadata for a worktree',
+    summary: 'Update AnthraSpace metadata for a worktree',
     usage:
       'orca worktree set --worktree <selector> [--display-name <name>] [--issue <number|null>] [--comment <text>] [--parent-worktree <selector>|--no-parent] [--json]',
     allowedFlags: [
@@ -136,7 +136,7 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
   },
   {
     path: ['worktree', 'rm'],
-    summary: 'Remove a worktree from Orca and git',
+    summary: 'Remove a worktree from AnthraSpace and git',
     usage: 'orca worktree rm --worktree <selector> [--force] [--run-hooks] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'worktree', 'force', 'run-hooks'],
     notes: ['Repo-defined orca.yaml archive hooks are skipped unless --run-hooks is passed.']
@@ -149,7 +149,7 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
   },
   {
     path: ['terminal', 'list'],
-    summary: 'List live Orca-managed terminals',
+    summary: 'List live AnthraSpace-managed terminals',
     usage: 'orca terminal list [--worktree <selector>] [--limit <n>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'worktree', 'limit']
   },
@@ -254,3 +254,4 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
     ]
   }
 ]
+

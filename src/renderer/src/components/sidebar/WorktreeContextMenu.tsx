@@ -581,7 +581,7 @@ const WorktreeContextMenu = React.memo(function WorktreeContextMenu({
               : isMultiContext
                 ? deleteLabel
                 : removesFolderProject
-                  ? 'Remove Folder from Orca'
+                  ? 'Remove Folder from AnthraSpace'
                   : 'Delete'}
           </DropdownMenuItem>
         </DropdownMenuContent>

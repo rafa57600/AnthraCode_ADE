@@ -61,7 +61,7 @@ export default function WorktreeVisibilityDialog(): React.JSX.Element | null {
     <Dialog open onOpenChange={(open) => !open && closeModal()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Non-Orca worktrees</DialogTitle>
+          <DialogTitle>Non-AnthraSpace worktrees</DialogTitle>
           <DialogDescription>{repo.displayName}</DialogDescription>
         </DialogHeader>
 

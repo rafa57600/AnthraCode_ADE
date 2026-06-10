@@ -1,7 +1,7 @@
 import React from 'react'
 
 export function AnthraSpaceIcon({ size = 14 }: { size?: number }): React.JSX.Element {
-  // ANTHRASPACE: inline resources/anthracode_logo.svg so the provider picker
+  // ANTHRASPACE: inline resources/anthraspace_logo.svg so the provider picker
   // keeps working in dev/prod without depending on external asset paths.
   return (
     <svg

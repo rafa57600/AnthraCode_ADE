@@ -2056,7 +2056,7 @@ function SourceControlInner(): React.JSX.Element {
           })
         ])
       } catch {
-        toast.warning('Pull request created, but Orca could not refresh it yet.', {
+        toast.warning('Pull request created, but AnthraSpace could not refresh it yet.', {
           action: {
             label: 'Open on GitHub',
             onClick: () => window.api.shell.openUrl(result.url)

@@ -46,7 +46,7 @@ export function openRemoteRuntimeWebSocket(
   ws.on('error', () => {
     callbacks.onError(
       ws,
-      remoteRuntimeUnavailableError('Could not connect to the remote Orca runtime.')
+      remoteRuntimeUnavailableError('Could not connect to the remote AnthraSpace runtime.')
     )
   })
   ws.on('close', () => callbacks.onClose(ws))
@@ -55,7 +55,7 @@ export function openRemoteRuntimeWebSocket(
       callbacks.onError(
         ws,
         invalidRemoteRuntimeResponseError(
-          'Remote Orca runtime returned an unexpected binary frame.'
+          'Remote AnthraSpace runtime returned an unexpected binary frame.'
         )
       )
       return
@@ -94,3 +94,4 @@ function createSocket(
     }
   }
 }
+

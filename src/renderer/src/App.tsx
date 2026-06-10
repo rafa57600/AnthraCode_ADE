@@ -18,7 +18,7 @@ import {
   PanelLeft,
   PanelRight
 } from 'lucide-react'
-import logo from '../../../resources/anthracode_logo.svg'
+import logo from '../../../resources/anthraspace_logo.svg'
 import { SYNC_FIT_PANES_EVENT, TOGGLE_TERMINAL_PANE_EXPAND_EVENT } from '@/constants/terminal'
 import { syncZoomCSSVar } from '@/lib/ui-zoom'
 import { canShowRightSidebarForView } from '@/lib/right-sidebar-visibility'

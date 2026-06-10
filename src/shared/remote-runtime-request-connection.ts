@@ -152,7 +152,7 @@ export class RemoteRuntimeRequestConnection {
     const plaintext = decrypt(frame, sharedKey)
     if (plaintext === null) {
       this.close(
-        invalidRemoteRuntimeResponseError('Remote Orca runtime returned an undecryptable frame.')
+        invalidRemoteRuntimeResponseError('Remote AnthraSpace runtime returned an undecryptable frame.')
       )
       return
     }
@@ -290,3 +290,4 @@ function toClientError(error: unknown): Error {
   }
   return new RemoteRuntimeClientError('runtime_error', String(error))
 }
+

@@ -26,8 +26,8 @@ export const GIT_PANE_SEARCH_ENTRIES: SettingsSearchEntry[] = [
     keywords: ['github', 'gh', 'graphql', 'rate limit', 'api budget']
   },
   {
-    title: 'Orca Attribution',
-    description: 'Add Orca attribution to commits, PRs, and issues.',
+    title: 'AnthraSpace Attribution',
+    description: 'Add AnthraSpace attribution to commits, PRs, and issues.',
     keywords: ['github', 'gh', 'pr', 'issue', 'co-author', 'coauthored', 'attribution', 'orca']
   }
 ]

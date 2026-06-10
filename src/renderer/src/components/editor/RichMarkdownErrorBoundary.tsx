@@ -47,7 +47,7 @@ export class RichMarkdownErrorBoundary extends React.Component<Props, State> {
       return (
         <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 px-6 text-center text-sm text-muted-foreground">
           <div>
-            The rich markdown editor hit an unexpected error and was reset to keep the rest of Orca
+            The rich markdown editor hit an unexpected error and was reset to keep the rest of AnthraSpace
             responsive.
           </div>
           <div className="text-xs opacity-70">

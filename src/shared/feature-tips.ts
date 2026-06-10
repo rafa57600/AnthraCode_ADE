@@ -25,7 +25,7 @@ export const FEATURE_TIPS = [
     eyebrow: 'New',
     title: 'Voice Dictation is here',
     description:
-      'Speak into any focused pane and Orca will transcribe it. Press the dictation shortcut to start and stop.',
+      'Speak into any focused pane and AnthraSpace will transcribe it. Press the dictation shortcut to start and stop.',
     action: 'enable-voice',
     ctaLabel: 'Set Up Voice'
   }

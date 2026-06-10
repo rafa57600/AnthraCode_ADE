@@ -259,7 +259,7 @@ trap '__orca_osc133_preexec' DEBUG
 }
 
 export function getZshShellReadyRcfileContent(): string {
-  return `# Orca zsh shell-ready wrapper
+  return `# AnthraSpace zsh shell-ready wrapper
 _orca_home="\${ORCA_ORIG_ZDOTDIR:-$HOME}"
 if [[ "$_orca_home" != "$ZDOTDIR" && -o interactive && -f "$_orca_home/.zshrc" ]]; then
   source "$_orca_home/.zshrc"
@@ -317,7 +317,7 @@ function ensureShellReadyWrappers(): void {
   const bashDir = `${root}/bash`
 
   const zshEnv = getZshEnvTemplate(zshDir)
-  const zshProfile = `# Orca zsh shell-ready wrapper
+  const zshProfile = `# AnthraSpace zsh shell-ready wrapper
 _orca_home="\${ORCA_ORIG_ZDOTDIR:-$HOME}"
 case "\${_orca_home%/}" in
   */shell-ready/zsh) _orca_home="$HOME" ;;
@@ -325,7 +325,7 @@ esac
 [[ -f "$_orca_home/.zprofile" ]] && source "$_orca_home/.zprofile"
 `
   const zshRc = getZshShellReadyRcfileContent()
-  const zshLogin = `# Orca zsh shell-ready wrapper
+  const zshLogin = `# AnthraSpace zsh shell-ready wrapper
 _orca_home="\${ORCA_ORIG_ZDOTDIR:-$HOME}"
 case "\${_orca_home%/}" in
   */shell-ready/zsh) _orca_home="$HOME" ;;

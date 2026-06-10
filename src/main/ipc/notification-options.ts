@@ -34,8 +34,8 @@ export function buildNotificationOptions(args: NotificationDispatchRequest): {
 
   if (args.source === 'test') {
     return {
-      title: 'Orca notifications are on',
-      body: 'This is a test notification from Orca.'
+      title: 'AnthraSpace notifications are on',
+      body: 'This is a test notification from AnthraSpace.'
     }
   }
 
@@ -158,3 +158,4 @@ function normalizeNotificationText(value: string | null | undefined, maxLength: 
     lastCode >= 0xd800 && lastCode <= 0xdbff ? truncated.slice(0, -1) : truncated
   return `${safeTruncated}…`
 }
+

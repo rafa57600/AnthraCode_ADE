@@ -61,10 +61,10 @@ export function FloatingTerminalOrchestrationDialog({
   const cliInstalled = isAnthraSpaceCliAvailableOnPath(cliStatus)
   const cliSupported = cliStatus?.supported ?? false
   const cliLabel = cliInstalled
-    ? 'orca is on PATH'
+    ? 'anthraspace is on PATH'
     : cliLoading
       ? 'Checking CLI status...'
-      : (cliStatus?.detail ?? 'Register orca so agents can call Orca from a terminal.')
+      : (cliStatus?.detail ?? 'Register AnthraSpace so agents can call AnthraSpace from a terminal.')
 
   const handleInstallCli = async (): Promise<void> => {
     setCliBusy(true)
@@ -77,7 +77,7 @@ export function FloatingTerminalOrchestrationDialog({
         onSetupStateChange()
       }
       if (isAnthraSpaceCliAvailableOnPath(next)) {
-        toast.success('Registered `orca` in PATH.')
+        toast.success('Registered `anthraspace` in PATH.')
       }
     } finally {
       setCliBusy(false)
@@ -133,7 +133,7 @@ export function FloatingTerminalOrchestrationDialog({
         <DialogHeader>
           <DialogTitle>Enable orchestration</DialogTitle>
           <DialogDescription>
-            Add the Orca CLI, then install the agent skill in this terminal.
+            Add the AnthraSpace CLI, then install the agent skill in this terminal.
           </DialogDescription>
         </DialogHeader>
 
@@ -141,7 +141,7 @@ export function FloatingTerminalOrchestrationDialog({
           <div className="min-w-0 px-3 py-3">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 space-y-1">
-                <p className="text-sm font-medium">Orca CLI</p>
+                <p className="text-sm font-medium">AnthraSpace CLI</p>
                 <p className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
                   <span className="shrink-0">{cliLabel}</span>
                   {cliInstalled && cliStatus?.commandPath ? (
@@ -158,7 +158,7 @@ export function FloatingTerminalOrchestrationDialog({
                     size="xs"
                     disabled
                     className="shrink-0 gap-1.5 disabled:opacity-100"
-                    aria-label="Orca CLI added to PATH"
+                    aria-label="AnthraSpace CLI added to PATH"
                   >
                     <Check className="size-3" />
                     Added
@@ -185,7 +185,7 @@ export function FloatingTerminalOrchestrationDialog({
                 <div className="min-w-0 space-y-1">
                   <p className="text-sm font-medium">Orchestration skill</p>
                   <p className="text-xs text-muted-foreground">
-                    Paste this command into the terminal so agents can coordinate through Orca.
+                    Paste this command into the terminal so agents can coordinate through AnthraSpace.
                   </p>
                   {!cliInstalled ? (
                     <p className="text-xs text-muted-foreground">

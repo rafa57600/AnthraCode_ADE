@@ -444,7 +444,7 @@ export default function WorkspaceCleanupDialog(): React.JSX.Element {
                 <div className="min-w-0">
                   <DialogTitle className="text-base">Delete Inactive Workspaces</DialogTitle>
                   <DialogDescription className="mt-1 text-xs">
-                    Review inactive workspaces before deleting their local files and Orca state.
+                    Review inactive workspaces before deleting their local files and AnthraSpace state.
                   </DialogDescription>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">

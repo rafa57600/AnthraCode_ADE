@@ -379,7 +379,7 @@ export default function MobilePage(): React.JSX.Element {
               size="icon"
               className="size-7 rounded-full"
               onClick={closeMobilePage}
-              aria-label="Close Orca Mobile"
+              aria-label="Close AnthraSpace Mobile"
             >
               <X className="size-4" />
             </Button>

@@ -7,48 +7,48 @@ const ROOT_HELP_TEXT = `orca
 Usage: orca <command> [options]
 
 Startup:
-  open                      Launch Orca and wait for the runtime to be reachable
-  serve                     Start a headless Orca runtime server
+  open                      Launch AnthraSpace and wait for the runtime to be reachable
+  serve                     Start a headless AnthraSpace runtime server
   status                    Show app/runtime/graph readiness
 
 Environments:
-  environment add           Save a remote Orca runtime from a pairing code
-  environment list          List saved remote Orca runtimes
-  environment show          Show one saved remote Orca runtime
-  environment rm            Remove a saved remote Orca runtime
+  environment add           Save a remote AnthraSpace runtime from a pairing code
+  environment list          List saved remote AnthraSpace runtimes
+  environment show          Show one saved remote AnthraSpace runtime
+  environment rm            Remove a saved remote AnthraSpace runtime
 
 Automations:
-  automations list          List scheduled Orca automations
-  automations show          Show one Orca automation
-  automations create        Create a scheduled Orca automation
-  automations edit          Edit an Orca automation
-  automations remove        Remove an Orca automation and its run history
-  automations run           Run an Orca automation now
+  automations list          List scheduled AnthraSpace automations
+  automations show          Show one AnthraSpace automation
+  automations create        Create a scheduled AnthraSpace automation
+  automations edit          Edit an AnthraSpace automation
+  automations remove        Remove an AnthraSpace automation and its run history
+  automations run           Run an AnthraSpace automation now
   automations runs          List automation run history
 
 Repos:
-  repo list                 List repos registered in Orca
-  repo add                  Add a project to Orca by filesystem path
+  repo list                 List repos registered in AnthraSpace
+  repo add                  Add a project to AnthraSpace by filesystem path
   repo show                 Show one registered repo
   repo set-base-ref         Set the repo's default base ref for future worktrees
   repo search-refs          Search branch/tag refs within a repo
 
 Worktrees:
-  worktree list             List Orca-managed worktrees
+  worktree list             List AnthraSpace-managed worktrees
   worktree show             Show one worktree
-  worktree current          Show the Orca-managed worktree for the current directory
-  worktree create           Create a new Orca-managed worktree
-  worktree set              Update Orca metadata for a worktree
-  worktree rm               Remove a worktree from Orca and git
+  worktree current          Show the AnthraSpace-managed worktree for the current directory
+  worktree create           Create a new AnthraSpace-managed worktree
+  worktree set              Update AnthraSpace metadata for a worktree
+  worktree rm               Remove a worktree from AnthraSpace and git
   worktree ps               Show a compact orchestration summary across worktrees
 
 Files:
-  file open                 Open a workspace file in the Orca editor
-  file diff                 Open a workspace file diff in the Orca editor
+  file open                 Open a workspace file in the AnthraSpace editor
+  file diff                 Open a workspace file diff in the AnthraSpace editor
   file open-changed         Open all git-changed files for a workspace
 
 Terminals:
-  terminal list             List live Orca-managed terminals
+  terminal list             List live AnthraSpace-managed terminals
   terminal show             Show terminal metadata and preview
   terminal read             Read bounded terminal output
   terminal send             Send input to a live terminal
@@ -209,12 +209,12 @@ Wait Options:
 
 Output Options:
   --json                    Emit machine-readable JSON instead of human text
-  --pairing-code <code>      Connect to a remote Orca runtime using an orca://pair#... code
+  --pairing-code <code>      Connect to a remote AnthraSpace runtime using an orca://pair#... code
   --environment <selector>   Connect using a saved environment id or name
   --help                    Show this help message
 
 Behavior:
-  Most commands require a running Orca runtime. If Orca is not open yet, run \`orca open\` first.
+  Most commands require a running AnthraSpace runtime. If AnthraSpace is not open yet, run \`orca open\` first.
   Remote runtime access can also be supplied with ORCA_PAIRING_CODE or ORCA_ENVIRONMENT.
   Use selectors for discovery and handles for repeated live terminal operations.
 
@@ -340,19 +340,19 @@ export function formatFlagHelp(flag: string): string {
   const helpByFlag: Record<string, string> = {
     'base-branch': '--base-branch <ref>    Base branch/ref to create the worktree from',
     command: '--command <text>       Command to run in the terminal on startup',
-    comment: '--comment <text>       Comment stored in Orca metadata',
+    comment: '--comment <text>       Comment stored in AnthraSpace metadata',
     cursor: '--cursor <n>           Line cursor from a previous read (returns only new output)',
     action: '--action <name>       Secondary accessibility action name',
-    activate: '--activate             Reveal the new worktree in the Orca app',
+    activate: '--activate             Reveal the new worktree in the AnthraSpace app',
     app: '--app <app>            App name, bundle ID, or pid:N',
     direction:
       '--direction <dir>      Direction: up|down|left|right for scroll, horizontal|vertical for split',
-    'display-name': '--display-name <name>  Override the Orca display name',
+    'display-name': '--display-name <name>  Override the AnthraSpace display name',
     'element-index': '--element-index <n>   Element index from get-app-state',
     title: '--title <text>         Custom title for the terminal tab (omit to reset)',
     enter: '--enter                Append Enter after sending text',
     force: '--force                Force worktree removal when supported',
-    focus: '--focus                Reveal the created terminal session in Orca',
+    focus: '--focus                Reveal the created terminal session in AnthraSpace',
     for: '--for exit|tui-idle    Wait condition to satisfy',
     'from-element-index': '--from-element-index <n> Source element index from get-app-state',
     'from-x': '--from-x <x>           Source window-local x coordinate',

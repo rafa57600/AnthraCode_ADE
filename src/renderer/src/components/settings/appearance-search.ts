@@ -65,7 +65,7 @@ export const STATUS_BAR_TOGGLES: readonly {
 export const THEME_ENTRIES: SettingsSearchEntry[] = [
   {
     title: 'Theme',
-    description: 'Choose how Orca looks in the app window.',
+    description: 'Choose how AnthraSpace looks in the app window.',
     keywords: ['dark', 'light', 'system']
   }
 ]
@@ -81,7 +81,7 @@ export const ZOOM_ENTRIES: SettingsSearchEntry[] = [
 export const TYPOGRAPHY_ENTRIES: SettingsSearchEntry[] = [
   {
     title: 'IDE Font',
-    description: 'Choose the font used by the Orca interface.',
+    description: 'Choose the font used by the AnthraSpace interface.',
     keywords: ['font', 'typeface', 'typography', 'ide', 'orca', 'interface', 'app', 'ui']
   }
 ]
@@ -97,7 +97,7 @@ export const LAYOUT_ENTRIES: SettingsSearchEntry[] = [
 export const TITLEBAR_ENTRIES: SettingsSearchEntry[] = [
   {
     title: 'Titlebar App Name',
-    description: 'Show Orca in the titlebar.',
+    description: 'Show AnthraSpace in the titlebar.',
     keywords: ['titlebar', 'orca', 'app', 'name', 'brand']
   }
 ]

@@ -15,7 +15,7 @@ vi.mock('electron', () => ({
     setApplicationMenu: setApplicationMenuMock
   },
   app: {
-    name: 'Orca'
+    name: 'AnthraSpace'
   }
 }))
 
@@ -197,7 +197,7 @@ describe('registerAppMenu', () => {
 
     const helpLabels = getSubmenu(template, 'Help').map((item) => item.label)
     expect(helpLabels).toEqual(
-      expect.arrayContaining(['Report Crash...', 'Explore Orca', 'Check for Updates...'])
+      expect.arrayContaining(['Report Crash...', 'Explore AnthraSpace', 'Check for Updates...'])
     )
   })
 
@@ -205,7 +205,7 @@ describe('registerAppMenu', () => {
     registerAppMenu(buildMenuOptions())
 
     const template = getTemplate()
-    const appSubmenu = getSubmenu(template, 'Orca')
+    const appSubmenu = getSubmenu(template, 'AnthraSpace')
     const appLabels = appSubmenu.map((item) => item.label)
     expect(appLabels).toEqual(
       expect.arrayContaining(['Check for Updates...', `Settings\t${isMac ? '⌘,' : 'Ctrl+,'}`])
@@ -216,7 +216,7 @@ describe('registerAppMenu', () => {
     expect(fileLabels).not.toContain(`Settings\t${isMac ? '⌘,' : 'Ctrl+,'}`)
     expect(fileLabels).not.toContain('Exit')
     const helpLabels = getSubmenu(template, 'Help').map((item) => item.label)
-    expect(helpLabels).toEqual(['Report Crash...', undefined, 'Explore Orca'])
+    expect(helpLabels).toEqual(['Report Crash...', undefined, 'Explore AnthraSpace'])
   })
 
   it('routes Feature tour through its callback', () => {
@@ -224,7 +224,7 @@ describe('registerAppMenu', () => {
     registerAppMenu(options)
 
     const featureTourItem = getSubmenu(getTemplate(), 'Help').find(
-      (entry) => entry.label === 'Explore Orca'
+      (entry) => entry.label === 'Explore AnthraSpace'
     )
     expect(featureTourItem?.accelerator).toBeUndefined()
 

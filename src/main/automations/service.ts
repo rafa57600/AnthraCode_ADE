@@ -168,7 +168,7 @@ export class AutomationService {
     return unavailable(
       null,
       'provider_unsupported',
-      'This agent does not report usage to Orca yet.'
+      'This agent does not report usage to AnthraSpace yet.'
     )
   }
 
@@ -203,7 +203,7 @@ export class AutomationService {
         runId: run.id,
         status: 'skipped_missed',
         workspaceId: automation.workspaceId,
-        error: 'Orca was unavailable during the missed-run grace window.'
+        error: 'AnthraSpace was unavailable during the missed-run grace window.'
       })
       this.store.advanceAutomationNextRun(automation.id, now)
       return
@@ -223,7 +223,7 @@ export class AutomationService {
         runId: run.id,
         status: 'skipped_unavailable',
         workspaceId: automation.workspaceId,
-        error: 'No Orca window was available to launch the automation.'
+        error: 'No AnthraSpace window was available to launch the automation.'
       })
     }
     const updated = this.store.updateAutomationRun({
@@ -247,3 +247,4 @@ function isFinalRunStatus(status: AutomationRunStatus): boolean {
     status === 'skipped_needs_interactive_auth'
   )
 }
+

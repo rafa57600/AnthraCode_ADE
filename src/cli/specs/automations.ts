@@ -14,14 +14,14 @@ const AUTOMATION_STATE_FLAGS = [
 export const AUTOMATION_COMMAND_SPECS: CommandSpec[] = [
   {
     path: ['automations', 'list'],
-    summary: 'List scheduled Orca automations',
+    summary: 'List scheduled AnthraSpace automations',
     usage: 'orca automations list [--json]',
     allowedFlags: [...GLOBAL_FLAGS],
     examples: ['orca automations list', 'orca automations list --json']
   },
   {
     path: ['automations', 'show'],
-    summary: 'Show one Orca automation',
+    summary: 'Show one AnthraSpace automation',
     usage: 'orca automations show <id> [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'id'],
     positionalArgs: ['id'],
@@ -29,7 +29,7 @@ export const AUTOMATION_COMMAND_SPECS: CommandSpec[] = [
   },
   {
     path: ['automations', 'create'],
-    summary: 'Create a scheduled Orca automation',
+    summary: 'Create a scheduled AnthraSpace automation',
     usage:
       'orca automations create --name <name> --trigger <preset|cron|rrule> --prompt <text> --provider <agent> [--repo <selector>|--workspace <selector>] [--json]',
     allowedFlags: [
@@ -43,7 +43,7 @@ export const AUTOMATION_COMMAND_SPECS: CommandSpec[] = [
     ],
     notes: [
       'Trigger accepts hourly, daily, weekdays, weekly, a 5-field cron expression, or an RRULE string.',
-      'When --repo is omitted, the CLI uses the enclosing Orca worktree when one can be resolved from cwd.',
+      'When --repo is omitted, the CLI uses the enclosing AnthraSpace worktree when one can be resolved from cwd.',
       'Use --workspace to run in an existing worktree; otherwise the automation creates a new worktree per run.',
       'Use --reuse-session only with existing-workspace automations to submit later runs to the previous live automation session when it is still available. Use --fresh-session to disable reuse.'
     ],
@@ -54,7 +54,7 @@ export const AUTOMATION_COMMAND_SPECS: CommandSpec[] = [
   },
   {
     path: ['automations', 'edit'],
-    summary: 'Edit an Orca automation',
+    summary: 'Edit an AnthraSpace automation',
     usage: 'orca automations edit <id> [--name <name>] [--trigger <preset|cron|rrule>] [--json]',
     allowedFlags: [
       ...GLOBAL_FLAGS,
@@ -74,7 +74,7 @@ export const AUTOMATION_COMMAND_SPECS: CommandSpec[] = [
   },
   {
     path: ['automations', 'remove'],
-    summary: 'Remove an Orca automation and its run history',
+    summary: 'Remove an AnthraSpace automation and its run history',
     usage: 'orca automations remove <id> [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'id'],
     positionalArgs: ['id'],
@@ -82,7 +82,7 @@ export const AUTOMATION_COMMAND_SPECS: CommandSpec[] = [
   },
   {
     path: ['automations', 'run'],
-    summary: 'Run an Orca automation now',
+    summary: 'Run an AnthraSpace automation now',
     usage: 'orca automations run <id> [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'id'],
     positionalArgs: ['id'],
@@ -96,3 +96,4 @@ export const AUTOMATION_COMMAND_SPECS: CommandSpec[] = [
     examples: ['orca automations runs', 'orca automations runs --id 2f9e... --json']
   }
 ]
+

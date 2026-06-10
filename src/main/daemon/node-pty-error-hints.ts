@@ -55,7 +55,7 @@ export function parseNodePtyDiagnostic(message: string): NodePtyDiagnostic | nul
 
 export function getNodePtyRecoveryHint(diagnostic: NodePtyDiagnostic): string | null {
   if (diagnostic.step === 'posix_spawn' && diagnostic.errno === 2) {
-    return "Daemon's node-pty install is gone (worktree deleted?). Restart Orca."
+    return "Daemon's node-pty install is gone (worktree deleted?). Restart AnthraSpace."
   }
   if (
     PTY_ALLOCATION_STEPS.has(diagnostic.step) &&
@@ -84,3 +84,4 @@ export function addNodePtyRecoveryHint(message: string): string {
   }
   return hint ? `${hint} ${message}` : message
 }
+

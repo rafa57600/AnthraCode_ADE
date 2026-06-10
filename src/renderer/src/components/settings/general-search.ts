@@ -36,7 +36,7 @@ export const GENERAL_EDITOR_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   },
   {
     title: 'Auto Save Delay',
-    description: 'How long Orca waits after your last edit before saving automatically.',
+    description: 'How long AnthraSpace waits after your last edit before saving automatically.',
     keywords: ['autosave', 'delay', 'milliseconds']
   },
   {
@@ -81,12 +81,12 @@ export const GENERAL_NAVIGATION_SEARCH_ENTRIES: SettingsSearchEntry[] = [
 export const GENERAL_CLI_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   {
     title: 'Shell command',
-    description: 'Register or remove the orca shell command.',
+    description: 'Register or remove the anthraspace shell command.',
     keywords: ['cli', 'path', 'terminal', 'command']
   },
   {
     title: 'Agent skill',
-    description: 'Install the Orca skill so agents know to use the orca CLI.',
+    description: 'Install the AnthraSpace skill so agents know to use the anthraspace CLI.',
     keywords: ['skill', 'agents', 'npx']
   }
 ]
@@ -94,7 +94,7 @@ export const GENERAL_CLI_SEARCH_ENTRIES: SettingsSearchEntry[] = [
 export const GENERAL_UPDATE_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   {
     title: 'Check for Updates',
-    description: 'Check for app updates and install a newer Orca version.',
+    description: 'Check for app updates and install a newer AnthraSpace version.',
     keywords: ['update', 'version', 'release notes', 'download']
   }
 ]
@@ -129,7 +129,7 @@ export const GENERAL_AGENT_SEARCH_ENTRIES: SettingsSearchEntry[] = [
 
 export const GENERAL_SUPPORT_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   {
-    title: 'Star Orca on GitHub',
+    title: 'Star AnthraSpace on GitHub',
     description: 'Support the project with a GitHub star via the gh CLI.',
     keywords: ['star', 'github', 'support', 'feedback', 'like']
   }

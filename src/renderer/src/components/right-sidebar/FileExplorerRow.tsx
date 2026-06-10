@@ -487,7 +487,7 @@ export function FileExplorerRow({
         {!node.isDirectory && activeWorktreeId && (
           <ContextMenuItem onSelect={handleOpenInOrcaBrowser}>
             <Globe />
-            Open in Orca Browser
+            Open in AnthraSpace Browser
           </ContextMenuItem>
         )}
         {!node.isDirectory && activeWorktreeId && detectLanguage(node.path) === 'markdown' && (

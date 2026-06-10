@@ -172,3 +172,4 @@ export function registerSpeechHandlers(store: Store): void {
     await getSpeechSttService(store).stopDictation(getDesktopOwner(_event.sender.id, sessionId))
   })
 }
+

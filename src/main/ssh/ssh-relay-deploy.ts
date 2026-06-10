@@ -87,7 +87,7 @@ async function deployAndLaunchRelayInner(
   const platform = await detectRemotePlatform(conn)
   if (!platform) {
     throw new Error(
-      'Unsupported remote platform. Orca relay supports: linux-x64, linux-arm64, darwin-x64, darwin-arm64.'
+      'Unsupported remote platform. AnthraSpace relay supports: linux-x64, linux-arm64, darwin-x64, darwin-arm64.'
     )
   }
   console.log(`[ssh-relay] Platform: ${platform}`)
@@ -96,7 +96,7 @@ async function deployAndLaunchRelayInner(
   if (!localRelayDir) {
     throw new Error(
       `Relay package for ${platform} not found locally. ` +
-        `This may be a packaging issue — try reinstalling Orca.`
+        `This may be a packaging issue — try reinstalling AnthraSpace.`
     )
   }
   // Why: read the content-hashed full version from the local build's .version
@@ -191,7 +191,7 @@ async function uploadRelay(
   if (!localRelayDir || !existsSync(localRelayDir)) {
     throw new Error(
       `Relay package for ${platform} not found. Searched: ${getLocalRelayCandidates(platform).join(', ')}. ` +
-        `This may be a packaging issue — try reinstalling Orca.`
+        `This may be a packaging issue — try reinstalling AnthraSpace.`
     )
   }
 
@@ -557,3 +557,4 @@ async function launchRelay(
   )
   return waitForSentinel(channel)
 }
+

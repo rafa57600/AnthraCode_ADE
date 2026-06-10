@@ -43,7 +43,7 @@ const RemoveFolderDialog = React.memo(function RemoveFolderDialog() {
           <DialogTitle className="text-sm">Remove Project</DialogTitle>
           <DialogDescription className="text-xs">
             This only removes{' '}
-            <span className="break-all font-medium text-foreground">{displayName}</span> from Orca.
+            <span className="break-all font-medium text-foreground">{displayName}</span> from AnthraSpace.
             It is still on your disk.
           </DialogDescription>
         </DialogHeader>

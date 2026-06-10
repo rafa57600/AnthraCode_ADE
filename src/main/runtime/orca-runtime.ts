@@ -7443,7 +7443,7 @@ export class OrcaRuntimeService {
         lineageWarnings.push({
           code: 'LINEAGE_PARENT_CONTEXT_MISSING',
           message:
-            'Worktree created, but Orca could not record lineage because instance identity was unavailable.',
+            'Worktree created, but AnthraSpace could not record lineage because instance identity was unavailable.',
           details: {
             childHasInstanceId: Boolean(childInstanceId),
             parentHasInstanceId: Boolean(parentInstanceId),
@@ -9761,7 +9761,7 @@ export class OrcaRuntimeService {
         warnings.push({
           code: 'LINEAGE_PARENT_CONTEXT_MISSING',
           message:
-            'Worktree created, but Orca could not validate the caller terminal as a parent workspace.',
+            'Worktree created, but AnthraSpace could not validate the caller terminal as a parent workspace.',
           details: { callerTerminalHandle: input.callerTerminalHandle }
         })
       }
@@ -9777,7 +9777,7 @@ export class OrcaRuntimeService {
         warnings.push({
           code: 'LINEAGE_PARENT_CONTEXT_MISSING',
           message:
-            'Worktree created, but Orca could not validate the current directory as a parent workspace.',
+            'Worktree created, but AnthraSpace could not validate the current directory as a parent workspace.',
           details: { cwdParentWorktree: input.cwdParentWorktree }
         })
       }
@@ -9799,7 +9799,7 @@ export class OrcaRuntimeService {
         warnings: [
           {
             code: 'LINEAGE_PARENT_CONTEXT_CONFLICT',
-            message: 'Worktree created, but Orca could not prove which parent workspace caused it.',
+            message: 'Worktree created, but AnthraSpace could not prove which parent workspace caused it.',
             details: {
               terminalParentWorktreeId: candidates.find((c) => c.source === 'terminal-context')
                 ?.parent.id,

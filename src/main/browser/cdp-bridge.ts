@@ -1060,7 +1060,7 @@ export class CdpBridge {
     if (tabs.length === 0) {
       throw new BrowserError(
         'browser_no_tab',
-        'No browser tab is open. Use the Orca UI to open a browser tab first.'
+        'No browser tab is open. Use the AnthraSpace UI to open a browser tab first.'
       )
     }
     if (tabs.length === 1) {
@@ -1769,3 +1769,4 @@ function resolveKeyDefinition(key: string): KeyDefinition {
   }
   return { key, code: key }
 }
+

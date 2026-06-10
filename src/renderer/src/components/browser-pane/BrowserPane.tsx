@@ -2329,7 +2329,7 @@ function RemoteBrowserPagePane({
                         setContextMenu(null)
                       }}
                     >
-                      Open Link In Orca Browser
+                      Open Link In AnthraSpace Browser
                     </button>
                     <button
                       role="menuitem"
@@ -4233,7 +4233,7 @@ function BrowserPagePane({
                         setContextMenu(null)
                       }}
                     >
-                      Open Link In Orca Browser
+                      Open Link In AnthraSpace Browser
                     </button>
                     <button
                       role="menuitem"

@@ -64,7 +64,7 @@ export async function resolveCurrentWorktreeSelector(
   if (!enclosingWorktree) {
     throw new RuntimeClientError(
       'selector_not_found',
-      `No Orca-managed worktree contains the current directory: ${currentPath}`
+      `No AnthraSpace-managed worktree contains the current directory: ${currentPath}`
     )
   }
 
@@ -197,3 +197,4 @@ export async function getComputerCommandTarget(
     worktree: await getBrowserWorktreeSelector(flags, cwd, client)
   }
 }
+

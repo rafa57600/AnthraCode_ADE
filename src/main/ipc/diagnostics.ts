@@ -238,7 +238,7 @@ async function confirmBundleUpload(bundle: CollectedBundle): Promise<void> {
     defaultId: 1,
     cancelId: 1,
     title: 'Upload diagnostic bundle?',
-    message: 'Upload diagnostic bundle to Orca support?',
+    message: 'Upload diagnostic bundle to AnthraSpace support?',
     detail: `Bundle ${bundle.bundleSubmissionId}\n${bundle.spanCount} span(s), ${Math.round(
       bundle.bytes / 1024
     )} KB\n\nThe exact redacted NDJSON preview was opened before this upload confirmation.`
@@ -365,3 +365,4 @@ export function registerDiagnosticsHandlers(): void {
     await deleteDiagnosticBundle({ tokenEndpoint, ticketId })
   })
 }
+

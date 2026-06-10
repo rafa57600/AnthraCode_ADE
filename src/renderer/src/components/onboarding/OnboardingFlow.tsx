@@ -14,13 +14,13 @@ import { RepoStep } from './RepoStep'
 import { OnboardingTourStep } from './OnboardingTourStep'
 import { STEPS, useOnboardingFlow } from './use-onboarding-flow'
 import { OnboardingSkipConfirmationDialog } from './OnboardingSkipConfirmationDialog'
-import logo from '../../../../../resources/anthracode_logo.svg'
+import logo from '../../../../../resources/anthraspace_logo.svg'
 
 const stepCopy = {
   agent: {
     title: 'Pick your default agent',
     subtitle:
-      "Orca works with every CLI agent. Choose the one you'll reach for most. Switch any time."
+      "AnthraSpace works with every CLI agent. Choose the one you'll reach for most. Switch any time."
   },
   theme: {
     title: 'Make it feel like home',
@@ -28,22 +28,22 @@ const stepCopy = {
   },
   notifications: {
     title: 'Set up notifications',
-    subtitle: 'Orca will notify you know when agents are done or need help.'
+    subtitle: 'AnthraSpace will notify you know when agents are done or need help.'
   },
   agentSetup: {
-    title: 'Set up Orca for agents',
-    subtitle: 'Turn on advanced Orca capabilities for agents.'
+    title: 'Set up AnthraSpace for agents',
+    subtitle: 'Turn on advanced AnthraSpace capabilities for agents.'
   },
   integrations: {
     title: 'Connect your task sources',
     subtitle: 'Connect GitHub or Linear to:'
   },
   tour: {
-    title: 'Explore Orca',
-    subtitle: "Take a 60-second tour of Orca's advanced features."
+    title: 'Explore AnthraSpace',
+    subtitle: "Take a 60-second tour of AnthraSpace's advanced features."
   },
   repo: {
-    title: 'Point Orca at some code',
+    title: 'Point AnthraSpace at some code',
     subtitle: 'Open a folder or clone a repo to finish setup.'
   }
 } as const
@@ -54,7 +54,7 @@ const stepTooltipLabels = {
   notifications: 'Notifications',
   agentSetup: 'Agent setup',
   integrations: 'Integrations',
-  tour: 'Explore Orca',
+  tour: 'Explore AnthraSpace',
   repo: 'Create project'
 } as const
 
@@ -189,7 +189,7 @@ export default function OnboardingFlow({
 
       <section
         role="dialog"
-        aria-label="Orca onboarding"
+        aria-label="AnthraSpace onboarding"
         aria-modal="true"
         data-onboarding-modal
         className={cn(
@@ -205,7 +205,7 @@ export default function OnboardingFlow({
               aria-hidden="true"
               className="h-7 w-auto shrink-0 invert dark:invert-0"
             />
-            <span>Orca</span>
+            <span>AnthraSpace</span>
           </div>
 
           <div

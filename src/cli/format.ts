@@ -54,13 +54,13 @@ export function printResult<TResult>(
 export function formatCliError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error)
   if (error instanceof RuntimeClientError && error.code === 'runtime_unavailable') {
-    return `${message}\nOrca is not running. Run 'orca open' first.`
+    return `${message}\nAnthraSpace is not running. Run 'orca open' first.`
   }
   if (
     error instanceof RuntimeRpcFailureError &&
     error.response.error.code === 'runtime_unavailable'
   ) {
-    return `${message}\nOrca is not running. Run 'orca open' first.`
+    return `${message}\nAnthraSpace is not running. Run 'orca open' first.`
   }
   if (error instanceof RuntimeRpcFailureError) {
     const data = error.response.error.data
@@ -638,3 +638,4 @@ function formatActionVerb(verb: string): string {
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ')
 }
+

@@ -154,9 +154,9 @@ export function AutomationEditorDialog({
                   size="sm"
                   className="grid grid-cols-2"
                 >
-                  <ToggleGroupItem value="orca" className={MODE_TOGGLE_ITEM_CLASS}>
-                    Orca
-                  </ToggleGroupItem>
+                   <ToggleGroupItem value="orca" className={MODE_TOGGLE_ITEM_CLASS}>
+                    AnthraSpace
+                   </ToggleGroupItem>
                   <ToggleGroupItem value="hermes" className={MODE_TOGGLE_ITEM_CLASS}>
                     Hermes
                   </ToggleGroupItem>
@@ -353,7 +353,7 @@ export function AutomationEditorDialog({
                         </button>
                       </TooltipTrigger>
                       <TooltipContent side="top" sideOffset={6} className="max-w-72">
-                        If Orca or the execution host was unavailable at the scheduled time, Orca
+                        If AnthraSpace or the execution host was unavailable at the scheduled time, AnthraSpace
                         runs one missed occurrence when it becomes available within this window.
                         Older missed runs are skipped.
                       </TooltipContent>

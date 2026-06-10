@@ -175,7 +175,7 @@ export function CrashReportDialog(): React.JSX.Element {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-sm">
             <AlertTriangle className="size-4 text-destructive" />
-            Orca closed unexpectedly
+            AnthraSpace closed unexpectedly
           </DialogTitle>
           <DialogDescription className="text-xs">
             Send a privacy-safe diagnostic report to help us understand what happened.
@@ -188,14 +188,14 @@ export function CrashReportDialog(): React.JSX.Element {
               <div className="font-medium text-foreground">{formatSummary(report)}</div>
               <div className="mt-1 text-muted-foreground">
                 {new Date(report.createdAt).toLocaleString()} · {report.platform} {report.arch} ·
-                Orca {report.appVersion}
+                AnthraSpace {report.appVersion}
               </div>
             </div>
             <textarea
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               rows={4}
-              placeholder="Optional: what were you doing before Orca closed?"
+              placeholder="Optional: what were you doing before AnthraSpace closed?"
               className="min-h-24 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             />
             <div className="space-y-1.5">

@@ -312,7 +312,7 @@ export function WorktreeCardDetailsHover({
                   <>
                     {issue.url && onOpenGitHubIssueInOrca && (
                       <MetadataActionIcon
-                        label="Open in Orca"
+                        label="Open in AnthraSpace"
                         onClick={dismissAndRun(onOpenGitHubIssueInOrca)}
                       >
                         <MonitorUp className="size-3" />
@@ -356,7 +356,7 @@ export function WorktreeCardDetailsHover({
                   <>
                     {linearIssue.url && onOpenLinearIssueInOrca && (
                       <MetadataActionIcon
-                        label="Open in Orca"
+                        label="Open in AnthraSpace"
                         onClick={dismissAndRun(onOpenLinearIssueInOrca)}
                       >
                         <MonitorUp className="size-3" />
@@ -400,7 +400,7 @@ export function WorktreeCardDetailsHover({
                   <>
                     {review.url && onOpenReviewInOrca && (
                       <MetadataActionIcon
-                        label="Open in Orca"
+                        label="Open in AnthraSpace"
                         onClick={dismissAndRun(onOpenReviewInOrca)}
                       >
                         <MonitorUp className="size-3" />

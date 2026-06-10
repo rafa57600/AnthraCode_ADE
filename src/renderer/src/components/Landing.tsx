@@ -16,7 +16,7 @@ import { useAppStore } from '../store'
 import { isGitRepoKind } from '../../../shared/repo-kind'
 import { ShortcutKeyCombo } from './ShortcutKeyCombo'
 import { useShortcutKeys } from '@/hooks/useShortcutLabel'
-import logo from '../../../../resources/anthracode_logo.svg'
+import logo from '../../../../resources/anthraspace_logo.svg'
 
 type ShortcutItem = {
   id: string

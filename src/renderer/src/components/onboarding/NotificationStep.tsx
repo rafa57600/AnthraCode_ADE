@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select'
 import { sendNotificationSettingsTestNotification } from '@/components/settings/NotificationsPane'
 import { getNotificationSoundOptions } from '@/components/notification-sound-options'
-import logo from '../../../../../resources/anthracode_logo.svg'
+import logo from '../../../../../resources/anthraspace_logo.svg'
 
 export type NotificationDraft = {
   agentTaskComplete: boolean
@@ -166,10 +166,10 @@ export function NotificationStep({
             <div className="min-w-0 space-y-1">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Settings className="size-4" />
-                Allow Orca in macOS
+                Allow AnthraSpace in macOS
               </div>
               <p className="max-w-[58ch] text-[13px] leading-relaxed text-muted-foreground">
-                Open System Settings and make sure Orca is allowed to send notifications.
+                Open System Settings and make sure AnthraSpace is allowed to send notifications.
               </p>
             </div>
             <Button
@@ -191,7 +191,7 @@ export function NotificationStep({
                   </div>
                   <div className="min-w-0">
                     <div className="text-sm font-medium leading-tight">Allow notifications</div>
-                    <div className="text-xs leading-tight text-white/55">Orca</div>
+                    <div className="text-xs leading-tight text-white/55">AnthraSpace</div>
                   </div>
                 </div>
                 <div
@@ -235,7 +235,7 @@ export function NotificationStep({
         <div className="space-y-1">
           <h2 className="text-sm font-semibold text-foreground">Choose a sound</h2>
           <p className="text-[13px] leading-relaxed text-muted-foreground">
-            Pick the alert Orca plays after a desktop notification is delivered.
+            Pick the alert AnthraSpace plays after a desktop notification is delivered.
           </p>
         </div>
 

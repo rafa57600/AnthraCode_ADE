@@ -31,8 +31,8 @@ describe('OnboardingFlow', () => {
       />
     )
 
-    expect(html).toContain('Explore Orca')
-    expect(html).toContain('Take a 60-second tour of Orca&#x27;s advanced features.')
+    expect(html).toContain('Explore AnthraSpace')
+    expect(html).toContain('Take a 60-second tour of AnthraSpace&#x27;s advanced features.')
     expect(html).toContain('Take the tour')
     // Why: the prior intro carried a redundant lead, a four-item checklist, and
     // a help-menu footnote. The tour animation already conveys all of that, so
@@ -56,8 +56,8 @@ describe('OnboardingFlow', () => {
       />
     )
 
-    expect(html).toContain('Set up Orca for agents')
-    expect(html).toContain('Turn on advanced Orca capabilities for agents.')
+    expect(html).toContain('Set up AnthraSpace for agents')
+    expect(html).toContain('Turn on advanced AnthraSpace capabilities for agents.')
     expect(html).toContain('Enable capabilities')
     expect(html).toContain('Continue')
     expect(html).toContain('Skip to project setup')

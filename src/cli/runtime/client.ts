@@ -183,7 +183,7 @@ export class RuntimeClient {
 
     throw new RuntimeClientError(
       'runtime_open_timeout',
-      'Timed out waiting for Orca to start. Run the Orca app manually and try again.'
+      'Timed out waiting for AnthraSpace to start. Run the AnthraSpace app manually and try again.'
     )
   }
 }
@@ -234,3 +234,4 @@ function getTimeoutMsParam(params: unknown): unknown {
   }
   return (params as { timeoutMs?: unknown }).timeoutMs
 }
+

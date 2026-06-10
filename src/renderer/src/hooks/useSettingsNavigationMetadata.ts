@@ -204,17 +204,17 @@ export function buildSettingsNavigationMetadata({
     {
       id: 'orchestration',
       title: 'Orchestration',
-      description: 'Coordinate multiple coding agents through Orca.',
+      description: 'Coordinate multiple coding agents through AnthraSpace.',
       icon: Network,
       searchEntries: ORCHESTRATION_PANE_SEARCH_ENTRIES,
       group: 'capabilities'
     },
     {
       id: 'servers',
-      title: 'Remote Orca Servers',
+      title: 'Remote AnthraSpace Servers',
       description: isWebClient
-        ? 'Connect this browser to a saved Orca server.'
-        : 'Switch between local desktop mode and paired remote Orca runtimes.',
+        ? 'Connect this browser to a saved AnthraSpace server.'
+        : 'Switch between local desktop mode and paired remote AnthraSpace runtimes.',
       icon: Server,
       searchEntries: [runtimeEnvironmentsSearchEntry],
       group: 'remote',
@@ -281,7 +281,7 @@ export function buildSettingsNavigationMetadata({
     {
       id: 'stats',
       title: 'Stats & Usage',
-      description: 'Orca stats plus Claude, Codex, and OpenCode usage analytics.',
+      description: 'AnthraSpace stats plus Claude, Codex, and OpenCode usage analytics.',
       icon: BarChart3,
       searchEntries: STATS_PANE_SEARCH_ENTRIES,
       group: 'interface'

@@ -7,8 +7,8 @@ function quotePosixSingle(value: string): string {
 
 export function getZshEnvTemplate(zshDir: string, headerPrefix = ''): string {
   const header = headerPrefix
-    ? `Orca ${headerPrefix} zsh shell-ready wrapper`
-    : 'Orca zsh shell-ready wrapper'
+    ? `AnthraSpace ${headerPrefix} zsh shell-ready wrapper`
+    : 'AnthraSpace zsh shell-ready wrapper'
   return `# ${header}
 _orca_spawn_orig_zdotdir="\${ORCA_ORIG_ZDOTDIR:-}"
 _orca_user_zdotdir="\${_orca_spawn_orig_zdotdir:-$HOME}"

@@ -379,7 +379,7 @@ export function triggerStartupNotificationRegistration(store: Store): void {
   store.updateUI({ notificationPermissionRequested: true })
 
   const notification = new Notification({
-    title: 'Orca is ready to notify you',
+    title: 'AnthraSpace is ready to notify you',
     body: 'Allow notifications so AnthraSpace can alert you when agents finish or terminals need attention.'
   })
 
@@ -418,3 +418,4 @@ export function triggerStartupNotificationRegistration(store: Store): void {
 
   notification.show()
 }
+

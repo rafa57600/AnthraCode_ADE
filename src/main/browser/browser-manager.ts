@@ -804,7 +804,7 @@ export class BrowserManager {
     // Cancel all active grab ops before tearing down registrations
     this.grabSessionController.cancelAll('evicted')
     for (const downloadId of this.downloadsById.keys()) {
-      this.cancelDownloadInternal(downloadId, 'Orca is shutting down.')
+      this.cancelDownloadInternal(downloadId, 'AnthraSpace is shutting down.')
     }
     for (const browserTabId of this.webContentsIdByTabId.keys()) {
       this.unregisterGuest(browserTabId)
@@ -1644,3 +1644,4 @@ export class BrowserManager {
 }
 
 export const browserManager = new BrowserManager()
+

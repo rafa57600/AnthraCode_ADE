@@ -798,10 +798,10 @@ export default function ProjectViewWrapper(_props: Props = {} as Props): React.J
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Repository not in Orca</DialogTitle>
+            <DialogTitle>Repository not in AnthraSpace</DialogTitle>
             <DialogDescription>
               {repoNotInOrca
-                ? `${repoNotInOrca.owner}/${repoNotInOrca.repo} isn't added to Orca. Add it to start work, or open in GitHub.`
+                ? `${repoNotInOrca.owner}/${repoNotInOrca.repo} isn't added to AnthraSpace. Add it to start work, or open in GitHub.`
                 : null}
             </DialogDescription>
           </DialogHeader>
@@ -993,7 +993,7 @@ function ViewTabStrip({
             title={
               supported
                 ? v.name
-                : `${v.name} — Orca doesn't support ${layoutLabel} project views yet. File a feature request at ${ORCA_FEATURE_REQUEST_URL}.`
+                : `${v.name} — AnthraSpace doesn't support ${layoutLabel} project views yet. File a feature request at ${ORCA_FEATURE_REQUEST_URL}.`
             }
             className={cn(
               'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-t-md border-x border-t px-3 py-1.5 text-xs',
@@ -1011,7 +1011,7 @@ function ViewTabStrip({
         if (supported) {
           return tab
         }
-        const unsupportedMessage = `Orca doesn't support ${layoutLabel} project views yet.`
+        const unsupportedMessage = `AnthraSpace doesn't support ${layoutLabel} project views yet.`
         return (
           <HoverCard key={v.id} openDelay={200} closeDelay={100}>
             <HoverCardTrigger asChild>
@@ -1026,7 +1026,7 @@ function ViewTabStrip({
             <HoverCardContent side="bottom" align="start" sideOffset={8} className="w-72 p-3">
               <div className="space-y-2">
                 <p className="text-xs leading-5 text-muted-foreground">
-                  {unsupportedMessage} Switch to a Table view to work with this project in Orca.
+                  {unsupportedMessage} Switch to a Table view to work with this project in AnthraSpace.
                 </p>
                 <Button
                   type="button"
@@ -1072,9 +1072,9 @@ function ErrorState({
   }
   const copy =
     error.type === 'too_large'
-      ? `This view has ${totalCount ?? 'many'} items — too large to render in Orca. Narrow the view's filter on GitHub.`
+      ? `This view has ${totalCount ?? 'many'} items — too large to render in AnthraSpace. Narrow the view's filter on GitHub.`
       : error.type === 'unsupported_layout'
-        ? 'Orca only renders table views yet. This is a Board or Roadmap view.'
+        ? 'AnthraSpace only renders table views yet. This is a Board or Roadmap view.'
         : error.type === 'not_found'
           ? 'Could not find this project or view.'
           : error.type === 'schema_drift'

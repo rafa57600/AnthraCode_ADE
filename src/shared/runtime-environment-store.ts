@@ -155,7 +155,7 @@ function readEnvironmentStore(userDataPath: string): RuntimeEnvironmentStore {
   } catch {
     throw new RuntimeEnvironmentStoreError(
       'runtime_error',
-      `Could not read Orca environments at ${path}; the file is invalid.`
+      `Could not read AnthraSpace environments at ${path}; the file is invalid.`
     )
   }
 }

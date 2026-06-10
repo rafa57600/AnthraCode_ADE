@@ -84,7 +84,7 @@ export class CodexAccountService {
       await this.runCodexLogin(managedHomePath)
       const identity = this.readIdentityFromHome(managedHomePath)
       if (!identity.email) {
-        throw new Error('Codex login completed, but Orca could not resolve the account email.')
+        throw new Error('Codex login completed, but AnthraSpace could not resolve the account email.')
       }
 
       const now = Date.now()
@@ -127,7 +127,7 @@ export class CodexAccountService {
     await this.runCodexLogin(managedHomePath)
     const identity = this.readIdentityFromHome(managedHomePath)
     if (!identity.email) {
-      throw new Error('Codex login completed, but Orca could not resolve the account email.')
+      throw new Error('Codex login completed, but AnthraSpace could not resolve the account email.')
     }
 
     const settings = this.store.getSettings()

@@ -27,7 +27,7 @@ export const BROWSER_PANE_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   {
     title: 'Link Routing',
     description:
-      "Open http(s) links in Orca's built-in browser — from the terminal, markdown, and the editor. Shift+Cmd/Ctrl+click always uses your system browser.",
+      "Open http(s) links in AnthraSpace's built-in browser — from the terminal, markdown, and the editor. Shift+Cmd/Ctrl+click always uses your system browser.",
     keywords: [
       'browser',
       'preview',
@@ -45,7 +45,7 @@ export const BROWSER_PANE_SEARCH_ENTRIES: SettingsSearchEntry[] = [
   {
     title: 'Session & Cookies',
     description:
-      'Import cookies from Chrome, Edge, or other browsers to use existing logins inside Orca.',
+      'Import cookies from Chrome, Edge, or other browsers to use existing logins inside AnthraSpace.',
     keywords: [
       'browser',
       'cookies',
@@ -60,3 +60,4 @@ export const BROWSER_PANE_SEARCH_ENTRIES: SettingsSearchEntry[] = [
     ]
   }
 ]
+

@@ -4,12 +4,12 @@ import { GLOBAL_FLAGS } from '../args'
 export const FILE_COMMAND_SPECS: CommandSpec[] = [
   {
     path: ['file', 'open'],
-    summary: 'Open a workspace file in the Orca editor',
+    summary: 'Open a workspace file in the AnthraSpace editor',
     usage: 'orca file open <path> [--worktree <selector>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'path', 'worktree'],
     positionalArgs: ['path'],
     notes: [
-      'The path is relative to the selected worktree. When --worktree is omitted, local CLI calls infer the current Orca worktree from cwd.'
+      'The path is relative to the selected worktree. When --worktree is omitted, local CLI calls infer the current AnthraSpace worktree from cwd.'
     ],
     examples: [
       'orca file open src/App.tsx',
@@ -18,7 +18,7 @@ export const FILE_COMMAND_SPECS: CommandSpec[] = [
   },
   {
     path: ['file', 'diff'],
-    summary: 'Open a workspace file diff in the Orca editor',
+    summary: 'Open a workspace file diff in the AnthraSpace editor',
     usage: 'orca file diff <path> [--staged] [--worktree <selector>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'path', 'staged', 'worktree'],
     positionalArgs: ['path'],
@@ -46,3 +46,4 @@ export const FILE_COMMAND_SPECS: CommandSpec[] = [
     ]
   }
 ]
+

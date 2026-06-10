@@ -91,7 +91,7 @@ export function formatBrowserAnnotationsAsMarkdown(annotations: BrowserPageAnnot
     '',
     `**URL:** ${first.page.sanitizedUrl}`,
     `**Browser tab id:** ${firstAnnotation.browserPageId}`,
-    `**Orca CLI:** Use ${inlineCode(`--page ${firstAnnotation.browserPageId}`)} to target this browser tab.`,
+    `**AnthraSpace CLI:** Use ${inlineCode(`--page ${firstAnnotation.browserPageId}`)} to target this browser tab.`,
     `**Viewport:** ${first.page.viewportWidth}x${first.page.viewportHeight}`,
     ''
   ]

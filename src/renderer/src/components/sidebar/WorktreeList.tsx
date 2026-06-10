@@ -270,7 +270,7 @@ function getWorktreeVisibilityMenuLabel(repo: Repo): string {
     repo,
     isLegacyRepoForExternalWorktreeVisibility(repo)
   )
-  return visibility === 'show' ? 'Hide non-Orca worktrees' : 'Import Worktrees'
+  return visibility === 'show' ? 'Hide non-AnthraSpace worktrees' : 'Import Worktrees'
 }
 
 const LINEAGE_INDENT = 18

@@ -96,7 +96,7 @@ export class ClaudeAccountService {
     try {
       const captured = await this.runClaudeLoginAndCapture()
       if (!captured.identity.email) {
-        throw new Error('Claude login completed, but Orca could not resolve the account email.')
+        throw new Error('Claude login completed, but AnthraSpace could not resolve the account email.')
       }
       await this.writeManagedAuth(accountId, managedAuthPath, captured)
 
@@ -137,7 +137,7 @@ export class ClaudeAccountService {
     const previousManagedAuth = await this.readManagedAuthSnapshot(accountId, managedAuthPath)
     const captured = await this.runClaudeLoginAndCapture()
     if (!captured.identity.email) {
-      throw new Error('Claude login completed, but Orca could not resolve the account email.')
+      throw new Error('Claude login completed, but AnthraSpace could not resolve the account email.')
     }
 
     const settings = this.store.getSettings()

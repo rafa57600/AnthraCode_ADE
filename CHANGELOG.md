@@ -2,6 +2,42 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-10 — Branding audit: user-facing string sweep (Orca → AnthraSpace)
+
+### Production change
+
+- Replaced all remaining user-facing "Orca" references with "AnthraSpace" across ~140 source and test files:
+  - Settings search definitions (appearance, browser, browser-use, general, git, commit-message-ai, notifications, privacy, repository, runtime-environments, shortcuts, terminal, theme, plugin-system, stats)
+  - Remote runtime error messages (web-runtime-client, remote-runtime-terminal-multiplexer)
+  - Terminal backlog warnings (pane-terminal-output-scheduler, pty-connection)
+  - Account service errors (codex-accounts, claude-accounts)
+  - Worktree/lineage error messages (worktrees.ts, orca-runtime.ts)
+  - Shell/framework templates (shell-templates, local-pty-shell-ready)
+  - Server startup and port messages (index.ts, workspace-port-ownership)
+  - Notification strings (notifications.ts, notification-options.ts)
+  - Menu/onboarding labels (register-app-menu, DeleteWorktreeDialog, OnboardingFlow)
+  - Render UI components (FeatureSetupChecklist, FloatingTerminalOrchestrationDialog, ResourceUsageStatusSegment, SourceControl, RichMarkdownErrorBoundary)
+- Updated all corresponding test expectations to match the new strings.
+- Restored deleted `resources/anthracode_logo.svg` and replaced with `resources/anthraspace_logo.svg`.
+
+### Deferred (blocked / out of scope)
+
+- Env var display names (`ORCA_TELEMETRY_DISABLED` etc.) — need coordinated backend changes.
+- Keychain service name (`ORCA_CLAUDE_SERVICE`) — would break existing stored credentials.
+- `orca.yaml` filename references and CLI binary name — system-level identifiers.
+- "Orca CLI" skill name in discovery tests — data-defined, not code.
+- Code comments and internal identifiers — not user-facing.
+
+### Verification
+
+- All production error messages, notifications, menu labels, settings descriptions, tooltips, and test expectations now use "AnthraSpace".
+- Known remaining "Orca" strings are in code comments, internal identifiers, env var names, system file paths, and test fixture data — none user-facing.
+
+### Production impact
+
+- Users will see "AnthraSpace" consistently across all settings panels, error toasts, notifications, terminal warnings, menus, and onboarding flows.
+- Tests match the updated production strings, preventing false failures.
+
 ## 2026-06-09 — Branding audit: all logos use AnthraCode assets
 
 ### Production change

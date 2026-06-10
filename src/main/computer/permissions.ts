@@ -3,7 +3,7 @@ import { Notification, shell, systemPreferences } from 'electron'
 const ACCESSIBILITY_SETTINGS_URL =
   'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'
 const DEFAULT_ACCESSIBILITY_INSTRUCTIONS =
-  'System Settings -> Privacy & Security -> Accessibility -> enable Orca'
+  'System Settings -> Privacy & Security -> Accessibility -> enable AnthraSpace'
 
 const activePermissionNotifications = new Set<Notification>()
 
@@ -49,3 +49,4 @@ export function notifyPermissionRequired(instructions: string): void {
   setTimeout(release, 5 * 60 * 1000)
   notification.show()
 }
+

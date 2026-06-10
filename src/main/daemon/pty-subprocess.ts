@@ -92,7 +92,7 @@ function formatMissingDaemonPathError(kind: 'helper' | 'cwd', path: string): Dae
   const step = kind === 'helper' ? 'posix_spawn' : 'daemon_cwd'
   return new DaemonProtocolError(
     `Daemon's ${kind === 'helper' ? 'node-pty install' : 'working directory'} is gone ` +
-      `(worktree deleted?). Restart Orca. node-pty: ${step} failed: ENOENT ` +
+      `(worktree deleted?). Restart AnthraSpace. node-pty: ${step} failed: ENOENT ` +
       `(errno 2, No such file or directory) - ${detailName}='${path}'`
   )
 }
@@ -436,3 +436,4 @@ export function createPtySubprocess(opts: PtySubprocessOptions): SubprocessHandl
     }
   }
 }
+

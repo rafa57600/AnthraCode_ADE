@@ -57,7 +57,7 @@ function showLocalBaseRefRefreshToast(result: LocalBaseRefRefreshResult | undefi
   }
 
   toast.warning(`Local ${result.localBranch} was not refreshed`, {
-    description: `Workspace created from ${result.baseRef}, but Orca could not fast-forward local ${result.localBranch} because ${reason}`
+    description: `Workspace created from ${result.baseRef}, but AnthraSpace could not fast-forward local ${result.localBranch} because ${reason}`
   })
 }
 

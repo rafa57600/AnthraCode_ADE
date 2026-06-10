@@ -48,7 +48,7 @@ export function getRepositoryPaneSearchEntries(repo: Repo): SettingsSearchEntry[
         ]),
     {
       title: 'Remove Project',
-      description: 'Remove this project from Orca.',
+      description: 'Remove this project from AnthraSpace.',
       keywords: [repo.displayName, 'delete', 'project', 'repository']
     },
     ...(isFolder

@@ -1072,7 +1072,7 @@ export default function WorktreeJumpPalette(): React.JSX.Element | null {
     }
     return {
       title: 'No active worktrees, settings, actions, or browser tabs',
-      subtitle: 'Create a workspace or open a page in Orca to get started.'
+      subtitle: 'Create a workspace or open a page in AnthraSpace to get started.'
     }
   })()
 

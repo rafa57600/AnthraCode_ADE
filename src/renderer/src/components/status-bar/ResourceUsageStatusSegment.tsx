@@ -1235,7 +1235,7 @@ export function ResourceUsageStatusSegment({
                   </span>
                 </TooltipTrigger>
                 <TooltipContent side="top" sideOffset={6} className="z-[70] max-w-xs">
-                  Resident memory held by Orca plus the processes under each worktree&apos;s
+                  Resident memory held by AnthraSpace plus the processes under each worktree&apos;s
                   terminals.
                 </TooltipContent>
               </Tooltip>
@@ -1250,7 +1250,7 @@ export function ResourceUsageStatusSegment({
                   </span>
                 </TooltipTrigger>
                 <TooltipContent side="top" sideOffset={6} className="z-[70] max-w-xs">
-                  How much of this machine&apos;s physical RAM the Orca-tracked processes are
+                  How much of this machine&apos;s physical RAM the AnthraSpace-tracked processes are
                   sitting on.
                 </TooltipContent>
               </Tooltip>

@@ -16,7 +16,7 @@ export async function sendRequest<TResult>(
       reject(
         new RuntimeClientError(
           'runtime_unavailable',
-          'No compatible transport found in Orca runtime metadata.'
+          'No compatible transport found in AnthraSpace runtime metadata.'
         )
       )
       return
@@ -35,7 +35,7 @@ export async function sendRequest<TResult>(
       reject(
         new RuntimeClientError(
           'runtime_timeout',
-          'Timed out waiting for the Orca runtime to respond.'
+          'Timed out waiting for the AnthraSpace runtime to respond.'
         )
       )
     }, timeoutMs)
@@ -62,7 +62,7 @@ export async function sendRequest<TResult>(
         ok: false,
         error: new RuntimeClientError(
           'runtime_unavailable',
-          'Could not connect to the running Orca app. Restart Orca and try again.'
+          'Could not connect to the running AnthraSpace app. Restart AnthraSpace and try again.'
         )
       })
     })
@@ -90,7 +90,7 @@ export async function sendRequest<TResult>(
             ok: false,
             error: new RuntimeClientError(
               'invalid_runtime_response',
-              'The Orca runtime returned an invalid response frame.'
+              'The AnthraSpace runtime returned an invalid response frame.'
             )
           })
           return
@@ -117,7 +117,7 @@ export async function sendRequest<TResult>(
             ok: false,
             error: new RuntimeClientError(
               'invalid_runtime_response',
-              'The Orca runtime returned an invalid response frame.'
+              'The AnthraSpace runtime returned an invalid response frame.'
             )
           })
           return
@@ -138,7 +138,7 @@ export async function sendRequest<TResult>(
             ok: false,
             error: new RuntimeClientError(
               'invalid_runtime_response',
-              'The Orca runtime returned a mismatched response id.'
+              'The AnthraSpace runtime returned a mismatched response id.'
             )
           })
           return
@@ -148,7 +148,7 @@ export async function sendRequest<TResult>(
             ok: false,
             error: new RuntimeClientError(
               'runtime_unavailable',
-              'The Orca runtime changed while the request was in flight. Retry the command.'
+              'The AnthraSpace runtime changed while the request was in flight. Retry the command.'
             )
           })
           return
@@ -169,3 +169,4 @@ export async function sendRequest<TResult>(
     })
   })
 }
+

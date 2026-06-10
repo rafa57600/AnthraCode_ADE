@@ -70,7 +70,7 @@ const HIDDEN_OUTPUT_RESTORE_PENDING_CHARS = 512 * 1024
 // Why: this is only shown if renderer backlog overflowed and main-owned
 // terminal state is unavailable, so the user has an explicit loss signal.
 const HIDDEN_OUTPUT_RESTORE_UNAVAILABLE_WARNING =
-  '\x18\x1b[0m\r\n[Orca skipped hidden terminal output because the backlog exceeded 2 MB and main recovery was unavailable.]\r\n'
+  '\x18\x1b[0m\r\n[AnthraSpace skipped hidden terminal output because the backlog exceeded 2 MB and main recovery was unavailable.]\r\n'
 let codexRestartNoticePresenceSource: Record<
   string,
   { previousAccountLabel: string; nextAccountLabel: string }

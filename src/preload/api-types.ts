@@ -2142,6 +2142,25 @@ export type PreloadApi = {
     ) => Promise<MarkdownDocument | null>
     delete: (projectDir: string, fileName: string) => Promise<boolean>
   }
+
+  piNative: {
+    createSession: (config: {
+      modelProvider: string
+      modelName: string
+      worktreePath: string
+      paneKey?: string
+      systemPrompt?: string
+      apiKey?: string
+      thinkingLevel?: string
+      sessionId?: string
+    }) => Promise<unknown>
+    destroySession: (sessionId: string) => Promise<{ ok: boolean }>
+    prompt: (sessionId: string, text: string) => Promise<unknown>
+    abort: (sessionId: string) => Promise<{ ok: boolean }>
+    listSessions: () => Promise<unknown[]>
+    getSession: (sessionId: string) => Promise<unknown | undefined>
+    onEvent: (callback: (event: unknown) => void) => () => void
+  }
 }
 
 declare global {

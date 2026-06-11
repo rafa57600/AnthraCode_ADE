@@ -349,9 +349,15 @@ export type TabGroupLayoutNode =
     }
 
 // ─── Unified Tab ────────────────────────────────────────────────────
-export type TabContentType = 'terminal' | 'editor' | 'diff' | 'conflict-review' | 'browser'
+export type TabContentType =
+  | 'terminal'
+  | 'editor'
+  | 'diff'
+  | 'conflict-review'
+  | 'browser'
+  | 'native-agent'
 
-export type WorkspaceVisibleTabType = 'terminal' | 'editor' | 'browser'
+export type WorkspaceVisibleTabType = 'terminal' | 'editor' | 'browser' | 'native-agent'
 export type CtrlTabOrderMode = 'mru' | 'sequential'
 
 export type Tab = {
@@ -1845,6 +1851,14 @@ export type GlobalSettings = {
    *  configuration surface and edge cases (conflicts with existing paths,
    *  cleanup on worktree delete) are still being worked out. */
   experimentalWorktreeSymlinks: boolean
+  /** Experimental: route Pi launches through the in-process Pi SDK host instead
+   *  of spawning the Pi CLI in a PTY. Opt-in while native event streaming,
+   *  model/auth bridging, and subprocess fallback are being hardened. */
+  experimentalNativePiSdk: boolean
+  /** Opt-in provider/model override for hosted free-tier test models. */
+  freeTestProvidersEnabled: boolean
+  /** Selected model id from `FREE_TEST_PROVIDER_MODELS`; null/off keeps agent defaults. */
+  freeTestProviderModelId?: string | null
   /** Active non-local runtime environment for client-routed RPC. `null`
    *  preserves the current local desktop behavior. */
   activeRuntimeEnvironmentId?: string | null

@@ -10,7 +10,9 @@ import { reconcileTabOrder } from '@/components/tab-bar/reconcile-order'
 import { track, tuiAgentToAgentKind } from '@/lib/telemetry'
 import { pasteDraftWhenAgentReady } from '@/lib/agent-paste-draft'
 import { TUI_AGENT_CONFIG } from '../../../shared/tui-agent-config'
+import { getFreeTestCompatibility } from '../../../shared/free-test-providers'
 import { makePaneKey } from '../../../shared/stable-pane-id'
+import { splitWorktreeIdForFilesystem } from '../../../shared/worktree-id'
 import type { TuiAgent } from '../../../shared/types'
 import type { LaunchSource } from '../../../shared/telemetry-events'
 
@@ -37,6 +39,9 @@ export type LaunchAgentInNewTabResult = {
   tabId: string
   startupPlan: AgentStartupPlan
   pasteDraftAfterLaunch: boolean
+  /** When true, this agent runs in-process (native SDK) instead of a PTY tab.
+   *  Callers should skip PTY and terminal-focus operations for these agents. */
+  isNativeSdk?: true
 } | null
 
 function seedCommandCodeSubmittedPromptStatus(tabId: string, prompt: string): void {
@@ -93,6 +98,93 @@ export function launchAgentInNewTab(args: LaunchAgentInNewTabArgs): LaunchAgentI
   const trimmedPrompt = prompt?.trim() ?? ''
   const hasPrompt = trimmedPrompt.length > 0
   const isFollowupPath = TUI_AGENT_CONFIG[agent].promptInjectionMode === 'stdin-after-start'
+  const worktree = Object.values(store.worktreesByRepo ?? {})
+    .flat()
+    .find((candidate) => candidate.id === worktreeId)
+  const repo = worktree ? store.repos?.find((candidate) => candidate.id === worktree.repoId) : null
+  const isRemoteWorktree = typeof repo?.connectionId === 'string' && repo.connectionId.length > 0
+
+  // ── Native SDK agents (in-process, no PTY) ──────────────────────────────────
+  const shouldUseNativeSdk =
+    TUI_AGENT_CONFIG[agent]?.nativeSdk === true &&
+    store.settings?.experimentalNativePiSdk === true &&
+    !isRemoteWorktree
+
+  if (shouldUseNativeSdk) {
+    // Why: extract the real filesystem path from the worktree ID so the native
+    // Pi SDK session knows its working directory.  `splitWorktreeIdForFilesystem`
+    // handles the `${repoId}::${path}` format (including folder-workspace UUID
+    // suffixes).
+    const parsedId = splitWorktreeIdForFilesystem(worktreeId)
+    const worktreePath = parsedId?.worktreePath ?? ''
+    if (!worktreePath) {
+      toast.error('Could not determine worktree path for native Pi session.')
+      return null
+    }
+    const paneKey = `pi-native:${agent}:${worktreeId}`
+    const freeTestCompatibility = getFreeTestCompatibility({
+      enabled: store.settings?.freeTestProvidersEnabled,
+      selectedModelId: store.settings?.freeTestProviderModelId,
+      target: 'pi-native'
+    })
+    const piModel =
+      freeTestCompatibility.status === 'supported'
+        ? freeTestCompatibility.model
+        : { modelProvider: 'anthropic', modelName: 'claude-sonnet-4-20250514' }
+    if (freeTestCompatibility.status === 'unsupported') {
+      toast.message(
+        `${freeTestCompatibility.model.label} is not supported by native Pi yet; launching Pi with its default model.`
+      )
+    }
+    void window.api.piNative
+      .createSession({
+        modelProvider: piModel.modelProvider,
+        modelName: piModel.modelName,
+        worktreePath,
+        paneKey
+      })
+      .then((snapshot) => {
+        const sessionRecord = snapshot as Record<string, unknown>
+        const sessionId = String(sessionRecord?.sessionId ?? '')
+        if (!sessionId) {
+          toast.error('Pi session created but no id returned.')
+          return
+        }
+        useAppStore.getState().setNativePiSession({
+          sessionId,
+          worktreeId,
+          createdAt: Date.now(),
+          snapshot: sessionRecord
+        })
+        toast.success(
+          `Pi agent session started in ${worktreePath.split(/[\\/]/).filter(Boolean).at(-1) ?? worktreePath}.`
+        )
+        if (hasPrompt) {
+          onPromptDelivered?.()
+          void window.api.piNative
+            .prompt(sessionId, trimmedPrompt)
+            .then((nextSnapshot) => {
+              useAppStore
+                .getState()
+                .updateNativePiSnapshot(sessionId, nextSnapshot as Record<string, unknown>)
+            })
+            .catch((err: Error) => {
+              console.error('[pi-native] prompt failed:', err)
+              toast.error(`Could not send prompt to Pi: ${err.message}`)
+            })
+        }
+      })
+      .catch((err: Error) => {
+        console.error('[pi-native] create session failed:', err)
+        toast.error(`Could not start Pi agent: ${err.message}`)
+      })
+    return {
+      tabId: '',
+      startupPlan: null as unknown as AgentStartupPlan,
+      pasteDraftAfterLaunch: false,
+      isNativeSdk: true
+    }
+  }
 
   // Why: argv/flag agents fold the prompt into the launch command and
   // auto-submit — keeping behavior consistent with the composer/tab-bar `+`

@@ -272,6 +272,9 @@ export function getDefaultSettings(homedir: string): GlobalSettings {
     experimentalActivity: false,
     experimentalActivityDefaultedOffForAllUsers: true,
     experimentalWorktreeSymlinks: false,
+    experimentalNativePiSdk: false,
+    freeTestProvidersEnabled: false,
+    freeTestProviderModelId: null,
     // Why: local desktop remains the default server until the user explicitly
     // selects a saved runtime environment.
     activeRuntimeEnvironmentId: null,

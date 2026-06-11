@@ -2,6 +2,48 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-11 — Free test provider registry and native Pi model routing
+
+### Production change
+
+- Added a shared free-test provider registry with hosted/free-tier model entries, provider labels, API-key requirements, and explicit per-agent/native-target compatibility metadata.
+- Added Settings → Agents controls for enabling free test providers and selecting a hosted test model, with copy that clarifies upstream token/rate limits still apply.
+- Wired native Pi SDK launches to use a compatible selected free-test model, while unsupported selections fall back to Pi's default model with a user-visible message instead of failing silently.
+
+### Verification
+
+- `pnpm run tc:node` passed.
+- `pnpm run tc:web` passed.
+- `pnpm run tc:cli` passed.
+- `pnpm run build:electron-vite` passed.
+
+### Production impact
+
+- Users can discover hosted free-tier test options without conflating them with unlimited/free local models.
+- Compatibility is explicit and centralized, reducing the risk of injecting unsupported model flags into arbitrary agent CLIs.
+- Native Pi testing can use supported free-tier models while SSH/PTY fallback behavior remains unchanged.
+
+## 2026-06-11 — Native Pi SDK launch gate
+
+### Production change
+
+- Added an opt-in `experimentalNativePiSdk` setting and Settings → Experimental toggle for native Pi SDK launches.
+- Pi keeps its `nativeSdk` capability in the agent catalog, but the renderer only routes Pi through the in-process SDK host when the experimental flag is enabled and the workspace is local; remote/SSH workspaces continue using the existing subprocess PTY fallback.
+- Added renderer store wiring for native Pi session snapshots and updated store test fixtures so the new slice is present everywhere `AppState` is constructed.
+
+### Verification
+
+- `pnpm run tc:node` passed.
+- `pnpm run tc:cli` passed.
+- `pnpm run tc:web` passed.
+- `pnpm run build:electron-vite` passed after bundling Pi's ESM-only SDK packages and lazy-loading the native Pi host at the IPC boundary.
+
+### Production impact
+
+- The new native Pi path can be tested without disrupting default Pi behavior or SSH use cases.
+- Existing subprocess-based Pi launches remain the default until the experimental flag is explicitly enabled.
+- App startup no longer crashes with `ERR_PACKAGE_PATH_NOT_EXPORTED` when native Pi IPC handlers are registered.
+
 ## 2026-06-10 — Branding audit: user-facing string sweep (Orca → AnthraSpace)
 
 ### Production change

@@ -3332,6 +3332,42 @@ const api = {
 
     delete: (projectDir: string, fileName: string): Promise<boolean> =>
       ipcRenderer.invoke('sticky:delete', projectDir, fileName)
+  },
+
+  // Why: native Pi SDK sessions run in-process, so all lifecycle management
+  // goes through IPC instead of a PTY. The renderer uses these methods when
+  // the agent catalog marks Pi as `nativeSdk: true`.
+  piNative: {
+    createSession: (config: {
+      modelProvider: string
+      modelName: string
+      worktreePath: string
+      paneKey?: string
+      systemPrompt?: string
+      apiKey?: string
+      thinkingLevel?: string
+      sessionId?: string
+    }): Promise<unknown> => ipcRenderer.invoke('pi-native:create-session', config),
+
+    destroySession: (sessionId: string): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('pi-native:destroy-session', sessionId),
+
+    prompt: (sessionId: string, text: string): Promise<unknown> =>
+      ipcRenderer.invoke('pi-native:prompt', { sessionId, text }),
+
+    abort: (sessionId: string): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('pi-native:abort', sessionId),
+
+    listSessions: (): Promise<unknown[]> => ipcRenderer.invoke('pi-native:list-sessions'),
+
+    getSession: (sessionId: string): Promise<unknown | undefined> =>
+      ipcRenderer.invoke('pi-native:get-session', sessionId),
+
+    onEvent: (callback: (event: unknown) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, event: unknown) => callback(event)
+      ipcRenderer.on('pi-native:event', listener)
+      return () => ipcRenderer.removeListener('pi-native:event', listener)
+    }
   }
 }
 

@@ -5,10 +5,16 @@ import { AGENT_CATALOG, AgentIcon } from '@/lib/agent-catalog'
 import { useDetectedAgents } from '@/hooks/useDetectedAgents'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { cn } from '@/lib/utils'
 import { AgentAwakeSetting } from './AgentAwakeSetting'
 import { AGENT_STATUS_HOOKS_DESCRIPTION, AGENT_STATUS_HOOKS_TITLE } from './agent-status-hooks-copy'
 import { SettingsBadge, SettingsSubsectionHeader, SettingsSwitchRow } from './SettingsFormControls'
+import {
+  FREE_TEST_PROVIDER_MODELS,
+  FREE_TEST_PROVIDER_OFF,
+  getFreeTestProviderModel
+} from '../../../../shared/free-test-providers'
 
 export { AGENTS_PANE_SEARCH_ENTRIES } from './agents-search'
 
@@ -249,6 +255,8 @@ export function AgentsPane({ settings, updateSettings }: AgentsPaneProps): React
 
   const defaultAgent = settings.defaultTuiAgent
   const cmdOverrides = settings.agentCmdOverrides ?? {}
+  const freeTestEnabled = settings.freeTestProvidersEnabled === true
+  const selectedFreeTestModel = getFreeTestProviderModel(settings.freeTestProviderModelId)
 
   const setDefault = (id: TuiAgent | 'blank' | null): void => {
     updateSettings({ defaultTuiAgent: id })
@@ -320,6 +328,75 @@ export function AgentsPane({ settings, updateSettings }: AgentsPaneProps): React
       <AgentStatusHooksSetting settings={settings} updateSettings={updateSettings} />
 
       <AgentAwakeSetting settings={settings} updateSettings={updateSettings} />
+
+      <section className="space-y-3">
+        <SettingsSubsectionHeader
+          title="Free test providers"
+          description="Opt into hosted free-tier model routes for supported agents. Unsupported agents keep their normal default model."
+        />
+        <div className="rounded-lg border border-border/60 bg-background/40 p-3">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 space-y-1">
+              <div className="text-sm font-medium">Use a free-tier model when supported</div>
+              <p className="text-xs text-muted-foreground">
+                This is a test-mode override, not a promise of unlimited usage. Provider token and
+                rate limits remain controlled by the upstream service.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={freeTestEnabled}
+              onClick={() => updateSettings({ freeTestProvidersEnabled: !freeTestEnabled })}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-transparent transition-colors ${
+                freeTestEnabled ? 'bg-foreground' : 'bg-muted-foreground/30'
+              }`}
+            >
+              <span
+                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-background shadow-sm transition-transform ${
+                  freeTestEnabled ? 'translate-x-4' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
+          </div>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Select
+              value={settings.freeTestProviderModelId ?? FREE_TEST_PROVIDER_OFF}
+              onValueChange={(value) =>
+                updateSettings({
+                  freeTestProviderModelId: value === FREE_TEST_PROVIDER_OFF ? null : value
+                })
+              }
+            >
+              <SelectTrigger size="sm" className="h-8 min-w-[260px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={FREE_TEST_PROVIDER_OFF}>Agent default model</SelectItem>
+                {FREE_TEST_PROVIDER_MODELS.map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {model.providerLabel} · {model.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedFreeTestModel ? (
+              <SettingsBadge tone={selectedFreeTestModel.requiresApiKey ? 'muted' : 'accent'}>
+                {selectedFreeTestModel.requiresApiKey ? 'API key required' : 'Account entitlement'}
+              </SettingsBadge>
+            ) : null}
+          </div>
+          {selectedFreeTestModel ? (
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Supports: {selectedFreeTestModel.supportedAgents.join(', ')}
+              {selectedFreeTestModel.supportedNativeTargets?.length
+                ? `, ${selectedFreeTestModel.supportedNativeTargets.join(', ')}`
+                : ''}
+              . {selectedFreeTestModel.freeTierNote}
+            </p>
+          ) : null}
+        </div>
+      </section>
 
       {detectedAgents.length > 0 && (
         <section className="space-y-3">

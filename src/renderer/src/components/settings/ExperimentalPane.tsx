@@ -27,6 +27,7 @@ export function ExperimentalPane({
   const showWorktreeSymlinks = matchesSettingsSearch(searchQuery, [
     EXPERIMENTAL_SEARCH_ENTRY.symlinks
   ])
+  const showNativePi = matchesSettingsSearch(searchQuery, [EXPERIMENTAL_SEARCH_ENTRY.nativePi])
 
   return (
     <div className="space-y-4">
@@ -139,6 +140,45 @@ export function ExperimentalPane({
               <span
                 className={`inline-block h-3.5 w-3.5 transform rounded-full bg-background shadow-sm transition-transform ${
                   settings.experimentalWorktreeSymlinks ? 'translate-x-4' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
+          </div>
+        </SearchableSetting>
+      ) : null}
+
+      {showNativePi ? (
+        <SearchableSetting
+          title="Native Pi SDK"
+          description="Route Pi launches through the in-process Pi SDK host instead of a PTY."
+          keywords={EXPERIMENTAL_SEARCH_ENTRY.nativePi.keywords}
+          className="space-y-3 py-2"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 shrink space-y-0.5">
+              <Label>Native Pi SDK</Label>
+              <p className="text-xs text-muted-foreground">
+                Starts Pi through AnthraSpace&apos;s native SDK host instead of the subprocess
+                terminal path. Keep this off unless you are testing native Pi integration; remote
+                workspaces still use the subprocess fallback.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={settings.experimentalNativePiSdk}
+              onClick={() =>
+                updateSettings({
+                  experimentalNativePiSdk: !settings.experimentalNativePiSdk
+                })
+              }
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border border-transparent transition-colors ${
+                settings.experimentalNativePiSdk ? 'bg-foreground' : 'bg-muted-foreground/30'
+              }`}
+            >
+              <span
+                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-background shadow-sm transition-transform ${
+                  settings.experimentalNativePiSdk ? 'translate-x-4' : 'translate-x-0.5'
                 }`}
               />
             </button>

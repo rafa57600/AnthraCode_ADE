@@ -3585,7 +3585,9 @@ function ChecksTab({
         toast.error('Could not build the agent launch command.')
         return
       }
-      focusTerminalTabSurface(result.tabId)
+      if (!result.isNativeSdk) {
+        focusTerminalTabSurface(result.tabId)
+      }
       toast.success('Started an AI agent for the broken checks.')
     } finally {
       setFixingChecks(false)

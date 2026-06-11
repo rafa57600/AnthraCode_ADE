@@ -47,6 +47,10 @@ export type TuiAgentConfig = {
    * `›` prompt only when the composer row exists, so Orca can paste as soon
    * as that prompt appears after bracketed paste is enabled. */
   draftPasteReadySignal?: DraftPasteReadySignal
+  /** When true, the agent runs in-process (native SDK) instead of as a
+   *  subprocess PTY. The renderer routes launch requests to the main process
+   *  IPC bridge instead of queuing a terminal startup command. */
+  nativeSdk?: boolean
 }
 
 // Why: the new-workspace handoff depends on three pieces of per-agent
@@ -112,7 +116,12 @@ export const TUI_AGENT_CONFIG: Record<TuiAgent, TuiAgentConfig> = {
     // src/main/pi/titlebar-extension-service.ts) that reads this env var
     // on session_start and calls `pi.ui.setEditorText(text)`. Same
     // user-visible behavior as `claude --prefill <text>`.
-    draftPromptEnvVar: 'ORCA_PI_PREFILL'
+    draftPromptEnvVar: 'ORCA_PI_PREFILL',
+    // Why: pi-agent-core@0.79+ can run in-process (native SDK) instead of
+    // a subprocess PTY. The renderer launch flow checks this flag to decide
+    // whether to create a terminal tab (false) or route via IPC to the main
+    // process PiAgentHost singleton (true). See src/main/pi-host/.
+    nativeSdk: true
   },
   omp: {
     // Why: OMP (omp.sh) is a Pi fork with its own binary (`omp`), brand,

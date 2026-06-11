@@ -206,7 +206,6 @@ const ActivityPrototypePage = lazy(() => import('./components/activity/ActivityP
 const Settings = lazy(() => import('./components/settings/Settings'))
 const SkillsPage = lazy(() => import('./components/skills/SkillsPage'))
 const WorkspaceSpacePage = lazy(() => import('./components/workspace-space/WorkspaceSpacePage'))
-const MobilePage = lazy(() => import('./components/mobile/MobilePage'))
 const QuickOpen = lazy(() => import('./components/QuickOpen'))
 const WorktreeJumpPalette = lazy(() => import('./components/WorktreeJumpPalette'))
 const NewWorkspaceComposerModal = lazy(() => import('./components/NewWorkspaceComposerModal'))
@@ -1648,14 +1647,13 @@ function App(): React.JSX.Element {
                       <Terminal />
                     </div>
                     <Suspense fallback={null}>
-                      {activeView === 'settings' ? <Settings /> : null}
-                      {activeView === 'skills' ? <SkillsPage /> : null}
-                      {activeView === 'tasks' ? <TaskPage /> : null}
-                      {activeView === 'automations' ? <AutomationsPage /> : null}
-                      {activeView === 'activity' ? <ActivityPrototypePage /> : null}
-                      {activeView === 'space' ? <WorkspaceSpacePage /> : null}
-                      {activeView === 'mobile' ? <MobilePage /> : null}
-                      {activeView === 'terminal' && !activeWorktreeId ? <Landing /> : null}
+                       {activeView === 'settings' ? <Settings /> : null}
+                       {activeView === 'skills' ? <SkillsPage /> : null}
+                       {activeView === 'tasks' ? <TaskPage /> : null}
+                       {activeView === 'automations' ? <AutomationsPage /> : null}
+                       {activeView === 'activity' ? <ActivityPrototypePage /> : null}
+                       {activeView === 'space' ? <WorkspaceSpacePage /> : null}
+                       {activeView === 'terminal' && !activeWorktreeId ? <Landing /> : null}
                     </Suspense>
                   </div>
                   {showFloatingTerminalButton ? (

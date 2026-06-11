@@ -136,6 +136,11 @@ function QuickLaunchAgentMenuItemsInner({
         toast.error(`Could not build launch command for ${label}.`)
         return
       }
+      // Why: native SDK agents run in-process and have no terminal tab to
+      // focus or wait for — skip the PTY readiness path entirely.
+      if (result.isNativeSdk) {
+        return
+      }
       onFocusTerminal(result.tabId)
 
       // Why: launch success means the terminal session exists. Agent readiness

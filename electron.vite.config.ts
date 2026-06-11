@@ -41,7 +41,15 @@ export default defineConfig({
       // directory cannot reach into app.asar, so pure-JS dependencies used
       // by the daemon must be bundled rather than externalized.
       externalizeDeps: {
-        exclude: ['@xterm/headless', '@xterm/addon-serialize']
+        exclude: [
+          '@xterm/headless',
+          '@xterm/addon-serialize',
+          // Why: Pi packages are ESM-only and expose only an `import` condition.
+          // If electron-vite externalizes them, Electron's CJS main bundle tries
+          // require() and crashes at startup with ERR_PACKAGE_PATH_NOT_EXPORTED.
+          '@earendil-works/pi-ai',
+          '@earendil-works/pi-agent-core'
+        ]
       },
       rollupOptions: {
         input: {

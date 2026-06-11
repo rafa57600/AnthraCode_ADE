@@ -47,6 +47,7 @@ import { registerStickyHandlers } from './sticky'
 import { registerCodexAccountHandlers } from './codex-accounts'
 import { registerAgentHookHandlers } from './agent-hooks'
 import { registerAgentTrustHandlers } from './agent-trust'
+import { registerPiNativeHandlers } from '../pi-host/pi-native-ipc'
 import { registerClaudeAccountHandlers } from './claude-accounts'
 import { warmSystemFontFamilies } from '../system-fonts'
 import { registerUpdaterHandlers } from '../window/attach-main-window-services'
@@ -106,6 +107,7 @@ export function registerCoreHandlers(
   registerCodexAccountHandlers(codexAccounts)
   registerAgentHookHandlers()
   registerAgentTrustHandlers()
+  registerPiNativeHandlers()
   registerClaudeAccountHandlers(claudeAccounts)
   registerRateLimitHandlers(rateLimits)
   registerGitHubHandlers(store, stats)

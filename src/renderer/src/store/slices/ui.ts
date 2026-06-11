@@ -407,8 +407,6 @@ export type UISlice = {
   closeSpacePage: () => void
   openSkillsPage: () => void
   closeSkillsPage: () => void
-  openMobilePage: () => void
-  closeMobilePage: () => void
   setNewWorkspaceDraft: (draft: NonNullable<UISlice['newWorkspaceDraft']>) => void
   clearNewWorkspaceDraft: () => void
   openSettingsPage: () => void
@@ -838,19 +836,9 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set, get)
       previousViewBeforeSkills:
         state.activeView === 'skills' ? state.previousViewBeforeSkills : state.activeView
     })),
-  closeSkillsPage: () =>
+    closeSkillsPage: () =>
     set((state) => ({
       activeView: state.previousViewBeforeSkills
-    })),
-  openMobilePage: () =>
-    set((state) => ({
-      activeView: 'mobile',
-      previousViewBeforeMobile:
-        state.activeView === 'mobile' ? state.previousViewBeforeMobile : state.activeView
-    })),
-  closeMobilePage: () =>
-    set((state) => ({
-      activeView: state.previousViewBeforeMobile
     })),
   setNewWorkspaceDraft: (draft) => set({ newWorkspaceDraft: draft }),
   clearNewWorkspaceDraft: () => set({ newWorkspaceDraft: null }),

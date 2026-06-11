@@ -40,6 +40,7 @@ import {
   type AgentStatusIpcPayload,
   type AgentType,
   type AgentStatusState,
+  type ParsedAgentStatusPayload,
   normalizeAgentStatusPayload
 } from '../../shared/agent-status-types'
 import {
@@ -866,6 +867,23 @@ export class AgentHookServer {
       toolAgentType,
       isReplay: envelope.isReplay === true ? true : undefined,
       payload: normalizedPayload
+    }
+    this.applyNormalizedStatus(event)
+  }
+
+  /** Feed a native Pi status payload directly into the agent-status pipeline,
+   *  bypassing the HTTP hook. Used by in-process Pi SDK sessions so their
+   *  events are visible through the same renderer dashboard and IPC fanout as
+   *  subprocess-based agents. */
+  ingestNative(
+    paneKey: string,
+    statusPayload: ParsedAgentStatusPayload
+  ): void {
+    const event: AgentHookEventPayload = {
+      paneKey,
+      connectionId: null,
+      hookEventName: 'native',
+      payload: statusPayload,
     }
     this.applyNormalizedStatus(event)
   }

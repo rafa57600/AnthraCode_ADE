@@ -61,5 +61,24 @@ export const AGENTS_PANE_SEARCH_ENTRIES: SettingsSearchEntry[] = [
     title: AGENT_AWAKE_TITLE,
     description: getAgentAwakeDescription(),
     keywords: getAgentAwakeSearchKeywords()
+  },
+  {
+    title: 'Free test providers',
+    description: 'Opt into hosted free-tier model routes for supported agents.',
+    keywords: [
+      'free',
+      'test',
+      'provider',
+      'providers',
+      'model',
+      'models',
+      'token',
+      'limit',
+      'openrouter',
+      'opencode',
+      'gemini',
+      'groq',
+      'qwen'
+    ]
   }
 ]

@@ -12,14 +12,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, Send, Square, Wrench } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import type { PiSessionStatus } from '../../../../shared/pi-ipc-types'
+import type {
+  PiToolUseEnd,
+  PiToolUseStart,
+  PiToolUseUpdate
+} from '../../../../shared/pi-tool-use-events'
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
 type ConversationEntry =
   | { kind: 'assistant_text'; text: string; ts: number }
-  | { kind: 'tool_call'; toolName: string; toolInput: unknown; ts: number }
-  | { kind: 'tool_result'; toolName: string; isError: boolean; ts: number }
-  | { kind: 'status_change'; status: string; ts: number }
+  | { kind: 'tool_call'; toolUse: PiToolUseStart; ts: number }
+  | { kind: 'tool_update'; toolUse: PiToolUseUpdate; ts: number }
+  | { kind: 'tool_result'; toolUse: PiToolUseEnd; ts: number }
+  | { kind: 'status_change'; status: PiSessionStatus; ts: number }
   | { kind: 'error'; message: string; ts: number }
 
 // ── Props ───────────────────────────────────────────────────────────────────
@@ -39,7 +46,7 @@ export default function NativeAgentPane({
   const [entries, setEntries] = useState<ConversationEntry[]>([])
   const [currentText, setCurrentText] = useState('')
   const [inputValue, setInputValue] = useState('')
-  const [status, setStatus] = useState<string>('idle')
+  const [status, setStatus] = useState<PiSessionStatus>('idle')
   const [aborting, setAborting] = useState(false)
 
   const outputRef = useRef<HTMLDivElement>(null)
@@ -48,8 +55,7 @@ export default function NativeAgentPane({
   // ── Subscribe to IPC events ──────────────────────────────────────────────
 
   useEffect(() => {
-    const unsub = window.api.piNative.onEvent((raw: unknown) => {
-      const event = raw as Record<string, unknown>
+    const unsub = window.api.piNative.onEvent((event) => {
       const now = Date.now()
 
       switch (event.type) {
@@ -73,8 +79,7 @@ export default function NativeAgentPane({
             }
             next.push({
               kind: 'tool_call',
-              toolName: String(event.toolName ?? ''),
-              toolInput: event.toolInput,
+              toolUse: event.toolUse,
               ts: now,
             })
             return [...prev, ...next]
@@ -83,13 +88,17 @@ export default function NativeAgentPane({
           break
         }
 
+        case 'tool_update': {
+          setEntries((prev) => [...prev, { kind: 'tool_update', toolUse: event.toolUse, ts: now }])
+          break
+        }
+
         case 'tool_result': {
           setEntries((prev) => [
             ...prev,
             {
               kind: 'tool_result',
-              toolName: String(event.toolName ?? ''),
-              isError: event.isError === true,
+              toolUse: event.toolUse,
               ts: now,
             },
           ])
@@ -97,7 +106,7 @@ export default function NativeAgentPane({
         }
 
         case 'status_change': {
-          const s = String(event.status ?? '')
+          const s = event.status
           setStatus(s)
           // Why: commit any buffered streaming text when the session finishes
           // or errors so the user sees the complete assistant response.
@@ -112,15 +121,6 @@ export default function NativeAgentPane({
               return [...prev, entry]
             })
             setCurrentText('')
-          }
-          if (s === 'error') {
-            const msg = String(event.error instanceof Error ? event.error.message : event.error ?? '')
-            if (msg) {
-              setEntries((prev) => [
-                ...prev,
-                { kind: 'error', message: msg, ts: now },
-              ])
-            }
           }
           break
         }
@@ -249,13 +249,24 @@ export default function NativeAgentPane({
           >
             <Wrench className="mt-px h-3.5 w-3.5 shrink-0" />
             <div className="min-w-0 flex-1">
-              <span className="font-medium text-foreground/80">{entry.toolName}</span>
+              <span className="font-medium text-foreground/80">{entry.toolUse.toolName}</span>
               <pre className="mt-0.5 overflow-x-auto text-[11px] leading-snug text-muted-foreground/70">
-                {typeof entry.toolInput === 'string'
-                  ? entry.toolInput
-                  : JSON.stringify(entry.toolInput, null, 1)}
+                {typeof entry.toolUse.toolInput === 'string'
+                  ? entry.toolUse.toolInput
+                  : JSON.stringify(entry.toolUse.toolInput, null, 1)}
               </pre>
             </div>
+          </div>
+        )
+
+      case 'tool_update':
+        return (
+          <div
+            key={idx}
+            className="mx-8 mb-1 flex items-center gap-2 text-[11px] text-muted-foreground/60"
+          >
+            <span className="h-1 w-1 rounded-full bg-muted-foreground/30" />
+            ↻ {entry.toolUse.toolName}
           </div>
         )
 
@@ -266,7 +277,7 @@ export default function NativeAgentPane({
             className="mx-8 mb-1 flex items-center gap-2 text-[11px] text-muted-foreground/60"
           >
             <span className="h-1 w-1 rounded-full bg-muted-foreground/30" />
-            {entry.isError ? '⚠ failed:' : '✓'} {entry.toolName}
+            {entry.toolUse.isError ? '⚠ failed:' : '✓'} {entry.toolUse.toolName}
           </div>
         )
 

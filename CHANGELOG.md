@@ -2,6 +2,28 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-12 — Native Pi SDK tool-use event types
+
+### Production change
+
+- Added shared `src/shared/pi-tool-use-events.ts` definitions for native Pi tool-use lifecycle payloads, including start/update/end phases, stable `toolCallId`, source classification (`anthraspace` vs `pi`), and AnthraSpace-prefixed tool names.
+- Extended `PiSessionEvent` with typed tool call, tool update, and tool result event variants while preserving convenient top-level compatibility fields (`toolName`, `toolInput`, `isError`).
+- Updated the native Pi host to forward Pi SDK `tool_execution_start`, `tool_execution_update`, and `tool_execution_end` events as typed IPC events with `toolUse` payloads.
+- Updated `NativeAgentPane` to consume the typed event contract directly instead of casting raw IPC events to generic records.
+
+### Verification
+
+- `pnpm exec vitest run --config config/vitest.config.ts src/shared/pi-tool-use-events.test.ts src/shared/pi-model-config.test.ts` passed (6 tests).
+- `pnpm run tc:web` passed.
+- `pnpm run tc:node` passed.
+- `pnpm run tc:cli` passed.
+
+### Production impact
+
+- Native Pi tool activity now has a stable typed lifecycle surface for current UI rendering and future status/detail panes.
+- Tool updates are no longer dropped, which improves observability for long-running AnthraSpace terminal and browser/orchestration tools.
+- Renderer code no longer needs unsafe generic event casting for native Pi session events.
+
 ## 2026-06-12 — Native Pi SDK model config defaults and provider mapping
 
 ### Production change

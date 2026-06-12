@@ -13,6 +13,7 @@
  */
 
 import type { PiModelConfig } from './pi-model-config'
+import type { PiToolSource, PiToolUseEnd, PiToolUseStart, PiToolUseUpdate } from './pi-tool-use-events'
 
 // ── Session status ───────────────────────────────────────────────────────────
 
@@ -47,9 +48,42 @@ export type PiSessionEvent =
   | { type: 'status_change'; status: PiSessionStatus; sessionId: string }
   | { type: 'error'; sessionId: string; error: Error }
   | { type: 'finished'; sessionId: string; messageCount: number }
-  | { type: 'tool_call'; sessionId: string; toolName: string; toolInput: unknown }
-  | { type: 'tool_result'; sessionId: string; toolName: string; isError: boolean }
+  | PiSessionToolCallEvent
+  | PiSessionToolUpdateEvent
+  | PiSessionToolResultEvent
   | { type: 'assistant_message'; sessionId: string; text: string }
+
+export interface PiSessionToolCallEvent {
+  type: 'tool_call'
+  sessionId: string
+  toolUse: PiToolUseStart
+  toolCallId: string
+  toolName: string
+  toolSource: PiToolSource
+  toolInput: unknown
+}
+
+export interface PiSessionToolUpdateEvent {
+  type: 'tool_update'
+  sessionId: string
+  toolUse: PiToolUseUpdate
+  toolCallId: string
+  toolName: string
+  toolSource: PiToolSource
+  toolInput: unknown
+  partialResult: unknown
+}
+
+export interface PiSessionToolResultEvent {
+  type: 'tool_result'
+  sessionId: string
+  toolUse: PiToolUseEnd
+  toolCallId: string
+  toolName: string
+  toolSource: PiToolSource
+  toolResult: unknown
+  isError: boolean
+}
 
 /** Callback signature for Pi session event consumers. */
 export type PiSessionEventCallback = (event: PiSessionEvent) => void

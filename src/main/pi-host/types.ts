@@ -11,7 +11,10 @@ export type {
   PiSessionStatus,
   PiSessionSnapshot,
   PiSessionEvent,
-  PiSessionEventCallback
+  PiSessionEventCallback,
+  PiSessionToolCallEvent,
+  PiSessionToolUpdateEvent,
+  PiSessionToolResultEvent
 } from '../../shared/pi-ipc-types'
 
 /** Parameters for creating a native Pi session. */
@@ -38,8 +41,8 @@ export interface CreatePiSessionParams {
   toolExecution?: ToolExecutionMode
 }
 
-// PiSessionSnapshot, PiSessionEvent, PiSessionStatus, PiSessionEventCallback
-// are re-exported from src/shared/pi-ipc-types.ts above.
+// Pi session snapshot/event types are re-exported from
+// src/shared/pi-ipc-types.ts above.
 
 /**
  * Source identifier used when routing native Pi events through Orca's

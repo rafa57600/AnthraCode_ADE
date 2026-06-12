@@ -67,6 +67,9 @@ export type {
   PiSessionSnapshot,
   PiSessionEvent,
   PiSessionEventCallback,
+  PiSessionToolCallEvent,
+  PiSessionToolUpdateEvent,
+  PiSessionToolResultEvent,
 } from './types'
 
 export { NATIVE_PI_HOOK_SOURCE } from './types'

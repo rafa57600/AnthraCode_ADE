@@ -22,6 +22,11 @@ import {
 import { NodeExecutionEnv } from '@earendil-works/pi-agent-core/node'
 import { agentHookServer } from '../agent-hooks/server'
 import { buildStatusPayload } from './agent-status-bridge'
+import {
+  createPiToolUseEnd,
+  createPiToolUseStart,
+  createPiToolUseUpdate
+} from '../../shared/pi-tool-use-events'
 import type {
   CreatePiSessionParams,
   PiSessionEvent,
@@ -329,23 +334,63 @@ export class PiSessionHost {
         })
         break
 
-      case 'tool_execution_start':
-        this.emitEvent({
-          type: 'tool_call',
-          sessionId: this.sessionId,
+      case 'tool_execution_start': {
+        const toolUseStart = createPiToolUseStart({
+          toolCallId: event.toolCallId,
           toolName: event.toolName,
           toolInput: event.args,
         })
+        this.emitEvent({
+          type: 'tool_call',
+          sessionId: this.sessionId,
+          toolUse: toolUseStart,
+          toolCallId: toolUseStart.toolCallId,
+          toolName: toolUseStart.toolName,
+          toolSource: toolUseStart.toolSource,
+          toolInput: toolUseStart.toolInput,
+        })
         break
+      }
 
-      case 'tool_execution_end':
+      case 'tool_execution_update': {
+        const toolUseUpdate = createPiToolUseUpdate({
+          toolCallId: event.toolCallId,
+          toolName: event.toolName,
+          toolInput: event.args,
+          partialResult: event.partialResult,
+        })
+        this.emitEvent({
+          type: 'tool_update',
+          sessionId: this.sessionId,
+          toolUse: toolUseUpdate,
+          toolCallId: toolUseUpdate.toolCallId,
+          toolName: toolUseUpdate.toolName,
+          toolSource: toolUseUpdate.toolSource,
+          toolInput: toolUseUpdate.toolInput,
+          partialResult: toolUseUpdate.partialResult,
+        })
+        break
+      }
+
+      case 'tool_execution_end': {
+        const toolUseEnd = createPiToolUseEnd({
+          toolCallId: event.toolCallId,
+          toolName: event.toolName,
+          toolResult: event.result,
+          isError: event.isError,
+        })
         this.emitEvent({
           type: 'tool_result',
           sessionId: this.sessionId,
-          toolName: event.toolName,
-          isError: event.isError,
+          toolUse: toolUseEnd,
+          toolCallId: toolUseEnd.toolCallId,
+          toolName: toolUseEnd.toolName,
+          toolSource: toolUseEnd.toolSource,
+          toolResult: toolUseEnd.toolResult,
+          isError: toolUseEnd.isError,
         })
         break
+      }
 
       case 'message_update': {
         const ev = event.assistantMessageEvent

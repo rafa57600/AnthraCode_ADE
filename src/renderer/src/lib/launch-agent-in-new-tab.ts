@@ -136,8 +136,56 @@ export function launchAgentInNewTab(args: LaunchAgentInNewTabArgs): LaunchAgentI
         `${freeTestCompatibility.model.label} is not supported by native Pi yet; launching Pi with its default model.`
       )
     }
+
+    // Generate session ID synchronously so the tab has a stable entityId
+    // before the async IPC call completes.
+    const tempSessionId = `pi-native-${crypto.randomUUID()}`
+
+    // Why: create a native-agent tab so the tab bar shows the Pi session.
+    // Without a real tab the session has no visible UI and follow-up prompts
+    // would have nowhere to go.  The NativeAgentPane component renders when
+    // contentType === 'native-agent'.
+    const tab = store.createUnifiedTab(worktreeId, 'native-agent', {
+      entityId: tempSessionId,
+      label: 'Pi',
+      activate: true
+    })
+
+    // Why: get a fresh store snapshot after createUnifiedTab mutated state.
+    const fresh = useAppStore.getState()
+
+    // Seed the store entry so NativeAgentPane can resolve the sessionId from
+    // the tab's entityId before the async createSession returns.
+    fresh.setNativePiSession({
+      sessionId: tempSessionId,
+      worktreeId,
+      createdAt: Date.now(),
+      snapshot: null
+    })
+
+    // Why: persist the tab-bar order with the new native-agent tab appended.
+    // Without this, reconcileTabOrder falls back to terminals-first when the
+    // stored order is unset, which can jump the new tab to index 0.
+    const termIds = (fresh.tabsByWorktree[worktreeId] ?? []).map((t) => t.id)
+    const editIds = fresh.openFiles.filter((f) => f.worktreeId === worktreeId).map((f) => f.id)
+    const browserIds = (fresh.browserTabsByWorktree?.[worktreeId] ?? []).map((t) => t.id)
+    const base = reconcileTabOrder(
+      fresh.tabBarOrderByWorktree[worktreeId],
+      termIds,
+      editIds,
+      browserIds
+    )
+    const order = base.filter((id) => id !== tab.id)
+    order.push(tab.id)
+    fresh.setTabBarOrder(worktreeId, order)
+
+    fresh.setActiveTabType('native-agent')
+
+    // Create the session asynchronously; the tab shows a "connecting" state
+    // until the IPC response arrives.
     void window.api.piNative
       .createSession({
+        sessionId: tempSessionId,
         modelProvider: piModel.modelProvider,
         modelName: piModel.modelName,
         worktreePath,
@@ -145,17 +193,8 @@ export function launchAgentInNewTab(args: LaunchAgentInNewTabArgs): LaunchAgentI
       })
       .then((snapshot) => {
         const sessionRecord = snapshot as Record<string, unknown>
-        const sessionId = String(sessionRecord?.sessionId ?? '')
-        if (!sessionId) {
-          toast.error('Pi session created but no id returned.')
-          return
-        }
-        useAppStore.getState().setNativePiSession({
-          sessionId,
-          worktreeId,
-          createdAt: Date.now(),
-          snapshot: sessionRecord
-        })
+        const sessionId = String(sessionRecord?.sessionId ?? tempSessionId)
+        useAppStore.getState().updateNativePiSnapshot(sessionId, sessionRecord)
         toast.success(
           `Pi agent session started in ${worktreePath.split(/[\\/]/).filter(Boolean).at(-1) ?? worktreePath}.`
         )
@@ -179,7 +218,7 @@ export function launchAgentInNewTab(args: LaunchAgentInNewTabArgs): LaunchAgentI
         toast.error(`Could not start Pi agent: ${err.message}`)
       })
     return {
-      tabId: '',
+      tabId: tab.id,
       startupPlan: null as unknown as AgentStartupPlan,
       pasteDraftAfterLaunch: false,
       isNativeSdk: true

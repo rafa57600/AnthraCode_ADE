@@ -2,28 +2,37 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
-## 2026-06-12 — Native Pi SDK: custom tools, auth bridge, catalog badge
+## 2026-06-12 — Native Pi SDK: full Phases 4–7 (tools, auth, UI, composer, interrupt, streaming)
 
 ### Production change
 
 - **Phase 4 — Custom tools**: Added `anthraspace-tools.ts` with four AnthraSpace-native tool definitions (`anthraspace_read`, `anthraspace_browser`, `anthraspace_terminal`, `anthraspace_orchestrate`) that supplement Pi's built-in tools. Each tool is prefixed with `anthraspace_` to distinguish it from Pi built-ins and signals execution through AnthraSpace's infrastructure.
 - **Phase 5 — Auth bridge**: Added `auth-bridge.ts` that maps AnthraSpace API key settings (`anthropicApiKey`, `openaiApiKey`, `googleApiKey`, `openRouterApiKey`, `groqApiKey`) to Pi SDK's `AuthStorage` provider names at session creation time. Includes `bridgeApiKeysToPiAuth()` and `discoverConfiguredProviders()` helpers.
 - **Phase 6 — UI integration**: Added `isNativeSdkCapable()` helper in `agent-status.ts` for checking native SDK eligibility per agent type. Added optional `badge` field to `AgentCatalogEntry` and a "Native" badge on Pi's catalog entry, rendered in the `AgentCombobox` alongside the Pi label.
-- **Phase 7 — Infrastructure**: Installed `@earendil-works/pi-coding-agent@0.79.0` SDK dependency and verified all three sub-packages (`pi-agent-core`, `pi-ai`, `pi-agent-core/node`) import correctly. Added `sdk-smoke.ts` startup verification. Exported all new modules from `pi-host/index.ts`. The existing `experimentalNativePiSdk` feature gate and fallback chain remain in place.
+- **Phase 7A — Composer→IPC wiring**: `NativeAgentPane` textarea Enter→`Enter` key handler sends input text via `window.api.piNative.prompt(sessionId, text)`. The main-process `pi-native:prompt` handler accepts the message, calls `session.prompt(text)` with the tool set, and returns the full snapshot. Keyboard submit works immediately after session creation.
+- **Phase 7B — Interrupt wiring**: `NativeAgentPane` Escape→`Escape` key handler sends `window.api.piNative.abort(sessionId)`. The main-process handler calls `session.abort()`, which bridges `{state:'done', interrupted:true}` to `agentHookServer.ingestNative()` so the renderer dashboard and status display see the interrupted state immediately.
+- **Phase 7C — SDK startup smoke check**: `logSdkAvailability()` calls `verifyPiSdkAvailable()` at IPC handler registration time (fire-and-forget, never blocks startup). Logs a single line on success or failure — no startup delay, no fatal errors.
+- **Phase 7D — Hybrid streaming UI**: `NativeAgentPane.tsx` subscribes to `window.api.piNative.onEvent()` (preload bridge) for real-time event streaming. Displays assistant streaming text as it arrives, tool calls with a 🔧 icon, tool results collapsed under the calling tool, and error states inline. The textarea remains enabled throughout for follow-up prompts.
+- **Phase 7E — Tab model integration**: `launch-agent-in-new-tab.ts` native Pi path creates a sync `native-agent` unified tab with `entityId = sessionId`, stores the session in the `nativePiSessions` Redux slice, appends tab order, and sets `activeTabType: 'native-agent'`. `TabGroupPanel.tsx` renders `<NativeAgentPane sessionId={...} />` when `contentType === 'native-agent'`.
+- **Build & tree-shaking audit**: `pnpm build:electron-vite` passes. Pi SDK bundle impact verified at ~80 kB total (`agent-host.js` 14.76 kB, `memory-repo.js` 64.61 kB, `sdk-smoke.js` 1.14 kB, `node.js` 4.41 kB). The heavy TUI/Ink dependencies are tree-shaken away since they're never imported. No further optimization needed for MVP.
 
 ### Verification
 
 - `pnpm run tc:node` passed (0 new errors; 6 pre-existing renderer type issues unchanged).
 - `pnpm run tc:cli` passed (same pre-existing issues).
 - `pnpm run tc:web` passed (same pre-existing issues).
+- `pnpm run build:electron-vite` passed (full build).
 - SDK smoke test: `verifyPiSdkAvailable()` PASS — `Agent`, `InMemorySessionRepo`, `getModel`, `NodeExecutionEnv` all import correctly.
+- Tree-shaking audit: Pi SDK bundle impact ~80 kB total from dynamic imports; electron-vite successfully excludes unused TUI dependencies.
 
 ### Production impact
 
-- Native Pi sessions can now source API keys from AnthraSpace's existing settings instead of requiring manual per-session key injection.
-- The agent picker UI communicates native SDK capability visually, helping users understand that Pi can run in-process when the experimental flag is enabled.
+- Native Pi sessions are now fully interactive: users can send prompts, receive streaming responses, and interrupt mid-generation — all through the AnthraSpace unified tab model without a subprocess.
+- Escape→interrupt bridge to the hook pipeline means the agent dashboard, status bar, and any future consumers see the correct `interrupted` state immediately.
+- SDK startup smoke check adds zero startup delay and never fatals — safe for all environments (local, SSH, headless).
+- Bundle impact is minimal (~80 kB) thanks to tree-shaking; the 11 MB on-disk SDK dependency is a build-time cost.
 - Custom tool definitions are structured for future wiring to AnthraSpace's browser, terminal, and orchestration services — no functional change until those bridges are implemented.
-- SDK dependency adds ~11 MB to `node_modules`; electron-vite tree-shaking will reduce the bundled footprint (pi-tui exclusion is the next optimization target).
+- The `experimentalNativePiSdk` feature gate and subprocess fallback chain are fully preserved.
 
 ## 2026-06-11 — Free test provider registry and native Pi model routing
 

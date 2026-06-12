@@ -21,6 +21,7 @@ import type { PiSessionSnapshot } from './types'
 // ── Safe guards ─────────────────────────────────────────────────────────────
 
 let registered = false
+let sdkAvailableLogged = false
 
 async function getPiAgentHost() {
   // Why: native Pi is experimental and Pi's SDK packages are ESM-only. Lazy
@@ -35,6 +36,25 @@ async function resolvePiModel(provider: string, name: string) {
   return getModel(provider as any, name as any)
 }
 
+async function logSdkAvailability(): Promise<void> {
+  // Why: run the SDK smoke check exactly once at startup so operators can see
+  // in the logs whether the in-process Pi SDK path will work.  Never blocks
+  // app startup — a failed check just means the subprocess fallback is used.
+  if (sdkAvailableLogged) return
+  sdkAvailableLogged = true
+  try {
+    const { verifyPiSdkAvailable } = await import('./sdk-smoke')
+    const ok = await verifyPiSdkAvailable()
+    if (ok) {
+      console.log('[pi-native] Pi SDK verified — native sessions available')
+    } else {
+      console.warn('[pi-native] Pi SDK smoke-check returned false — native sessions may fail')
+    }
+  } catch (err) {
+    console.warn('[pi-native] Pi SDK smoke-check threw — native sessions unavailable', err)
+  }
+}
+
 // ── Public registration ─────────────────────────────────────────────────────
 
 export function registerPiNativeHandlers(): void {
@@ -43,6 +63,9 @@ export function registerPiNativeHandlers(): void {
   // module-level flag (same pattern as register-core-handlers.ts).
   if (registered) return
   registered = true
+
+  // Fire-and-forget SDK availability log. Never blocks registration.
+  void logSdkAvailability()
 
   /** Create a new native Pi SDK session. */
   ipcMain.handle('pi-native:create-session', async (_event, params: unknown) => {

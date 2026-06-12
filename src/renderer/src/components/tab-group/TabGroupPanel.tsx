@@ -20,6 +20,7 @@ import {
   type TabDropZone
 } from './useTabDragSplit'
 import { tabGroupBodyAnchorName } from './tab-group-body-anchor'
+import NativeAgentPane from '../native-agent/NativeAgentPane'
 
 const EditorPanel = lazy(() => import('../editor/EditorPanel'))
 
@@ -130,7 +131,9 @@ export default function TabGroupPanel({
           ? 'terminal'
           : activeTab?.contentType === 'browser'
             ? 'browser'
-            : 'editor'
+            : activeTab?.contentType === 'native-agent'
+              ? 'native-agent'
+              : 'editor'
       }
       onActivateFile={commands.activateEditor}
       onCloseFile={commands.closeItem}
@@ -338,9 +341,19 @@ export default function TabGroupPanel({
         style={bodyAnchorStyle}
       >
         {activeDropZone ? <TabGroupDropOverlay zone={activeDropZone} /> : null}
+        {/* Why: native-agent tabs show the streaming Pi SDK conversation
+            instead of an editor surface. Each tab corresponds to one
+            PiSessionHost, identified by `activeTab.entityId`. */}
+        {activeTab && activeTab.contentType === 'native-agent' && (
+          <div className="absolute inset-0 flex min-h-0 min-w-0">
+            <NativeAgentPane sessionId={activeTab.entityId} />
+          </div>
+        )}
+
         {activeTab &&
           activeTab.contentType !== 'terminal' &&
-          activeTab.contentType !== 'browser' && (
+          activeTab.contentType !== 'browser' &&
+          activeTab.contentType !== 'native-agent' && (
             <div className="absolute inset-0 flex min-h-0 min-w-0">
               {/* Why: split groups render editor/browser content inside a
                   plain relative pane body instead of the legacy flex column in

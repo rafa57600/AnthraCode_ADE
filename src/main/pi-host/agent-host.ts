@@ -29,6 +29,7 @@ import type {
   PiSessionSnapshot,
   PiSessionStatus,
 } from './types'
+import { NATIVE_PI_HOOK_SOURCE } from './types'
 
 // ── Errors ─────────────────────────────────────────────────────────────────
 
@@ -227,6 +228,17 @@ export class PiSessionHost {
       status: 'interrupted',
       sessionId: this.sessionId,
     })
+    // Why: bridge the abort to the agent-hook pipeline so the renderer's
+    // status dashboard reflects the interrupted state.  Without this the
+    // native Pi session appears permanently "working" after abort.
+    if (this.paneKey) {
+      agentHookServer.ingestNative(this.paneKey, {
+        state: 'done',
+        prompt: this._lastPromptText,
+        agentType: NATIVE_PI_HOOK_SOURCE,
+        interrupted: true,
+      })
+    }
   }
 
   /** Queue a steering message (injected after the current assistant turn). */

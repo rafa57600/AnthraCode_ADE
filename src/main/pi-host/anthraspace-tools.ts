@@ -104,13 +104,13 @@ function createReadTool(opts: AnthraSpaceToolOptions): AnthraSpaceToolDef {
         throw new Error('`path` is required')
       }
 
-      // Why: strip leading slashes/dots so path.resolve doesn't escape the
-      // worktree root. Then resolve against the worktree.
-      const safePath = filePathRaw.replace(/^[/\\]+/, '').replace(/^\.\.(\/|\\)?/, '')
-      const targetPath = path.resolve(opts.worktreePath, safePath)
-
-      // Security: reject paths that resolve outside the worktree
-      if (!targetPath.startsWith(opts.worktreePath)) {
+      // Security: resolve the raw path against the worktree root and reject
+      // any path that ends up outside it. This catches `../` escapes and
+      // absolute paths (e.g. `/etc/passwd` on POSIX, `C:\etc` on Windows)
+      // without needing to strip prefixes first.
+      const worktreeResolved = path.resolve(opts.worktreePath) + path.sep
+      const targetPath = path.resolve(opts.worktreePath, filePathRaw)
+      if (!targetPath.startsWith(worktreeResolved)) {
         throw new Error(`Path traversal blocked: "${filePathRaw}" resolves outside the worktree`)
       }
 
@@ -183,12 +183,16 @@ function createTerminalTool(opts: AnthraSpaceToolOptions): AnthraSpaceToolDef {
 
       const cwdRaw = typeof params.cwd === 'string' ? params.cwd.trim() : ''
       const cwdAbs = cwdRaw
-        ? path.resolve(opts.worktreePath, cwdRaw.replace(/^[/\\]+/, ''))
-        : opts.worktreePath
+        ? path.resolve(opts.worktreePath, cwdRaw)
+        : path.resolve(opts.worktreePath)
 
-      // Security: reject cwd that escapes the worktree
-      if (!cwdAbs.startsWith(opts.worktreePath)) {
-        throw new Error(`cwd path traversal blocked: "${cwdRaw}"`)
+      // Security: reject cwd that escapes the worktree (skip check when using
+      // the default worktree root).
+      if (cwdRaw) {
+        const worktreeResolved = path.resolve(opts.worktreePath) + path.sep
+        if (!cwdAbs.startsWith(worktreeResolved)) {
+          throw new Error(`cwd path traversal blocked: "${cwdRaw}"`)
+        }
       }
 
       const timeoutSec =
@@ -198,9 +202,12 @@ function createTerminalTool(opts: AnthraSpaceToolOptions): AnthraSpaceToolDef {
       let stderr = ''
 
       try {
-        // Why: use child_process.exec wrapped in a Promise that rejects on
-        // non-zero exit. The AbortSignal is wired so that abort() kills the
-        // child process immediately.
+        // Why: use child_process.exec wrapped in a Promise.
+        // Differentiates:
+        //   - Killed/aborted commands → rejected (error thrown)
+        //   - Command-not-found (ENOENT etc.) → rejected
+        //   - Non-zero exit code → resolved (the agent needs the output)
+        // The Pi SDK's agent loop converts rejections to isError tool results automatically.
         const result = await new Promise<{ stdout: string; stderr: string; exitCode: number }>(
           (resolve, reject) => {
             const child = cpExec(
@@ -212,8 +219,15 @@ function createTerminalTool(opts: AnthraSpaceToolOptions): AnthraSpaceToolDef {
                 windowsHide: true,
               },
               (error, childStdout, childStderr) => {
-                if (error && error.killed) {
-                  reject(new Error(`Command killed`))
+                if (error?.killed) {
+                  reject(new Error('Command was killed'))
+                  return
+                }
+                // Why: error.code is a string (ENOENT, EACCES) when the
+                // command doesn't exist; a number (exit code) when it ran
+                // but returned non-zero. Reject strings, resolve numbers.
+                if (error && typeof error.code === 'string') {
+                  reject(new Error(`Command not found or not executable: ${error.code}`))
                   return
                 }
                 resolve({
@@ -242,18 +256,11 @@ function createTerminalTool(opts: AnthraSpaceToolOptions): AnthraSpaceToolDef {
         stdout = result.stdout
         stderr = result.stderr
 
-        // Build a combined output; prefer stdout for success, include stderr
-        // when non-empty or when the command failed.
+        // Build combined output
         let output = ''
         if (stdout) output += stdout + '\n'
-        if (stderr) {
-          output += stderr + '\n'
-        }
+        if (stderr) output += stderr + '\n'
         if (!output) output = `(exit code ${result.exitCode}, no output)`
-
-        if (result.exitCode !== 0 && !stderr) {
-          output += `\n(exit code ${result.exitCode})`
-        }
 
         return {
           content: [{ type: 'text', text: output.trimEnd() }],

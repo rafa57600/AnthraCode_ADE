@@ -9,6 +9,11 @@ import type { AppIdentity } from '../shared/app-identity'
 import type { CliInstallStatus } from '../shared/cli-install-types'
 import type { AgentHookInstallStatus } from '../shared/agent-hook-types'
 import type {
+  PiCreateSessionConfig,
+  PiSessionEvent,
+  PiSessionSnapshot
+} from '../shared/pi-ipc-types'
+import type {
   BaseRefSearchResult,
   BaseRefDefaultResult,
   BrowserViewportOverride,
@@ -3338,33 +3343,25 @@ const api = {
   // goes through IPC instead of a PTY. The renderer uses these methods when
   // the agent catalog marks Pi as `nativeSdk: true`.
   piNative: {
-    createSession: (config: {
-      modelProvider: string
-      modelName: string
-      worktreePath: string
-      paneKey?: string
-      systemPrompt?: string
-      apiKey?: string
-      thinkingLevel?: string
-      sessionId?: string
-    }): Promise<unknown> => ipcRenderer.invoke('pi-native:create-session', config),
+    createSession: (config: PiCreateSessionConfig): Promise<PiSessionSnapshot> =>
+      ipcRenderer.invoke('pi-native:create-session', config),
 
     destroySession: (sessionId: string): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke('pi-native:destroy-session', sessionId),
 
-    prompt: (sessionId: string, text: string): Promise<unknown> =>
+    prompt: (sessionId: string, text: string): Promise<PiSessionSnapshot> =>
       ipcRenderer.invoke('pi-native:prompt', { sessionId, text }),
 
     abort: (sessionId: string): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke('pi-native:abort', sessionId),
 
-    listSessions: (): Promise<unknown[]> => ipcRenderer.invoke('pi-native:list-sessions'),
+    listSessions: (): Promise<PiSessionSnapshot[]> => ipcRenderer.invoke('pi-native:list-sessions'),
 
-    getSession: (sessionId: string): Promise<unknown | undefined> =>
+    getSession: (sessionId: string): Promise<PiSessionSnapshot | undefined> =>
       ipcRenderer.invoke('pi-native:get-session', sessionId),
 
-    onEvent: (callback: (event: unknown) => void): (() => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, event: unknown) => callback(event)
+    onEvent: (callback: (event: PiSessionEvent) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, event: PiSessionEvent) => callback(event)
       ipcRenderer.on('pi-native:event', listener)
       return () => ipcRenderer.removeListener('pi-native:event', listener)
     }

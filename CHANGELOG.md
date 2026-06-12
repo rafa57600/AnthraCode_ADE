@@ -2,6 +2,25 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-12 — Native Pi SDK IPC lifecycle types
+
+### Production change
+
+- Added shared `src/shared/pi-ipc-types.ts` definitions for the native Pi IPC lifecycle surface: session snapshots, session events, create-session config, prompt params, and a documented channel map.
+- Updated the preload API contract and bridge to return `PiSessionSnapshot` / `PiSessionEvent` types instead of `unknown` for `window.api.piNative` calls.
+- Updated the renderer native Pi store and launch flow to store typed snapshots directly, removing unsafe `Record<string, unknown>` casts at the session creation and prompt response call sites.
+
+### Verification
+
+- `pnpm run tc:web` passed.
+- `pnpm run tc:node` passed.
+- `pnpm run tc:cli` passed.
+
+### Production impact
+
+- Renderer, preload, and main-process Pi lifecycle code now share one serializable IPC contract, reducing drift between handlers and call sites.
+- Native Pi session updates are typed end-to-end, improving safety for follow-up model config and event-stream work.
+
 ## 2026-06-12 — Native Pi SDK: full Phases 4–7 (tools, auth, UI, composer, interrupt, streaming)
 
 ### Production change

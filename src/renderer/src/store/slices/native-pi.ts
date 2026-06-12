@@ -11,6 +11,7 @@
 
 import type { StateCreator } from 'zustand'
 import type { AppState } from '../types'
+import type { PiSessionSnapshot } from '../../../../shared/pi-ipc-types'
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -19,7 +20,7 @@ export type NativePiSessionEntry = {
   worktreeId: string
   createdAt: number
   /** Last known snapshot from the main process (from listSessions / getSession). */
-  snapshot: Record<string, unknown> | null
+  snapshot: PiSessionSnapshot | null
 }
 
 export type NativePiSlice = {
@@ -33,7 +34,7 @@ export type NativePiSlice = {
   removeNativePiSession: (sessionId: string) => void
 
   /** Update the snapshot for a session. */
-  updateNativePiSnapshot: (sessionId: string, snapshot: Record<string, unknown>) => void
+  updateNativePiSnapshot: (sessionId: string, snapshot: PiSessionSnapshot) => void
 }
 
 // ── Slice creator ───────────────────────────────────────────────────────────

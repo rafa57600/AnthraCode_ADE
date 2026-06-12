@@ -4,17 +4,15 @@ import type { AgentHookSource } from '../../shared/agent-hook-relay'
 import type { ToolExecutionMode } from '@earendil-works/pi-agent-core'
 
 /**
- * Orca-level status of a native Pi session.
- * Mirrors the visual states used by the agent status system.
+ * Re-export shared IPC types so existing main-process imports still resolve.
+ * See src/shared/pi-ipc-types.ts for the canonical definitions.
  */
-export type PiSessionStatus =
-  | 'idle'
-  | 'starting'
-  | 'running'
-  | 'streaming'
-  | 'interrupted'
-  | 'error'
-  | 'finished'
+export type {
+  PiSessionStatus,
+  PiSessionSnapshot,
+  PiSessionEvent,
+  PiSessionEventCallback
+} from '../../shared/pi-ipc-types'
 
 /** Parameters for creating a native Pi session. */
 export interface CreatePiSessionParams {
@@ -40,32 +38,8 @@ export interface CreatePiSessionParams {
   toolExecution?: ToolExecutionMode
 }
 
-/** Snapshot of a native Pi session for management and reporting. */
-export interface PiSessionSnapshot {
-  sessionId: string
-  status: PiSessionStatus
-  paneKey?: string
-  worktreePath: string
-  createdAt: number
-  lastActivityAt: number
-  messageCount: number
-  errorMessage?: string
-}
-
-/**
- * Events emitted by PiSessionHost for consumption by Orca's agent status system
- * and the broader runtime integration.
- */
-export type PiSessionEvent =
-  | { type: 'status_change'; status: PiSessionStatus; sessionId: string }
-  | { type: 'error'; sessionId: string; error: Error }
-  | { type: 'finished'; sessionId: string; messageCount: number }
-  | { type: 'tool_call'; sessionId: string; toolName: string; toolInput: unknown }
-  | { type: 'tool_result'; sessionId: string; toolName: string; isError: boolean }
-  | { type: 'assistant_message'; sessionId: string; text: string }
-
-/** Callback signature for Pi session event consumers. */
-export type PiSessionEventCallback = (event: PiSessionEvent) => void
+// PiSessionSnapshot, PiSessionEvent, PiSessionStatus, PiSessionEventCallback
+// are re-exported from src/shared/pi-ipc-types.ts above.
 
 /**
  * Source identifier used when routing native Pi events through Orca's

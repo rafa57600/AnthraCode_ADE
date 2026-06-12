@@ -161,6 +161,11 @@ import type {
 } from '../shared/browser-guest-events'
 import type { ElectronAPI } from '@electron-toolkit/preload'
 import type { BrowserSetAnnotationViewportBridgeArgs } from '../shared/browser-annotation-viewport-bridge'
+import type {
+  PiCreateSessionConfig,
+  PiSessionEvent,
+  PiSessionSnapshot
+} from '../shared/pi-ipc-types'
 import type { CliInstallStatus } from '../shared/cli-install-types'
 import type { E2EConfig } from '../shared/e2e-config'
 import type { AgentHookInstallStatus } from '../shared/agent-hook-types'
@@ -2144,22 +2149,13 @@ export type PreloadApi = {
   }
 
   piNative: {
-    createSession: (config: {
-      modelProvider: string
-      modelName: string
-      worktreePath: string
-      paneKey?: string
-      systemPrompt?: string
-      apiKey?: string
-      thinkingLevel?: string
-      sessionId?: string
-    }) => Promise<unknown>
+    createSession: (config: PiCreateSessionConfig) => Promise<PiSessionSnapshot>
     destroySession: (sessionId: string) => Promise<{ ok: boolean }>
-    prompt: (sessionId: string, text: string) => Promise<unknown>
+    prompt: (sessionId: string, text: string) => Promise<PiSessionSnapshot>
     abort: (sessionId: string) => Promise<{ ok: boolean }>
-    listSessions: () => Promise<unknown[]>
-    getSession: (sessionId: string) => Promise<unknown | undefined>
-    onEvent: (callback: (event: unknown) => void) => () => void
+    listSessions: () => Promise<PiSessionSnapshot[]>
+    getSession: (sessionId: string) => Promise<PiSessionSnapshot | undefined>
+    onEvent: (callback: (event: PiSessionEvent) => void) => () => void
   }
 }
 

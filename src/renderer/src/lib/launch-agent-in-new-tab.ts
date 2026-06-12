@@ -192,9 +192,8 @@ export function launchAgentInNewTab(args: LaunchAgentInNewTabArgs): LaunchAgentI
         paneKey
       })
       .then((snapshot) => {
-        const sessionRecord = snapshot as Record<string, unknown>
-        const sessionId = String(sessionRecord?.sessionId ?? tempSessionId)
-        useAppStore.getState().updateNativePiSnapshot(sessionId, sessionRecord)
+        const sessionId = snapshot.sessionId ?? tempSessionId
+        useAppStore.getState().updateNativePiSnapshot(sessionId, snapshot)
         toast.success(
           `Pi agent session started in ${worktreePath.split(/[\\/]/).filter(Boolean).at(-1) ?? worktreePath}.`
         )
@@ -203,9 +202,7 @@ export function launchAgentInNewTab(args: LaunchAgentInNewTabArgs): LaunchAgentI
           void window.api.piNative
             .prompt(sessionId, trimmedPrompt)
             .then((nextSnapshot) => {
-              useAppStore
-                .getState()
-                .updateNativePiSnapshot(sessionId, nextSnapshot as Record<string, unknown>)
+              useAppStore.getState().updateNativePiSnapshot(sessionId, nextSnapshot)
             })
             .catch((err: Error) => {
               console.error('[pi-native] prompt failed:', err)

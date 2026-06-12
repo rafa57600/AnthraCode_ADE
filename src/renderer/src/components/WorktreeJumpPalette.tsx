@@ -249,7 +249,7 @@ export default function WorktreeJumpPalette(): React.JSX.Element | null {
   const deferredQuery = useDeferredValue(query)
   const [selectedItemId, setSelectedItemId] = useState('')
   const previousWorktreeIdRef = useRef<string | null>(null)
-  const previousActiveTabTypeRef = useRef<'browser' | 'editor' | 'terminal'>('terminal')
+  const previousActiveTabTypeRef = useRef<'browser' | 'editor' | 'terminal' | 'native-agent'>('terminal')
   const previousBrowserPageIdRef = useRef<string | null>(null)
   const previousBrowserFocusTargetRef = useRef<'webview' | 'address-bar'>('webview')
   const activeGroupSnapshotRef = useRef<CmdJActiveGroupSnapshot | null>(null)

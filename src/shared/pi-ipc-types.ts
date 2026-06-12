@@ -12,7 +12,7 @@
  * types that cross the process boundary.
  */
 
-import type { PiModelConfig } from './pi-model-config'
+import type { PiModelConfig, PiModelConfigInput } from './pi-model-config'
 import type { PiToolSource, PiToolUseEnd, PiToolUseStart, PiToolUseUpdate } from './pi-tool-use-events'
 
 // ── Session status ───────────────────────────────────────────────────────────
@@ -91,7 +91,9 @@ export type PiSessionEventCallback = (event: PiSessionEvent) => void
 // ── IPC request shapes ───────────────────────────────────────────────────────
 
 /** Parameters for pi-native:create-session (serializable IPC surface). */
-export interface PiCreateSessionConfig extends PiModelConfig {
+export interface PiCreateSessionConfig extends PiModelConfigInput {
+  /** Preferred serializable model payload for native Pi SDK sessions. */
+  modelConfig: PiModelConfig
   worktreePath: string
   paneKey?: string
   systemPrompt?: string

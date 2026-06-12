@@ -10,15 +10,16 @@
  *
  * ## Why not pass `model` as a string and resolve it in the handler?
  * The Pi SDK's `getModel()` requires a known-provider literal and a model name
- * that exists in the provider's registry. At the IPC boundary we accept
- * `modelProvider` + `modelName` strings and resolve them, which keeps the
- * contract serializable while letting the main process handle SDK imports.
+ * that exists in the provider's registry. At the IPC boundary we accept a
+ * serializable `modelConfig` object and resolve it in main, keeping SDK imports
+ * out of renderer/preload runtime paths.
  */
 
 import { ipcMain } from 'electron'
 import type { PiSessionSnapshot } from './types'
 import { createAnthraSpaceTools } from './anthraspace-tools'
 import { resolvePiModelConfig } from '../../shared/pi-model-config'
+import type { PiCreateSessionConfig } from '../../shared/pi-ipc-types'
 
 // ── Safe guards ─────────────────────────────────────────────────────────────
 
@@ -33,8 +34,8 @@ async function getPiAgentHost() {
   return mod.piAgentHost
 }
 
-async function resolvePiModel(provider: string | null | undefined, name: string | null | undefined) {
-  const modelConfig = resolvePiModelConfig({ modelProvider: provider, modelName: name })
+async function resolvePiModel(config: Partial<PiCreateSessionConfig>) {
+  const modelConfig = resolvePiModelConfig(config)
   const { getModel } = await import('@earendil-works/pi-ai')
   return getModel(modelConfig.modelProvider as any, modelConfig.modelName as any)
 }
@@ -73,14 +74,11 @@ export function registerPiNativeHandlers(): void {
   /** Create a new native Pi SDK session. */
   ipcMain.handle('pi-native:create-session', async (_event, params: unknown) => {
     const webContents = _event.sender
-    const config = params as Record<string, unknown>
+    const config = params as Partial<PiCreateSessionConfig> & Record<string, unknown>
 
     // Resolve the model via Pi SDK only after the native path is invoked.
     // Missing or incomplete IPC model config falls back to the shared default.
-    const model = await resolvePiModel(
-      typeof config.modelProvider === 'string' ? config.modelProvider : null,
-      typeof config.modelName === 'string' ? config.modelName : null
-    )
+    const model = await resolvePiModel(config)
     const piAgentHost = await getPiAgentHost()
 
     // Why: generate AnthraSpace custom tools scoped to this session's worktree.

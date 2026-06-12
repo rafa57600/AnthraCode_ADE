@@ -11,6 +11,14 @@ export type PiModelConfig = {
   modelName: string
 }
 
+export type PiModelConfigInput = {
+  /** Preferred IPC shape for native Pi launches. */
+  modelConfig?: Partial<PiModelConfig> | null
+  /** Legacy flat IPC shape; kept so older call sites still resolve safely. */
+  modelProvider?: string | null
+  modelName?: string | null
+}
+
 export const DEFAULT_NATIVE_PI_MODEL_CONFIG = {
   modelProvider: 'anthropic',
   modelName: 'claude-sonnet-4-20250514'
@@ -51,8 +59,17 @@ export function toPiModelConfig(model: {
   return { modelProvider, modelName }
 }
 
-export function resolvePiModelConfig(
-  model: { modelProvider?: string | null; modelName?: string | null } | null | undefined
-): PiModelConfig {
-  return model ? (toPiModelConfig(model) ?? DEFAULT_NATIVE_PI_MODEL_CONFIG) : DEFAULT_NATIVE_PI_MODEL_CONFIG
+export function resolvePiModelConfig(model: PiModelConfigInput | null | undefined): PiModelConfig {
+  if (!model) {
+    return DEFAULT_NATIVE_PI_MODEL_CONFIG
+  }
+
+  // Why: new IPC callers pass a nested modelConfig object so the model payload
+  // stays distinct from session lifecycle fields. Flat fields remain as a
+  // compatibility shim for older renderer/preload callers.
+  return (
+    toPiModelConfig(model.modelConfig ?? model) ??
+    toPiModelConfig(model) ??
+    DEFAULT_NATIVE_PI_MODEL_CONFIG
+  )
 }

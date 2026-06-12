@@ -2,6 +2,28 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-12 — Native Pi SDK nested model config IPC payload
+
+### Production change
+
+- Extended the shared native Pi model config contract with `PiModelConfigInput`, making `modelConfig` the preferred nested IPC payload while preserving legacy flat `modelProvider` / `modelName` compatibility.
+- Updated renderer native Pi launches to send `modelConfig` through `window.api.piNative.createSession()` instead of duplicating flat model fields alongside lifecycle fields.
+- Updated the main-process `pi-native:create-session` handler to resolve the nested config first and fall back through legacy flat fields to the default native Pi model.
+- Added tests covering nested payload precedence and legacy flat-field compatibility.
+
+### Verification
+
+- `pnpm exec vitest run --config config/vitest.config.ts src/shared/pi-model-config.test.ts` passed (6 tests).
+- `pnpm run tc:web` passed.
+- `pnpm run tc:node` passed.
+- `pnpm run tc:cli` passed.
+
+### Production impact
+
+- Model selection is now explicitly separated from session lifecycle data at the IPC boundary, reducing drift as model configuration grows.
+- Existing/older IPC callers remain safe because flat fields still resolve and incomplete configs still fall back to the shared default model.
+- Future model options can be added under `modelConfig` without polluting the create-session top-level payload.
+
 ## 2026-06-12 — Native Pi SDK tool registration and stream verification
 
 ### Production change

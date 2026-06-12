@@ -32,4 +32,21 @@ describe('pi-model-config', () => {
       DEFAULT_NATIVE_PI_MODEL_CONFIG
     )
   })
+
+  it('prefers nested IPC modelConfig over legacy flat model fields', () => {
+    expect(
+      resolvePiModelConfig({
+        modelProvider: 'anthropic',
+        modelName: 'claude-sonnet-4-20250514',
+        modelConfig: { modelProvider: 'gemini', modelName: 'gemini-2.5-flash' }
+      })
+    ).toEqual({ modelProvider: 'google', modelName: 'gemini-2.5-flash' })
+  })
+
+  it('keeps legacy flat IPC model fields as a compatibility fallback', () => {
+    expect(resolvePiModelConfig({ modelProvider: 'claude', modelName: 'claude-sonnet-4-0' })).toEqual({
+      modelProvider: 'anthropic',
+      modelName: 'claude-sonnet-4-0'
+    })
+  })
 })

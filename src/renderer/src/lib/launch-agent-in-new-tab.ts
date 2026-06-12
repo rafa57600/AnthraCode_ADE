@@ -188,8 +188,7 @@ export function launchAgentInNewTab(args: LaunchAgentInNewTabArgs): LaunchAgentI
     void window.api.piNative
       .createSession({
         sessionId: tempSessionId,
-        modelProvider: piModel.modelProvider,
-        modelName: piModel.modelName,
+        modelConfig: piModel,
         worktreePath,
         paneKey
       })

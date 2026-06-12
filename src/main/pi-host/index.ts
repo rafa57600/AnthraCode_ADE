@@ -51,7 +51,7 @@ export { buildStatusPayload, buildToolSnapshot } from './agent-status-bridge'
 export { registerPiNativeHandlers } from './pi-native-ipc'
 
 export { createAnthraSpaceTools } from './anthraspace-tools'
-export type { AnthraSpaceTool } from './anthraspace-tools'
+export type { AnthraSpaceToolDef, AnthraSpaceToolOptions } from './anthraspace-tools'
 
 export {
   bridgeApiKeysToPiAuth,

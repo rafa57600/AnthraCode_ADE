@@ -17,6 +17,7 @@
 
 import { ipcMain } from 'electron'
 import type { PiSessionSnapshot } from './types'
+import { createAnthraSpaceTools } from './anthraspace-tools'
 
 // ── Safe guards ─────────────────────────────────────────────────────────────
 
@@ -80,8 +81,15 @@ export function registerPiNativeHandlers(): void {
     const model = await resolvePiModel(config.modelProvider, config.modelName)
     const piAgentHost = await getPiAgentHost()
 
+    // Why: generate AnthraSpace custom tools scoped to this session's worktree.
+    // The tools perform real file I/O (anthraspace_read) and shell execution
+    // (anthraspace_terminal). Stubs for browser and orchestrate return a
+    // descriptive "not yet wired" message instead of failing silently.
+    const worktreePath = String(config.worktreePath ?? '')
+    const anthraSpaceTools = createAnthraSpaceTools({ worktreePath })
+
     const session = await piAgentHost.createSession({
-      worktreePath: String(config.worktreePath ?? ''),
+      worktreePath,
       model,
       apiKey: typeof config.apiKey === 'string' ? config.apiKey : undefined,
       systemPrompt: typeof config.systemPrompt === 'string' ? config.systemPrompt : undefined,
@@ -93,6 +101,7 @@ export function registerPiNativeHandlers(): void {
       toolExecution: typeof config.toolExecution === 'string'
         ? config.toolExecution as any
         : undefined,
+      tools: anthraSpaceTools as any,
     })
 
     // Why: native-agent tabs are renderer-owned, but Pi SDK events originate in

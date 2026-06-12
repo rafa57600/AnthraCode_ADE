@@ -1,70 +1,85 @@
 /**
- * anthraspace-tools — Custom AnthraSpace tools registered alongside Pi built-ins.
+ * anthraspace-tools — Custom AnthraSpace tools for Pi native sessions.
  *
  * Each tool provides a capability that AnthraSpace owns: worktree-aware file
- * access, browser automation, terminal execution, and multi-agent orchestration.
- * These supplement Pi's built-in read/write/edit/bash/grep tools.
- *
- * ## Architecture
- * Tools are defined as `AgentToolDefinition` objects consumable by Pi's `Agent`
- * constructor alongside `createCodingTools()`. Their `execute` callbacks receive
- * a host reference so they can delegate to AnthraSpace's own services.
+ * access, terminal execution, browser automation, and multi-agent orchestration.
+ * These supplement the tool array passed to the Pi SDK's `Agent` constructor.
  *
  * ## Naming
- * The `anthraspace_` prefix distinguishes these from Pi built-ins and signals
- * that execution happens through AnthraSpace's infrastructure, not Pi's
- * `NodeExecutionEnv`.
+ * The `anthraspace_` prefix distinguishes these from any built-in tools and
+ * signals that execution routes through AnthraSpace's infrastructure, not Pi's
+ * `NodeExecutionEnv` directly.
+ *
+ * ## Error contract
+ * Functions throw on failure. The Pi SDK's agent loop catches thrown errors
+ * and converts them to `{ isError: true, content: [{ type: 'text', text }] }`
+ * automatically. Do NOT return error text in `content` — throw it.
+ *
+ * ## Abort support
+ * The `signal` parameter is an `AbortSignal` from the Pi SDK. Long-running
+ * operations (terminal commands) should abort when the signal is triggered.
  */
 
-import type { ToolExecutionMode } from '@earendil-works/pi-agent-core'
-import type { PiAgentHost } from './agent-host'
+import * as fs from 'node:fs/promises'
+import * as path from 'node:path'
+import { exec as cpExec } from 'node:child_process'
 
-// ── Tool definition shape (mirrors pi-agent-core's AgentToolDefinition) ─────
-// Why: importing the canonical type from @earendil-works/pi-agent-core requires
-// the package to be installed. We mirror the shape here so the file compiles
-// even if the SDK is absent during bundling (lazy-import path).
+// ── Internal types (mirror AgentTool<any>-compatible shape at runtime) ───────
 
-type ToolParams = Record<string, unknown>
-type ToolContent = { type: 'text'; text: string } | { type: 'image'; source: unknown }
-type ToolResult = { content: ToolContent[]; details: Record<string, unknown> }
+type ToolContent = { type: 'text'; text: string }
+type ToolResult = {
+  content: ToolContent[]
+  details: Record<string, unknown>
+  terminate?: boolean
+}
 
-export type AnthraSpaceTool = {
+type ToolExecuteFn = (
+  toolCallId: string,
+  params: Record<string, unknown>,
+  signal?: AbortSignal,
+  onUpdate?: (result: ToolResult) => void,
+) => Promise<ToolResult>
+
+export type AnthraSpaceToolDef = {
   name: string
   label: string
   description: string
   parameters: Record<string, unknown>
-  execute: (callId: string, params: ToolParams) => Promise<ToolResult> | ToolResult
-  /** Override the session-level execution mode for this tool. */
-  executionMode?: ToolExecutionMode
+  execute: ToolExecuteFn
+  executionMode?: 'sequential' | 'parallel'
 }
 
-// ── Tool factories ───────────────────────────────────────────────────────────
+// ── Factory ──────────────────────────────────────────────────────────────────
+
+export type AnthraSpaceToolOptions = {
+  /** Absolute path to the worktree root. Used to resolve relative file paths. */
+  worktreePath: string
+}
 
 /**
- * Build the standard set of AnthraSpace custom tools.
- *
- * @param host - PiAgentHost singleton used to delegate operations.
+ * Build the standard set of AnthraSpace custom tools for a Pi session.
+ * Call this once per session with the session's worktree root.
  */
-export function createAnthraSpaceTools(host: PiAgentHost): AnthraSpaceTool[] {
+export function createAnthraSpaceTools(options: AnthraSpaceToolOptions): AnthraSpaceToolDef[] {
   return [
-    createReadWorktreeTool(host),
-    createBrowserTool(host),
-    createTerminalTool(host),
-    createOrchestrateTool(host),
+    createReadTool(options),
+    createTerminalTool(options),
+    createBrowserTool(options),
+    createOrchestrateTool(options),
   ]
 }
 
-// ── Individual tool definitions ──────────────────────────────────────────────
+// ── anthraspace_read ─────────────────────────────────────────────────────────
 
-function createReadWorktreeTool(_host: PiAgentHost): AnthraSpaceTool {
+function createReadTool(opts: AnthraSpaceToolOptions): AnthraSpaceToolDef {
   return {
     name: 'anthraspace_read',
     label: 'AnthraSpace Read',
     description:
       'Read a file from the current AnthraSpace worktree. Prefer this over ' +
-      "Pi's built-in `read` when the file path is relative to the worktree " +
-      'root — AnthraSpace resolves it against the active worktree instead of ' +
-      "Pi's working directory.",
+      "generic `read` tools when the file path is relative to the worktree " +
+      'root — AnthraSpace resolves it against the active worktree, preventing ' +
+      'path-traversal outside the project boundary.',
     parameters: {
       type: 'object',
       required: ['path'],
@@ -75,51 +90,195 @@ function createReadWorktreeTool(_host: PiAgentHost): AnthraSpaceTool {
         },
         offset: {
           type: 'number',
-          description: 'Line number to start reading from (1-indexed)',
+          description: 'Line number to start reading from (1-indexed; defaults to 1)',
         },
         limit: {
           type: 'number',
-          description: 'Max lines to return',
+          description: 'Max lines to return (defaults to entire file)',
         },
       },
     },
-    execute: async (_callId, params) => {
-      // Why: defer to Pi's built-in read via NodeExecutionEnv from the host.
-      // In a full integration the host resolves the worktree path and calls
-      // its own filesystem abstraction; for now this forwards to Pi's env.
+    execute: async (_toolCallId, params, _signal, _onUpdate) => {
+      const filePathRaw = String(params.path ?? '').trim()
+      if (!filePathRaw) {
+        throw new Error('`path` is required')
+      }
+
+      // Why: strip leading slashes/dots so path.resolve doesn't escape the
+      // worktree root. Then resolve against the worktree.
+      const safePath = filePathRaw.replace(/^[/\\]+/, '').replace(/^\.\.(\/|\\)?/, '')
+      const targetPath = path.resolve(opts.worktreePath, safePath)
+
+      // Security: reject paths that resolve outside the worktree
+      if (!targetPath.startsWith(opts.worktreePath)) {
+        throw new Error(`Path traversal blocked: "${filePathRaw}" resolves outside the worktree`)
+      }
+
+      let content: string
       try {
-        const worktreePath = /* host.resolveWorktreePath() */ ''
-        const filePath = String(params.path ?? '')
-        const targetPath = worktreePath
-          ? `${worktreePath}/${filePath.replace(/^[/\\]+/, '')}`
-          : filePath
-        return {
-          content: [{ type: 'text', text: `[anthraspace_read] ${targetPath} (stub)` }],
-          details: {},
-        }
-      } catch (err) {
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Error: ${err instanceof Error ? err.message : String(err)}`,
-            },
-          ],
-          details: { isError: true },
-        }
+        content = await fs.readFile(targetPath, 'utf-8')
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err)
+        throw new Error(`Cannot read "${filePathRaw}": ${msg}`)
+      }
+
+      const lines = content.split('\n')
+      const totalLines = lines.length
+      const offset = typeof params.offset === 'number' ? Math.max(0, Math.floor(params.offset) - 1) : 0
+      const limit = typeof params.limit === 'number' ? Math.max(1, Math.floor(params.limit)) : totalLines
+
+      const selected = lines.slice(offset, offset + limit)
+      const result = selected.join('\n')
+
+      return {
+        content: [{ type: 'text', text: result }],
+        details: {
+          filePath: filePathRaw,
+          totalLines,
+          offset: offset + 1,
+          returnedLines: selected.length,
+        },
       }
     },
   }
 }
 
-function createBrowserTool(_host: PiAgentHost): AnthraSpaceTool {
+// ── anthraspace_terminal ─────────────────────────────────────────────────────
+
+function createTerminalTool(opts: AnthraSpaceToolOptions): AnthraSpaceToolDef {
+  return {
+    name: 'anthraspace_terminal',
+    label: 'AnthraSpace Terminal',
+    description:
+      'Execute a shell command in the worktree directory. Use this for build ' +
+      'steps, running tests, or any CLI tool. For long-running commands the ' +
+      'agent can be interrupted via the AnthraSpace UI; the running process ' +
+      'will be terminated promptly.',
+    parameters: {
+      type: 'object',
+      required: ['command'],
+      properties: {
+        command: {
+          type: 'string',
+          description: 'Shell command to execute',
+        },
+        cwd: {
+          type: 'string',
+          description:
+            'Working directory relative to the worktree root (defaults to root)',
+        },
+        timeout: {
+          type: 'number',
+          description:
+            'Max execution time in seconds (0 or omit = 30s default; use ' +
+            '120 for build commands)',
+        },
+      },
+    },
+    execute: async (_toolCallId, params, signal, _onUpdate) => {
+      const command = String(params.command ?? '').trim()
+      if (!command) {
+        throw new Error('`command` is required')
+      }
+
+      const cwdRaw = typeof params.cwd === 'string' ? params.cwd.trim() : ''
+      const cwdAbs = cwdRaw
+        ? path.resolve(opts.worktreePath, cwdRaw.replace(/^[/\\]+/, ''))
+        : opts.worktreePath
+
+      // Security: reject cwd that escapes the worktree
+      if (!cwdAbs.startsWith(opts.worktreePath)) {
+        throw new Error(`cwd path traversal blocked: "${cwdRaw}"`)
+      }
+
+      const timeoutSec =
+        typeof params.timeout === 'number' && params.timeout > 0 ? params.timeout : 30
+
+      let stdout = ''
+      let stderr = ''
+
+      try {
+        // Why: use child_process.exec wrapped in a Promise that rejects on
+        // non-zero exit. The AbortSignal is wired so that abort() kills the
+        // child process immediately.
+        const result = await new Promise<{ stdout: string; stderr: string; exitCode: number }>(
+          (resolve, reject) => {
+            const child = cpExec(
+              command,
+              {
+                cwd: cwdAbs,
+                maxBuffer: 10 * 1024 * 1024, // 10 MB
+                timeout: timeoutSec * 1000,
+                windowsHide: true,
+              },
+              (error, childStdout, childStderr) => {
+                if (error && error.killed) {
+                  reject(new Error(`Command killed`))
+                  return
+                }
+                resolve({
+                  stdout: childStdout ?? '',
+                  stderr: childStderr ?? '',
+                  exitCode: error?.code ?? 0,
+                })
+              },
+            )
+
+            if (signal) {
+              if (signal.aborted) {
+                child.kill()
+                reject(new Error('Command aborted before execution'))
+                return
+              }
+              const onAbort = () => {
+                child.kill()
+                reject(new Error('Command aborted during execution'))
+              }
+              signal.addEventListener('abort', onAbort, { once: true })
+            }
+          },
+        )
+
+        stdout = result.stdout
+        stderr = result.stderr
+
+        // Build a combined output; prefer stdout for success, include stderr
+        // when non-empty or when the command failed.
+        let output = ''
+        if (stdout) output += stdout + '\n'
+        if (stderr) {
+          output += stderr + '\n'
+        }
+        if (!output) output = `(exit code ${result.exitCode}, no output)`
+
+        if (result.exitCode !== 0 && !stderr) {
+          output += `\n(exit code ${result.exitCode})`
+        }
+
+        return {
+          content: [{ type: 'text', text: output.trimEnd() }],
+          details: { exitCode: result.exitCode, command },
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err)
+        throw new Error(`Command failed: ${msg}`)
+      }
+    },
+  }
+}
+
+// ── anthraspace_browser (stub) ───────────────────────────────────────────────
+
+function createBrowserTool(_opts: AnthraSpaceToolOptions): AnthraSpaceToolDef {
   return {
     name: 'anthraspace_browser',
     label: 'AnthraSpace Browser',
     description:
       'Control AnthraSpace\'s built-in browser: navigate to a URL, click ' +
       'elements, type text, or capture screenshots. The browser runs in a ' +
-      'tab managed by AnthraSpace and is shared across all agents in the workspace.',
+      'tab managed by AnthraSpace and is shared across all agents in the ' +
+      'workspace. **Not yet wired** — the browser bridge will be added in a ' +
+      'future release.',
     parameters: {
       type: 'object',
       required: ['action'],
@@ -143,73 +302,34 @@ function createBrowserTool(_host: PiAgentHost): AnthraSpaceTool {
         },
       },
     },
-    execute: async (_callId, params) => {
+    execute: async (_toolCallId, params, _signal, _onUpdate) => {
       const action = String(params.action ?? '')
       return {
         content: [
           {
             type: 'text',
-            text: `[anthraspace_browser] action="${action}" (stub — browser bridge not yet wired)`,
+            text: `[anthraspace_browser] Browser bridge not yet wired. ` +
+              `Action "${action}" cannot be processed. ` +
+              `The AnthraSpace browser integration will be available in a future update.`,
           },
         ],
-        details: {},
+        details: { action, wired: false },
       }
     },
   }
 }
 
-function createTerminalTool(_host: PiAgentHost): AnthraSpaceTool {
-  return {
-    name: 'anthraspace_terminal',
-    label: 'AnthraSpace Terminal',
-    description:
-      'Execute shell commands in an AnthraSpace-managed terminal. Unlike ' +
-      "Pi's built-in `bash` tool, this runs through AnthraSpace's PTY " +
-      'infrastructure: output is streamed to the terminal pane, long-running ' +
-      'commands can be interrupted, and the shell environment includes the ' +
-      "user's configured PATH and runtime context.",
-    parameters: {
-      type: 'object',
-      required: ['command'],
-      properties: {
-        command: {
-          type: 'string',
-          description: 'Shell command to execute',
-        },
-        cwd: {
-          type: 'string',
-          description: 'Working directory (defaults to the worktree root)',
-        },
-        timeout: {
-          type: 'number',
-          description: 'Max execution time in seconds (0 = no limit)',
-        },
-      },
-    },
-    execute: async (_callId, params) => {
-      const command = String(params.command ?? '')
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `[anthraspace_terminal] $\u00A0${command}\n(stub — terminal bridge not yet wired)`,
-          },
-        ],
-        details: {},
-      }
-    },
-  }
-}
+// ── anthraspace_orchestrate (stub) ───────────────────────────────────────────
 
-function createOrchestrateTool(_host: PiAgentHost): AnthraSpaceTool {
+function createOrchestrateTool(_opts: AnthraSpaceToolOptions): AnthraSpaceToolDef {
   return {
     name: 'anthraspace_orchestrate',
     label: 'AnthraSpace Orchestrate',
     description:
       'Dispatch a task to another agent running in the same AnthraSpace ' +
       'workspace. Agents can be addressed by their pane key or group ' +
-      'identifier. The target agent receives the task as a new prompt in ' +
-      'its session.',
+      'identifier. **Not yet wired** — the orchestration bridge will be ' +
+      'added in a future release.',
     parameters: {
       type: 'object',
       required: ['target', 'task'],
@@ -226,19 +346,19 @@ function createOrchestrateTool(_host: PiAgentHost): AnthraSpaceTool {
         },
       },
     },
-    execute: async (_callId, params) => {
+    execute: async (_toolCallId, params, _signal, _onUpdate) => {
       const target = String(params.target ?? '')
       const task = String(params.task ?? '')
       return {
         content: [
           {
             type: 'text',
-            text:
-              `[anthraspace_orchestrate] dispatched to "${target}" (stub — ` +
-              `orchestration bridge not yet wired)\nTask: ${task}`,
+            text: `[anthraspace_orchestrate] Orchestration bridge not yet wired. ` +
+              `Cannot dispatch task to "${target}". ` +
+              `The agent orchestration system will be available in a future update.`,
           },
         ],
-        details: {},
+        details: { target, task, wired: false },
       }
     },
   }

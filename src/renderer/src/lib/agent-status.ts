@@ -217,6 +217,18 @@ export function isExplicitAgentStatusFresh(
 }
 
 /**
+ * Check whether a given agent type can run in native SDK mode.
+ *
+ * Native SDK agents bypass the subprocess-PTY path and communicate directly
+ * through an in-process host (e.g. `PiAgentHost` for Pi). Currently only Pi
+ * has native SDK support; the renderer checks this before routing a launch
+ * request through the IPC bridge instead of spawning a terminal.
+ */
+export function isNativeSdkCapable(agentType: string | null | undefined): boolean {
+  return agentType === 'pi'
+}
+
+/**
  * Map an explicit AgentStatusState to the visual Status used by
  * StatusIndicator and WorktreeCard.
  *

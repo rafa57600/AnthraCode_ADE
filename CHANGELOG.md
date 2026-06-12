@@ -2,6 +2,29 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-12 — Native Pi SDK: custom tools, auth bridge, catalog badge
+
+### Production change
+
+- **Phase 4 — Custom tools**: Added `anthraspace-tools.ts` with four AnthraSpace-native tool definitions (`anthraspace_read`, `anthraspace_browser`, `anthraspace_terminal`, `anthraspace_orchestrate`) that supplement Pi's built-in tools. Each tool is prefixed with `anthraspace_` to distinguish it from Pi built-ins and signals execution through AnthraSpace's infrastructure.
+- **Phase 5 — Auth bridge**: Added `auth-bridge.ts` that maps AnthraSpace API key settings (`anthropicApiKey`, `openaiApiKey`, `googleApiKey`, `openRouterApiKey`, `groqApiKey`) to Pi SDK's `AuthStorage` provider names at session creation time. Includes `bridgeApiKeysToPiAuth()` and `discoverConfiguredProviders()` helpers.
+- **Phase 6 — UI integration**: Added `isNativeSdkCapable()` helper in `agent-status.ts` for checking native SDK eligibility per agent type. Added optional `badge` field to `AgentCatalogEntry` and a "Native" badge on Pi's catalog entry, rendered in the `AgentCombobox` alongside the Pi label.
+- **Phase 7 — Infrastructure**: Installed `@earendil-works/pi-coding-agent@0.79.0` SDK dependency and verified all three sub-packages (`pi-agent-core`, `pi-ai`, `pi-agent-core/node`) import correctly. Added `sdk-smoke.ts` startup verification. Exported all new modules from `pi-host/index.ts`. The existing `experimentalNativePiSdk` feature gate and fallback chain remain in place.
+
+### Verification
+
+- `pnpm run tc:node` passed (0 new errors; 6 pre-existing renderer type issues unchanged).
+- `pnpm run tc:cli` passed (same pre-existing issues).
+- `pnpm run tc:web` passed (same pre-existing issues).
+- SDK smoke test: `verifyPiSdkAvailable()` PASS — `Agent`, `InMemorySessionRepo`, `getModel`, `NodeExecutionEnv` all import correctly.
+
+### Production impact
+
+- Native Pi sessions can now source API keys from AnthraSpace's existing settings instead of requiring manual per-session key injection.
+- The agent picker UI communicates native SDK capability visually, helping users understand that Pi can run in-process when the experimental flag is enabled.
+- Custom tool definitions are structured for future wiring to AnthraSpace's browser, terminal, and orchestration services — no functional change until those bridges are implemented.
+- SDK dependency adds ~11 MB to `node_modules`; electron-vite tree-shaking will reduce the bundled footprint (pi-tui exclusion is the next optimization target).
+
 ## 2026-06-11 — Free test provider registry and native Pi model routing
 
 ### Production change

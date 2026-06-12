@@ -12,6 +12,10 @@ export type AgentCatalogEntry = {
   faviconDomain?: string
   /** Homepage/install docs URL, sourced from the README agent badge list. */
   homepageUrl: string
+  /** Optional short badge displayed alongside the label (e.g. "Native" for
+   *  agents with in-process SDK support). Rendered as a muted chip in the
+   *  agent combobox and other agent-picker UI. */
+  badge?: string
 }
 
 // Full catalog of supported agents — ordered by priority for auto-default selection.
@@ -59,7 +63,8 @@ export const AGENT_CATALOG: AgentCatalogEntry[] = [
     id: 'pi',
     label: 'Pi',
     cmd: 'pi',
-    homepageUrl: 'https://pi.dev'
+    homepageUrl: 'https://pi.dev',
+    badge: 'Native'
   },
   {
     id: 'omp',

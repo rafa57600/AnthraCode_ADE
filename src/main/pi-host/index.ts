@@ -50,6 +50,17 @@ export type { HostOptions } from './agent-host'
 export { buildStatusPayload, buildToolSnapshot } from './agent-status-bridge'
 export { registerPiNativeHandlers } from './pi-native-ipc'
 
+export { createAnthraSpaceTools } from './anthraspace-tools'
+export type { AnthraSpaceTool } from './anthraspace-tools'
+
+export {
+  bridgeApiKeysToPiAuth,
+  discoverConfiguredProviders,
+} from './auth-bridge'
+export type { AuthStorage } from './auth-bridge'
+
+export { verifyPiSdkAvailable, getPiSdkSmokeError } from './sdk-smoke'
+
 export type {
   PiSessionStatus,
   CreatePiSessionParams,

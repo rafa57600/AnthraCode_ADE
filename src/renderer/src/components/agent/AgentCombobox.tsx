@@ -54,6 +54,8 @@ type ItemRenderArgs = {
   onSetDefault?: () => void
   icon: React.ReactNode
   label: string
+  /** Optional short badge displayed alongside the label (e.g. "Native"). */
+  badge?: string
 }
 
 function renderItem({
@@ -64,7 +66,8 @@ function renderItem({
   onSelect,
   onSetDefault,
   icon,
-  label
+  label,
+  badge
 }: ItemRenderArgs): React.ReactNode {
   const row = (
     <CommandItem
@@ -77,6 +80,11 @@ function renderItem({
       <span className="inline-flex min-w-0 flex-1 items-center gap-1.5">
         {icon}
         <span className="truncate">{label}</span>
+        {badge ? (
+          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium leading-none text-muted-foreground">
+            {badge}
+          </span>
+        ) : null}
       </span>
     </CommandItem>
   )
@@ -298,7 +306,8 @@ export default function AgentCombobox({
                   onSelect: () => handleSelect(agent.id),
                   onSetDefault: onSetDefault ? () => onSetDefault(agent.id) : undefined,
                   icon: <AgentIcon agent={agent.id} />,
-                  label: agent.label
+                  label: agent.label,
+                  badge: agent.badge
                 })
               )}
             </CommandList>

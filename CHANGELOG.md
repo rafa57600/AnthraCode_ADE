@@ -2,6 +2,28 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-12 — Native Pi SDK model config defaults and provider mapping
+
+### Production change
+
+- Added shared `src/shared/pi-model-config.ts` as the canonical native Pi model config layer, including the default model (`anthropic` / `claude-sonnet-4-20250514`) and provider alias mapping (`claude`→`anthropic`, `gemini`/`google-ai-studio`→`google`, etc.).
+- Updated native Pi launch routing to resolve free-test selections through the shared model config instead of embedding inline fallback literals in renderer code.
+- Updated the main-process `pi-native:create-session` handler to normalize model provider aliases and safely fall back to the shared default model for incomplete direct IPC requests.
+- Connected `PiCreateSessionConfig` to the shared `PiModelConfig` type so the IPC model payload shape stays aligned with the resolver.
+
+### Verification
+
+- `pnpm exec vitest run --config config/vitest.config.ts src/shared/pi-model-config.test.ts` passed (4 tests).
+- `pnpm run tc:web` passed.
+- `pnpm run tc:node` passed.
+- `pnpm run tc:cli` passed.
+
+### Production impact
+
+- Native Pi model routing now has one source of truth across renderer, preload IPC payloads, and main-process SDK resolution.
+- Direct IPC callers and renderer launches get the same production-safe default fallback instead of failing on missing model config.
+- Provider alias normalization reduces drift between AnthraSpace-facing provider labels and Pi SDK provider IDs.
+
 ## 2026-06-12 — Native Pi SDK IPC lifecycle types
 
 ### Production change

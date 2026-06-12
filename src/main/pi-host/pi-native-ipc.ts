@@ -18,6 +18,7 @@
 import { ipcMain } from 'electron'
 import type { PiSessionSnapshot } from './types'
 import { createAnthraSpaceTools } from './anthraspace-tools'
+import { resolvePiModelConfig } from '../../shared/pi-model-config'
 
 // ── Safe guards ─────────────────────────────────────────────────────────────
 
@@ -32,9 +33,10 @@ async function getPiAgentHost() {
   return mod.piAgentHost
 }
 
-async function resolvePiModel(provider: string, name: string) {
+async function resolvePiModel(provider: string | null | undefined, name: string | null | undefined) {
+  const modelConfig = resolvePiModelConfig({ modelProvider: provider, modelName: name })
   const { getModel } = await import('@earendil-works/pi-ai')
-  return getModel(provider as any, name as any)
+  return getModel(modelConfig.modelProvider as any, modelConfig.modelName as any)
 }
 
 async function logSdkAvailability(): Promise<void> {
@@ -73,12 +75,12 @@ export function registerPiNativeHandlers(): void {
     const webContents = _event.sender
     const config = params as Record<string, unknown>
 
-    if (typeof config?.modelProvider !== 'string' || typeof config?.modelName !== 'string') {
-      throw new Error('pi-native:create-session requires modelProvider and modelName strings')
-    }
-
     // Resolve the model via Pi SDK only after the native path is invoked.
-    const model = await resolvePiModel(config.modelProvider, config.modelName)
+    // Missing or incomplete IPC model config falls back to the shared default.
+    const model = await resolvePiModel(
+      typeof config.modelProvider === 'string' ? config.modelProvider : null,
+      typeof config.modelName === 'string' ? config.modelName : null
+    )
     const piAgentHost = await getPiAgentHost()
 
     // Why: generate AnthraSpace custom tools scoped to this session's worktree.

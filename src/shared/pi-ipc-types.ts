@@ -12,6 +12,8 @@
  * types that cross the process boundary.
  */
 
+import type { PiModelConfig } from './pi-model-config'
+
 // ── Session status ───────────────────────────────────────────────────────────
 
 /** Orca-level status of a native Pi session. */
@@ -55,9 +57,7 @@ export type PiSessionEventCallback = (event: PiSessionEvent) => void
 // ── IPC request shapes ───────────────────────────────────────────────────────
 
 /** Parameters for pi-native:create-session (serializable IPC surface). */
-export interface PiCreateSessionConfig {
-  modelProvider: string
-  modelName: string
+export interface PiCreateSessionConfig extends PiModelConfig {
   worktreePath: string
   paneKey?: string
   systemPrompt?: string

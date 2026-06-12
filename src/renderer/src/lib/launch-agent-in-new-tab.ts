@@ -11,6 +11,7 @@ import { track, tuiAgentToAgentKind } from '@/lib/telemetry'
 import { pasteDraftWhenAgentReady } from '@/lib/agent-paste-draft'
 import { TUI_AGENT_CONFIG } from '../../../shared/tui-agent-config'
 import { getFreeTestCompatibility } from '../../../shared/free-test-providers'
+import { resolvePiModelConfig } from '../../../shared/pi-model-config'
 import { makePaneKey } from '../../../shared/stable-pane-id'
 import { splitWorktreeIdForFilesystem } from '../../../shared/worktree-id'
 import type { TuiAgent } from '../../../shared/types'
@@ -127,10 +128,11 @@ export function launchAgentInNewTab(args: LaunchAgentInNewTabArgs): LaunchAgentI
       selectedModelId: store.settings?.freeTestProviderModelId,
       target: 'pi-native'
     })
-    const piModel =
+    const selectedPiModel =
       freeTestCompatibility.status === 'supported'
-        ? freeTestCompatibility.model
-        : { modelProvider: 'anthropic', modelName: 'claude-sonnet-4-20250514' }
+        ? resolvePiModelConfig(freeTestCompatibility.model)
+        : null
+    const piModel = selectedPiModel ?? resolvePiModelConfig(null)
     if (freeTestCompatibility.status === 'unsupported') {
       toast.message(
         `${freeTestCompatibility.model.label} is not supported by native Pi yet; launching Pi with its default model.`

@@ -22,11 +22,7 @@ import {
 import { NodeExecutionEnv } from '@earendil-works/pi-agent-core/node'
 import { agentHookServer } from '../agent-hooks/server'
 import { buildStatusPayload } from './agent-status-bridge'
-import {
-  createPiToolUseEnd,
-  createPiToolUseStart,
-  createPiToolUseUpdate
-} from '../../shared/pi-tool-use-events'
+import { mapPiAgentEventToSessionEvents } from './pi-session-event-stream'
 import type {
   CreatePiSessionParams,
   PiSessionEvent,
@@ -129,6 +125,11 @@ export class PiSessionHost {
 
   get destroyed(): boolean {
     return this._destroyed
+  }
+
+  /** Return active tool names registered on the underlying Pi Agent. */
+  getToolNames(): string[] {
+    return this._agent.state.tools.map((tool) => tool.name)
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────
@@ -327,83 +328,12 @@ export class PiSessionHost {
 
       case 'turn_start':
         this._status = 'streaming'
-        this.emitEvent({
-          type: 'status_change',
-          status: 'streaming',
-          sessionId: this.sessionId,
-        })
         break
+    }
 
-      case 'tool_execution_start': {
-        const toolUseStart = createPiToolUseStart({
-          toolCallId: event.toolCallId,
-          toolName: event.toolName,
-          toolInput: event.args,
-        })
-        this.emitEvent({
-          type: 'tool_call',
-          sessionId: this.sessionId,
-          toolUse: toolUseStart,
-          toolCallId: toolUseStart.toolCallId,
-          toolName: toolUseStart.toolName,
-          toolSource: toolUseStart.toolSource,
-          toolInput: toolUseStart.toolInput,
-        })
-        break
-      }
-
-      case 'tool_execution_update': {
-        const toolUseUpdate = createPiToolUseUpdate({
-          toolCallId: event.toolCallId,
-          toolName: event.toolName,
-          toolInput: event.args,
-          partialResult: event.partialResult,
-        })
-        this.emitEvent({
-          type: 'tool_update',
-          sessionId: this.sessionId,
-          toolUse: toolUseUpdate,
-          toolCallId: toolUseUpdate.toolCallId,
-          toolName: toolUseUpdate.toolName,
-          toolSource: toolUseUpdate.toolSource,
-          toolInput: toolUseUpdate.toolInput,
-          partialResult: toolUseUpdate.partialResult,
-        })
-        break
-      }
-
-      case 'tool_execution_end': {
-        const toolUseEnd = createPiToolUseEnd({
-          toolCallId: event.toolCallId,
-          toolName: event.toolName,
-          toolResult: event.result,
-          isError: event.isError,
-        })
-        this.emitEvent({
-          type: 'tool_result',
-          sessionId: this.sessionId,
-          toolUse: toolUseEnd,
-          toolCallId: toolUseEnd.toolCallId,
-          toolName: toolUseEnd.toolName,
-          toolSource: toolUseEnd.toolSource,
-          toolResult: toolUseEnd.toolResult,
-          isError: toolUseEnd.isError,
-        })
-        break
-      }
-
-      case 'message_update': {
-        const ev = event.assistantMessageEvent
-        // Broadcast text deltas for real-time UI updates
-        if (ev.type === 'text_delta' && ev.delta) {
-          this.emitEvent({
-            type: 'assistant_message',
-            sessionId: this.sessionId,
-            text: ev.delta,
-          })
-        }
-        break
-      }
+    // 4. Renderer-facing stream events
+    for (const sessionEvent of mapPiAgentEventToSessionEvents(event, this.sessionId)) {
+      this.emitEvent(sessionEvent)
     }
   }
 

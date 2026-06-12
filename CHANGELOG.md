@@ -2,6 +2,28 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-12 — Native Pi SDK tool registration and stream verification
+
+### Production change
+
+- Added focused native Pi host tests that create a real in-process `PiAgentHost` session without network calls and verify all four AnthraSpace tools are registered on the underlying Pi Agent.
+- Extracted Pi SDK `AgentEvent` → renderer `PiSessionEvent` stream conversion into `pi-session-event-stream.ts` so stream behavior can be verified independently of LLM execution.
+- Added stream mapping tests for `turn_start`, assistant text deltas, and tool execution start/update/end events, including AnthraSpace-vs-Pi tool source classification.
+- Added `PiSessionHost.getToolNames()` as a narrow inspection method for registration verification and diagnostics.
+
+### Verification
+
+- `pnpm exec vitest run --config config/vitest.config.ts src/main/pi-host/agent-host.test.ts src/main/pi-host/pi-session-event-stream.test.ts src/shared/pi-tool-use-events.test.ts` passed (6 tests).
+- `pnpm run tc:web` passed.
+- `pnpm run tc:node` passed.
+- `pnpm run tc:cli` passed.
+
+### Production impact
+
+- Native Pi tool registration is now covered by automated tests, reducing regression risk when changing session creation or tool wiring.
+- Stream processing can be validated without external model/API calls, making CI-safe coverage possible for the native Pi event bridge.
+- Long-running tool progress and final tool results now have a tested path from Pi SDK events to renderer-facing IPC events.
+
 ## 2026-06-12 — Native Pi SDK tool-use event types
 
 ### Production change

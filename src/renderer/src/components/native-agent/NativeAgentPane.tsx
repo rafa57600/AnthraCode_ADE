@@ -10,10 +10,11 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Loader2, Send, Square, Wrench } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Loader2, Wrench } from 'lucide-react'
 import { useAppStore } from '@/store'
-import type { PiSessionStatus, PiTokenUsage } from '../../../../shared/pi-ipc-types'
+import MarkdownRenderer from './MarkdownRenderer'
+import ChatInput from './ChatInput'
+import type { PiSessionStatus } from '../../../../shared/pi-ipc-types'
 import type {
   PiToolUseEnd,
   PiToolUseStart,
@@ -53,9 +54,17 @@ export default function NativeAgentPane({
   // Store actions and selectors for session-scoped token tracking
   const setTokenUsage = useAppStore((s) => s.setTokenUsage)
   const tokenUsage = useAppStore((s) => s.nativePiTokenUsage[sessionId])
+  // Why: detect dark mode from the persistent settings so markdown code blocks
+  // use the correct HLJS theme (markdown-preview.css scopes under .markdown-dark).
+  const isDark = useAppStore(
+    (s) =>
+      s.settings?.theme === 'dark' ||
+      (s.settings?.theme === 'system' &&
+        typeof window !== 'undefined' &&
+        window.matchMedia('(prefers-color-scheme: dark)').matches)
+  )
 
   const outputRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   // ── Subscribe to IPC events ──────────────────────────────────────────────
 
@@ -187,14 +196,6 @@ export default function NativeAgentPane({
     }
   }, [entries, currentText])
 
-  // ── Focus input when the session is idle ──────────────────────────────────
-
-  useEffect(() => {
-    if (status === 'idle' || status === 'finished') {
-      inputRef.current?.focus()
-    }
-  }, [status])
-
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   const handleSend = useCallback(() => {
@@ -247,29 +248,14 @@ export default function NativeAgentPane({
       .finally(() => setAborting(false))
   }, [aborting, sessionId])
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === 'Escape' && (status === 'running' || status === 'streaming')) {
-        e.preventDefault()
-        handleAbort()
-        return
-      }
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault()
-        handleSend()
-      }
-    },
-    [handleAbort, handleSend, status]
-  )
-
   // ── Render helpers ────────────────────────────────────────────────────────
 
   function renderEntry(entry: ConversationEntry, idx: number): React.JSX.Element {
     switch (entry.kind) {
       case 'assistant_text':
         return (
-          <div key={idx} className="px-4 py-1 text-[13px] leading-relaxed text-foreground whitespace-pre-wrap">
-            {entry.text}
+          <div key={idx} className="px-4 py-1">
+            <MarkdownRenderer content={entry.text} isDark={isDark} />
           </div>
         )
 
@@ -405,44 +391,16 @@ export default function NativeAgentPane({
         )}
       </div>
 
-      {/* Input bar */}
-      <div className="shrink-0 border-t border-border/40 px-4 py-3">
-        <div className="flex items-end gap-2 rounded-lg border border-border/60 bg-accent/20 p-2 focus-within:border-border focus-within:bg-accent/30">
-          <textarea
-            ref={inputRef}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={isBusy ? 'Agent is working...' : 'Type a message...'}
-            disabled={isBusy}
-            rows={1}
-            className="min-h-[20px] flex-1 resize-none bg-transparent text-[13px] text-foreground placeholder:text-muted-foreground/40 outline-none disabled:opacity-40"
-          />
-          {isBusy ? (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 shrink-0"
-              onClick={handleAbort}
-              disabled={aborting}
-              title="Abort (Escape)"
-            >
-              <Square className="h-3.5 w-3.5 text-destructive" />
-            </Button>
-          ) : (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 shrink-0"
-              onClick={handleSend}
-              disabled={!inputValue.trim()}
-              title="Send (Enter)"
-            >
-              <Send className="h-3.5 w-3.5" />
-            </Button>
-          )}
-        </div>
-      </div>
+      {/* Chat input bar */}
+      <ChatInput
+        value={inputValue}
+        onChange={setInputValue}
+        onSend={handleSend}
+        onAbort={handleAbort}
+        disabled={isBusy}
+        isBusy={isBusy}
+        aborting={aborting}
+      />
     </div>
   )
 }

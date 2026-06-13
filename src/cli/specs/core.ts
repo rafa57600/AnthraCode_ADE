@@ -29,6 +29,16 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
     ]
   },
   {
+    path: ['mcp'],
+    summary: 'Run the AnthraSpace MCP server over stdio',
+    usage: 'orca mcp',
+    allowedFlags: [],
+    notes: [
+      'Intended for MCP client configs. Phase 2 exposes read-only workspace, terminal, and browser tools.'
+    ],
+    examples: ['orca mcp']
+  },
+  {
     path: ['status'],
     summary: 'Show app/runtime/graph readiness',
     usage: 'orca status [--json]',
@@ -254,4 +264,3 @@ export const CORE_COMMAND_SPECS: CommandSpec[] = [
     ]
   }
 ]
-

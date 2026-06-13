@@ -2,6 +2,26 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-14 — AnthraSpace MCP read-only skeleton
+
+### Production change
+
+- Added an `orca mcp` stdio entrypoint for MCP clients with JSON-RPC framing, `initialize`, `tools/list`, and `tools/call` support.
+- Added the Phase 2 read-only AnthraSpace MCP tool registry for workspace metadata, terminal listing/reading, browser tab listing, and browser accessibility snapshots.
+- Added focused MCP tool tests covering the allowed Phase 2 tool surface, runtime RPC mapping, and parameter validation.
+
+### Verification
+
+- `pnpm exec vitest run --config config/vitest.config.ts src/cli/mcp/tools.test.ts` passed.
+- `pnpm run tc:cli` passed.
+- `pnpm run tc:node` passed.
+- `pnpm run tc:web` passed.
+
+### Production impact
+
+- External agent CLIs can start discovering AnthraSpace context through MCP without any terminal writes, shell execution, browser actions, file writes, or orchestration side effects.
+- The gateway reuses existing runtime RPC calls, keeping SSH/worktree behavior behind the same runtime boundary as the existing CLI.
+
 ## 2026-06-13 — Disable native Pi SDK launch path
 
 ### Production change

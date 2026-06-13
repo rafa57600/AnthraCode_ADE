@@ -23,6 +23,12 @@ function shouldIgnoreRemoteSelection(commandPath: string[]): boolean {
 }
 
 export async function main(argv = process.argv.slice(2), cwd = process.cwd()): Promise<void> {
+  if (argv[0] === 'mcp' && !argv.includes('--help') && !argv.includes('-h')) {
+    const { startAnthraSpaceMcpServer } = await import('./mcp/stdio-server.js')
+    await startAnthraSpaceMcpServer()
+    return
+  }
+
   const parsed = normalizeCommandPositionals(COMMAND_SPECS, parseArgs(argv))
   const helpPath = resolveHelpPath(parsed)
   if (helpPath !== null) {

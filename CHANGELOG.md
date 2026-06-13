@@ -2,6 +2,24 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-13 — Native Pi chat buffered typewriter streaming
+
+### Production change
+
+- Reworked native Pi assistant streaming so provider text deltas are buffered in refs and revealed through `requestAnimationFrame` at a controlled typewriter cadence.
+- Flushes buffered text before tool-call boundaries, finished/interrupted/error statuses, and fallback snapshot rendering so completed assistant messages remain complete.
+- Keeps the IPC subscription stable across streamed text changes instead of re-subscribing on every visible delta.
+
+### Verification
+
+- `pnpm run tc:web` passed.
+- `npx tsc --noEmit --pretty` passed in `src/renderer` (npm config warnings only).
+
+### Production impact
+
+- Reduces React render pressure from high-frequency model chunks while preserving a responsive streaming feel.
+- Prevents streamed text loss at lifecycle boundaries by flushing pending buffered deltas before committing conversation entries.
+
 ## 2026-06-13 — Native Pi chat file @-mentions
 
 ### Production change

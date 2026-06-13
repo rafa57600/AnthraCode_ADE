@@ -92,6 +92,67 @@ export default function NativeAgentPane({
   )
 
   const outputRef = useRef<HTMLDivElement>(null)
+  const currentTextRef = useRef('')
+  const pendingTextRef = useRef('')
+  const typewriterFrameRef = useRef<number | null>(null)
+
+  const setDisplayedStreamText = useCallback((text: string) => {
+    currentTextRef.current = text
+    setCurrentText(text)
+  }, [])
+
+  const cancelTypewriterFrame = useCallback(() => {
+    if (typewriterFrameRef.current != null) {
+      window.cancelAnimationFrame(typewriterFrameRef.current)
+      typewriterFrameRef.current = null
+    }
+  }, [])
+
+  const scheduleTypewriterFrame = useCallback(() => {
+    if (typewriterFrameRef.current != null) return
+
+    const tick = (): void => {
+      const pending = pendingTextRef.current
+      if (!pending) {
+        typewriterFrameRef.current = null
+        return
+      }
+
+      const chunkSize = pending.length > 80 ? 12 : pending.length > 24 ? 6 : 3
+      const chunk = pending.slice(0, chunkSize)
+      pendingTextRef.current = pending.slice(chunk.length)
+      setDisplayedStreamText(currentTextRef.current + chunk)
+      typewriterFrameRef.current = window.requestAnimationFrame(tick)
+    }
+
+    typewriterFrameRef.current = window.requestAnimationFrame(tick)
+  }, [setDisplayedStreamText])
+
+  const appendStreamingText = useCallback(
+    (text: string) => {
+      pendingTextRef.current += text
+      scheduleTypewriterFrame()
+    },
+    [scheduleTypewriterFrame]
+  )
+
+  const takeStreamingText = useCallback(() => {
+    cancelTypewriterFrame()
+    const text = currentTextRef.current + pendingTextRef.current
+    pendingTextRef.current = ''
+    setDisplayedStreamText('')
+    return text
+  }, [cancelTypewriterFrame, setDisplayedStreamText])
+
+  const clearStreamingText = useCallback(() => {
+    cancelTypewriterFrame()
+    pendingTextRef.current = ''
+    setDisplayedStreamText('')
+  }, [cancelTypewriterFrame, setDisplayedStreamText])
+
+  useEffect(() => {
+    return () => cancelTypewriterFrame()
+  }, [cancelTypewriterFrame])
 
   // ── Load file mention candidates ──────────────────────────────────────────
 
@@ -137,21 +198,22 @@ export default function NativeAgentPane({
       switch (event.type) {
         case 'assistant_message': {
           const text = String(event.text ?? '')
-          // Why: accumulate streaming text deltas in `currentText` and only
-          // commit a full entry when the agent stops or a tool call breaks the
-          // stream.  This gives the user a smooth typewriter effect instead of
-          // hundreds of tiny entries per sentence.
-          setCurrentText((prev) => prev + text)
+          // Why: buffer raw Pi SDK deltas outside React and reveal them at a
+          // controlled animation cadence. This preserves streaming immediacy
+          // without forcing a React render for every provider chunk.
+          appendStreamingText(text)
+          setStatus('streaming')
           break
         }
 
         case 'tool_call': {
           // Why: snapshot the in-flight assistant text before the tool call so
           // the output groups text that arrived before this tool invocation.
+          const streamedText = takeStreamingText()
           setEntries((prev) => {
             const next: ConversationEntry[] = []
-            if (currentText) {
-              next.push({ kind: 'assistant_text', text: currentText, ts: now })
+            if (streamedText) {
+              next.push({ kind: 'assistant_text', text: streamedText, ts: now })
             }
             next.push({
               kind: 'tool_call',
@@ -160,7 +222,6 @@ export default function NativeAgentPane({
             })
             return [...prev, ...next]
           })
-          setCurrentText('')
           break
         }
 
@@ -194,37 +255,39 @@ export default function NativeAgentPane({
           // Why: commit any buffered streaming text when the session finishes
           // or errors so the user sees the complete assistant response.
           if (s === 'finished' || s === 'error' || s === 'interrupted') {
+            const streamedText = takeStreamingText()
             setEntries((prev) => {
-              if (!currentText) return prev
+              if (!streamedText) return prev
               const entry: ConversationEntry = {
                 kind: 'assistant_text',
-                text: currentText,
+                text: streamedText,
                 ts: now,
               }
               return [...prev, entry]
             })
-            setCurrentText('')
           }
           break
         }
 
         case 'finished': {
+          const streamedText = takeStreamingText()
           setEntries((prev) => {
-            if (!currentText) return prev
+            if (!streamedText) return prev
             return [
               ...prev,
-              { kind: 'assistant_text', text: currentText, ts: now },
+              { kind: 'assistant_text', text: streamedText, ts: now },
             ]
           })
-          setCurrentText('')
           setStatus('idle')
           break
         }
 
         case 'error': {
           const msg = String(event.error instanceof Error ? event.error.message : event.error ?? '')
+          const streamedText = takeStreamingText()
           setEntries((prev) => [
             ...prev,
+            ...(streamedText ? [{ kind: 'assistant_text' as const, text: streamedText, ts: now }] : []),
             { kind: 'error', message: msg, ts: now },
           ])
           setStatus('error')
@@ -245,7 +308,7 @@ export default function NativeAgentPane({
     }
     // Why: the event stream is tied to `sessionId` — if the parent swaps
     // sessions the old listener is torn down and a new one attaches.
-  }, [sessionId, currentText])
+  }, [sessionId, appendStreamingText, takeStreamingText, setTokenUsage])
 
   // ── Auto-scroll on new content ────────────────────────────────────────────
 
@@ -262,7 +325,7 @@ export default function NativeAgentPane({
       switch (commandId) {
         case 'clear':
           setEntries([])
-          setCurrentText('')
+          clearStreamingText()
           break
 
         case 'help': {
@@ -354,7 +417,7 @@ export default function NativeAgentPane({
             )
             return alreadyRendered ? prev : [...prev, { kind: 'assistant_text', text, ts: Date.now() }]
           })
-          setCurrentText('')
+          clearStreamingText()
         }
       })
       .catch((err: Error) => {
@@ -364,7 +427,7 @@ export default function NativeAgentPane({
         ])
         setStatus('error')
       })
-  }, [inputValue, status, sessionId, selectedFileMentions, repoConnectionId])
+  }, [inputValue, status, sessionId, selectedFileMentions, repoConnectionId, clearStreamingText])
 
   const handleAbort = useCallback(() => {
     if (aborting) return

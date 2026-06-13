@@ -117,11 +117,10 @@ export const TUI_AGENT_CONFIG: Record<TuiAgent, TuiAgentConfig> = {
     // on session_start and calls `pi.ui.setEditorText(text)`. Same
     // user-visible behavior as `claude --prefill <text>`.
     draftPromptEnvVar: 'ORCA_PI_PREFILL',
-    // Why: pi-agent-core@0.79+ can run in-process (native SDK) instead of
-    // a subprocess PTY. The renderer launch flow checks this flag to decide
-    // whether to create a terminal tab (false) or route via IPC to the main
-    // process PiAgentHost singleton (true). See src/main/pi-host/.
-    nativeSdk: true
+    // Why: native Pi remains in the codebase for future work, but production
+    // launches must use the stable PTY/CLI path until Groq tool-call output is
+    // reliable enough for real AnthraSpace tool execution.
+    nativeSdk: false
   },
   omp: {
     // Why: OMP (omp.sh) is a Pi fork with its own binary (`omp`), brand,

@@ -2,6 +2,24 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-13 — Disable native Pi SDK launch path
+
+### Production change
+
+- Disabled the native Pi SDK launch flag so Pi sessions return to the stable subprocess/PTY agent path.
+- Updated the Experimental settings row to show native Pi as temporarily disabled instead of allowing users to route launches through the unreliable SDK path.
+
+### Verification
+
+- `pnpm run tc:web` passed.
+- `pnpm run tc:node` passed.
+- `graphify update .` completed successfully.
+
+### Production impact
+
+- Restores the pre-native Pi agent behavior for UI launches while keeping the native SDK code available for future rework.
+- Avoids Groq XML-style tool-call output being shown as assistant text instead of executing AnthraSpace tools.
+
 ## 2026-06-13 — Native Pi chat code block controls
 
 ### Production change

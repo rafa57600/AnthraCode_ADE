@@ -14,7 +14,8 @@ export type {
   PiSessionEventCallback,
   PiSessionToolCallEvent,
   PiSessionToolUpdateEvent,
-  PiSessionToolResultEvent
+  PiSessionToolResultEvent,
+  PiTokenUsage
 } from '../../shared/pi-ipc-types'
 
 /** Parameters for creating a native Pi session. */

@@ -27,6 +27,16 @@ export type PiSessionStatus =
   | 'error'
   | 'finished'
 
+// ── Token usage ──────────────────────────────────────────────────────────────
+
+/** Per-response token usage from the Pi SDK. */
+export interface PiTokenUsage {
+  inputTokens: number
+  outputTokens: number
+  /** Estimated cost in USD, computed from model rates when known. */
+  estimatedCostUsd?: number
+}
+
 // ── Snapshot (response type) ─────────────────────────────────────────────────
 
 /** Snapshot of a native Pi session — the primary response type. */
@@ -39,6 +49,8 @@ export interface PiSessionSnapshot {
   lastActivityAt: number
   messageCount: number
   errorMessage?: string
+  lastAssistantMessage?: string
+  lastTokenUsage?: PiTokenUsage
 }
 
 // ── Events (push from main to renderer) ──────────────────────────────────────
@@ -52,6 +64,7 @@ export type PiSessionEvent =
   | PiSessionToolUpdateEvent
   | PiSessionToolResultEvent
   | { type: 'assistant_message'; sessionId: string; text: string }
+  | { type: 'usage'; sessionId: string; tokenUsage: PiTokenUsage }
 
 export interface PiSessionToolCallEvent {
   type: 'tool_call'
@@ -107,6 +120,8 @@ export interface PiCreateSessionConfig extends PiModelConfigInput {
 export interface PiPromptParams {
   sessionId: string
   text: string
+  /** Optional file attachments (resolved @-mentions / dragged files). */
+  fileAttachments?: Array<{ path: string; content?: string }>
 }
 
 // ── IPC channel map (documentation / IDE support) ────────────────────────────

@@ -232,6 +232,32 @@ export function registerPiNativeHandlers(): void {
     return { ok: true }
   })
 
+  /** Restore the previous Pi SDK transcript snapshot for this session. */
+  ipcMain.handle('pi-native:undo', async (_event, sessionId: unknown): Promise<PiSessionSnapshot> => {
+    if (typeof sessionId !== 'string') {
+      throw new Error('pi-native:undo requires a sessionId string')
+    }
+    const piAgentHost = await getPiAgentHost()
+    const session = piAgentHost.getSession(sessionId)
+    if (!session) {
+      throw new Error(`Session ${sessionId} not found`)
+    }
+    return session.undoConversation()
+  })
+
+  /** Re-apply a Pi SDK transcript snapshot removed by undo. */
+  ipcMain.handle('pi-native:redo', async (_event, sessionId: unknown): Promise<PiSessionSnapshot> => {
+    if (typeof sessionId !== 'string') {
+      throw new Error('pi-native:redo requires a sessionId string')
+    }
+    const piAgentHost = await getPiAgentHost()
+    const session = piAgentHost.getSession(sessionId)
+    if (!session) {
+      throw new Error(`Session ${sessionId} not found`)
+    }
+    return session.redoConversation()
+  })
+
   /** Return snapshots of all active native Pi sessions. */
   ipcMain.handle('pi-native:list-sessions', async (): Promise<PiSessionSnapshot[]> => {
     const piAgentHost = await getPiAgentHost()

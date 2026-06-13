@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Loader2, Wrench } from 'lucide-react'
+import { Loader2, RotateCcw, RotateCw, Wrench } from 'lucide-react'
 import { useAppStore } from '@/store'
 import MarkdownRenderer from './MarkdownRenderer'
 import ChatInput from './ChatInput'
@@ -32,6 +32,10 @@ type ConversationEntry =
   | { kind: 'tool_result'; toolUse: PiToolUseEnd; ts: number }
   | { kind: 'status_change'; status: PiSessionStatus; ts: number }
   | { kind: 'error'; message: string; ts: number }
+
+type ConversationHistorySnapshot = {
+  entries: ConversationEntry[]
+}
 
 // ── Props ───────────────────────────────────────────────────────────────────
 
@@ -63,11 +67,15 @@ export default function NativeAgentPane({
   const [inputValue, setInputValue] = useState('')
   const [status, setStatus] = useState<PiSessionStatus>('idle')
   const [aborting, setAborting] = useState(false)
+  const [historyBusy, setHistoryBusy] = useState(false)
+  const [undoStack, setUndoStack] = useState<ConversationHistorySnapshot[]>([])
+  const [redoStack, setRedoStack] = useState<ConversationHistorySnapshot[]>([])
   const [fileMentionCandidates, setFileMentionCandidates] = useState<FileMentionCandidate[]>([])
   const [selectedFileMentions, setSelectedFileMentions] = useState<FileMentionCandidate[]>([])
 
   // Store actions and selectors for session-scoped token tracking
   const setTokenUsage = useAppStore((s) => s.setTokenUsage)
+  const updateNativePiSnapshot = useAppStore((s) => s.updateNativePiSnapshot)
   const tokenUsage = useAppStore((s) => s.nativePiTokenUsage[sessionId])
   const nativePiSession = useAppStore((s) => s.nativePiSessions[sessionId])
   const worktree = useAppStore((s) => {
@@ -149,6 +157,11 @@ export default function NativeAgentPane({
     pendingTextRef.current = ''
     setDisplayedStreamText('')
   }, [cancelTypewriterFrame, setDisplayedStreamText])
+
+  const restoreVisibleHistory = useCallback((snapshot: ConversationHistorySnapshot) => {
+    clearStreamingText()
+    setEntries(snapshot.entries)
+  }, [clearStreamingText])
 
   useEffect(() => {
     return () => cancelTypewriterFrame()
@@ -318,6 +331,91 @@ export default function NativeAgentPane({
     }
   }, [entries, currentText])
 
+  // ── Conversation undo / redo shortcuts ────────────────────────────────────
+
+  const isBusy = status === 'running' || status === 'streaming'
+  const canUndo = !isBusy && !historyBusy && undoStack.length > 0
+  const canRedo = !isBusy && !historyBusy && redoStack.length > 0
+
+  const handleUndo = useCallback(() => {
+    if (!canUndo) return
+    const snapshot = undoStack[undoStack.length - 1]
+    const currentSnapshot: ConversationHistorySnapshot = { entries }
+    setHistoryBusy(true)
+
+    window.api.piNative
+      .undo(sessionId)
+      .then((sessionSnapshot) => {
+        updateNativePiSnapshot(sessionId, sessionSnapshot)
+        restoreVisibleHistory(snapshot)
+        setUndoStack((prev) => prev.slice(0, -1))
+        setRedoStack((prev) => [...prev, currentSnapshot])
+        setStatus(sessionSnapshot.status === 'finished' ? 'idle' : sessionSnapshot.status)
+      })
+      .catch((err: Error) => {
+        setEntries((prev) => [
+          ...prev,
+          { kind: 'error', message: `Undo failed: ${err.message}`, ts: Date.now() },
+        ])
+      })
+      .finally(() => setHistoryBusy(false))
+  }, [canUndo, entries, restoreVisibleHistory, sessionId, undoStack, updateNativePiSnapshot])
+
+  const handleRedo = useCallback(() => {
+    if (!canRedo) return
+    const snapshot = redoStack[redoStack.length - 1]
+    const currentSnapshot: ConversationHistorySnapshot = { entries }
+    setHistoryBusy(true)
+
+    window.api.piNative
+      .redo(sessionId)
+      .then((sessionSnapshot) => {
+        updateNativePiSnapshot(sessionId, sessionSnapshot)
+        restoreVisibleHistory(snapshot)
+        setRedoStack((prev) => prev.slice(0, -1))
+        setUndoStack((prev) => [...prev, currentSnapshot])
+        setStatus(sessionSnapshot.status === 'finished' ? 'idle' : sessionSnapshot.status)
+      })
+      .catch((err: Error) => {
+        setEntries((prev) => [
+          ...prev,
+          { kind: 'error', message: `Redo failed: ${err.message}`, ts: Date.now() },
+        ])
+      })
+      .finally(() => setHistoryBusy(false))
+  }, [canRedo, entries, redoStack, restoreVisibleHistory, sessionId, updateNativePiSnapshot])
+
+  useEffect(() => {
+    const isMac = navigator.userAgent.includes('Mac')
+    const onKeyDown = (event: KeyboardEvent): void => {
+      const target = event.target
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      ) {
+        return
+      }
+
+      const modifierPressed = isMac ? event.metaKey : event.ctrlKey
+      if (!modifierPressed) return
+
+      if (event.key.toLowerCase() === 'z' && !event.shiftKey) {
+        event.preventDefault()
+        handleUndo()
+      } else if (
+        (event.key.toLowerCase() === 'z' && event.shiftKey) ||
+        (!isMac && event.key.toLowerCase() === 'y')
+      ) {
+        event.preventDefault()
+        handleRedo()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [handleRedo, handleUndo])
+
   // ── Slash-command handler ─────────────────────────────────────────────────
 
   const handleSlashCommand = useCallback(
@@ -347,7 +445,7 @@ export default function NativeAgentPane({
         }
       }
     },
-    []
+    [clearStreamingText]
   )
 
   const handleFileMentionSelect = useCallback((candidate: FileMentionCandidate) => {
@@ -369,6 +467,7 @@ export default function NativeAgentPane({
     const text = inputValue.trim()
     if (!text) return
     if (status === 'running' || status === 'streaming') return
+    const preSendSnapshot: ConversationHistorySnapshot = { entries }
 
     let fileAttachments: Array<{ path: string; content?: string }> | undefined
     if (selectedFileMentions.length > 0) {
@@ -396,6 +495,8 @@ export default function NativeAgentPane({
     }
 
     // Show the user prompt as an entry
+    setUndoStack((prev) => [...prev, preSendSnapshot])
+    setRedoStack([])
     setEntries((prev) => [
       ...prev,
       { kind: 'assistant_text', text: `> ${text}`, ts: Date.now() },
@@ -408,6 +509,7 @@ export default function NativeAgentPane({
     window.api.piNative
       .prompt(sessionId, text, fileAttachments)
       .then((snapshot) => {
+        updateNativePiSnapshot(sessionId, snapshot)
         setStatus(snapshot.status)
         if (snapshot.lastAssistantMessage?.trim()) {
           const text = snapshot.lastAssistantMessage.trim()
@@ -421,13 +523,23 @@ export default function NativeAgentPane({
         }
       })
       .catch((err: Error) => {
+        setUndoStack((prev) => prev.slice(0, -1))
         setEntries((prev) => [
           ...prev,
           { kind: 'error', message: err.message, ts: Date.now() },
         ])
         setStatus('error')
       })
-  }, [inputValue, status, sessionId, selectedFileMentions, repoConnectionId, clearStreamingText])
+  }, [
+    clearStreamingText,
+    entries,
+    inputValue,
+    repoConnectionId,
+    selectedFileMentions,
+    sessionId,
+    status,
+    updateNativePiSnapshot,
+  ])
 
   const handleAbort = useCallback(() => {
     if (aborting) return
@@ -519,14 +631,30 @@ export default function NativeAgentPane({
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  const isBusy = status === 'running' || status === 'streaming'
-
   return (
     <div className="flex flex-1 flex-col min-h-0 bg-background">
       {/* Header */}
       <div className="flex shrink-0 items-center gap-2 border-b border-border/40 px-4 py-2 text-[13px] font-medium text-foreground">
         <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
         {agentLabel}
+        <button
+          type="button"
+          onClick={handleUndo}
+          disabled={!canUndo}
+          title="Undo conversation turn"
+          className="ml-2 inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={handleRedo}
+          disabled={!canRedo}
+          title="Redo conversation turn"
+          className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <RotateCw className="h-3.5 w-3.5" />
+        </button>
         {/* Right-aligned status / token area — single ml-auto wrapper */}
         {(isBusy || status === 'interrupted' || (tokenUsage && (tokenUsage.inputTokens > 0 || tokenUsage.outputTokens > 0))) && (
           <span className="ml-auto flex items-center gap-3 text-[11px]">

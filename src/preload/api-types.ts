@@ -2157,6 +2157,8 @@ export type PreloadApi = {
       fileAttachments?: Array<{ path: string; content?: string }>
     ) => Promise<PiSessionSnapshot>
     abort: (sessionId: string) => Promise<{ ok: boolean }>
+    undo: (sessionId: string) => Promise<PiSessionSnapshot>
+    redo: (sessionId: string) => Promise<PiSessionSnapshot>
     listSessions: () => Promise<PiSessionSnapshot[]>
     getSession: (sessionId: string) => Promise<PiSessionSnapshot | undefined>
     onEvent: (callback: (event: PiSessionEvent) => void) => () => void

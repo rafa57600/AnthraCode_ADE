@@ -73,6 +73,8 @@ export class PiSessionHost {
   private _lastTokenUsage?: PiTokenUsage
   private _eventCallbacks: PiSessionEventCallback[] = []
   private _agentEventCallbacks: Array<(event: AgentEvent) => void> = []
+  private _undoStack: AgentMessage[][] = []
+  private _redoStack: AgentMessage[][] = []
   private _destroyed = false
   private _unsubscribe?: () => void
 
@@ -185,6 +187,7 @@ export class PiSessionHost {
 
     this._status = 'running'
     this._lastPromptText = typeof input === 'string' ? input : ''
+    this.pushUndoCheckpoint()
     console.log(`[pi-native] prompt start session=${this.sessionId} chars=${this._lastPromptText.length}`)
     this.emitEvent({
       type: 'status_change',
@@ -249,6 +252,9 @@ export class PiSessionHost {
       })
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err))
+      // Why: a failed prompt may still have appended partial SDK messages. Restore
+      // the checkpoint so native undo history matches the visible failed turn.
+      this.restoreLatestUndoCheckpointAfterPromptFailure()
       this._status = 'error'
       this._errorMessage = error.message
       console.error(`[pi-native] prompt error session=${this.sessionId}: ${error.message}`)
@@ -298,6 +304,30 @@ export class PiSessionHost {
     this._agent.followUp(message)
   }
 
+  /** Restore the previous transcript snapshot using Pi AgentState.messages. */
+  undoConversation(): PiSessionSnapshot {
+    this.ensureNotDestroyed()
+    this.ensureIdleForHistoryMutation('undo')
+    const previousMessages = this._undoStack.pop()
+    if (!previousMessages) return this.snapshot()
+
+    this._redoStack.push(this.cloneMessages(this._agent.state.messages))
+    this.restoreMessages(previousMessages)
+    return this.snapshot()
+  }
+
+  /** Re-apply a transcript snapshot previously removed by undoConversation(). */
+  redoConversation(): PiSessionSnapshot {
+    this.ensureNotDestroyed()
+    this.ensureIdleForHistoryMutation('redo')
+    const nextMessages = this._redoStack.pop()
+    if (!nextMessages) return this.snapshot()
+
+    this._undoStack.push(this.cloneMessages(this._agent.state.messages))
+    this.restoreMessages(nextMessages)
+    return this.snapshot()
+  }
+
   /**
    * Destroy the session: abort running agent, close the execution
    * environment. Idempotent.
@@ -341,6 +371,55 @@ export class PiSessionHost {
         'host_shutdown'
       )
     }
+  }
+
+  private ensureIdleForHistoryMutation(action: 'undo' | 'redo'): void {
+    if (this._status === 'running' || this._status === 'streaming') {
+      throw new PiHostError(
+        `Cannot ${action} while session ${this.sessionId} is busy (status: ${this._status})`,
+        'session_busy'
+      )
+    }
+  }
+
+  private pushUndoCheckpoint(): void {
+    this._undoStack.push(this.cloneMessages(this._agent.state.messages))
+    this._redoStack = []
+  }
+
+  private restoreLatestUndoCheckpointAfterPromptFailure(): void {
+    const checkpoint = this._undoStack.pop()
+    if (!checkpoint) return
+    this.restoreMessages(checkpoint)
+  }
+
+  private restoreMessages(messages: AgentMessage[]): void {
+    // Why: Pi core exposes AgentState.messages as the supported mutable
+    // transcript primitive. This mirrors the CLI session-context rebuild path
+    // without inventing a renderer-only undo state.
+    this._agent.state.messages = this.cloneMessages(messages)
+    this._messageCount = this._agent.state.messages.length
+    this._lastAssistantText = this.findLastAssistantText(this._agent.state.messages)
+    this._lastTokenUsage = this.extractTokenUsage(this._agent.state.messages)
+    this._lastActivityAt = Date.now()
+    this._status = 'finished'
+  }
+
+  private cloneMessages(messages: AgentMessage[]): AgentMessage[] {
+    if (typeof structuredClone === 'function') {
+      return structuredClone(messages)
+    }
+    return JSON.parse(JSON.stringify(messages)) as AgentMessage[]
+  }
+
+  private findLastAssistantText(messages: AgentMessage[]): string | undefined {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i]
+      if (msg.role !== 'assistant') continue
+      const text = extractAssistantText(msg as any)
+      if (text) return text
+    }
+    return undefined
   }
 
   private handleAgentEvent(event: AgentEvent): void {

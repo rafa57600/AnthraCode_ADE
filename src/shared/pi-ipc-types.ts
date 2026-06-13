@@ -136,6 +136,8 @@ export interface PiNativeChannelMap {
   'pi-native:destroy-session': { request: string; response: { ok: boolean } }
   'pi-native:prompt': { request: PiPromptParams; response: PiSessionSnapshot }
   'pi-native:abort': { request: string; response: { ok: boolean } }
+  'pi-native:undo': { request: string; response: PiSessionSnapshot }
+  'pi-native:redo': { request: string; response: PiSessionSnapshot }
   'pi-native:list-sessions': { request: void; response: PiSessionSnapshot[] }
   'pi-native:get-session': { request: string; response: PiSessionSnapshot | undefined }
 }

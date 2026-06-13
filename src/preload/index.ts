@@ -3359,6 +3359,12 @@ const api = {
     abort: (sessionId: string): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke('pi-native:abort', sessionId),
 
+    undo: (sessionId: string): Promise<PiSessionSnapshot> =>
+      ipcRenderer.invoke('pi-native:undo', sessionId),
+
+    redo: (sessionId: string): Promise<PiSessionSnapshot> =>
+      ipcRenderer.invoke('pi-native:redo', sessionId),
+
     listSessions: (): Promise<PiSessionSnapshot[]> => ipcRenderer.invoke('pi-native:list-sessions'),
 
     getSession: (sessionId: string): Promise<PiSessionSnapshot | undefined> =>

@@ -2,6 +2,25 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-13 — Native Pi chat undo and redo
+
+### Production change
+
+- Added native Pi SDK transcript undo/redo in the main-process session host using Pi core's supported `agent.state.messages` setter/getter.
+- Exposed `pi-native:undo` and `pi-native:redo` through shared IPC, preload types, and the renderer bridge.
+- Added native chat header undo/redo controls plus cross-platform keyboard shortcuts (`Cmd/Ctrl+Z`, `Cmd/Ctrl+Shift+Z`, and `Ctrl+Y` on non-macOS).
+- Kept the visible conversation history synchronized with the restored Pi SDK transcript snapshot instead of performing renderer-only history edits.
+
+### Verification
+
+- `pnpm run tc:web` passed.
+- `pnpm run tc:node` passed.
+
+### Production impact
+
+- Users can safely step backward and forward through native Pi chat turns while future prompts continue from the restored SDK transcript.
+- The implementation follows Pi's existing state/session model and avoids creating a separate, divergent renderer-only conversation state.
+
 ## 2026-06-13 — Native Pi chat buffered typewriter streaming
 
 ### Production change

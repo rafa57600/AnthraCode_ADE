@@ -2,6 +2,23 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-13 — Native Pi chat slash commands
+
+### Production change
+
+- Added a typed native-agent slash command registry for `/clear` and `/help`.
+- Added a keyboard-accessible slash command dropdown that appears when users type `/`, supports ArrowUp/ArrowDown navigation, Enter/Tab selection, Escape dismissal, and mouse selection without losing focus.
+- Wired slash command execution into the native Pi chat pane: `/clear` clears the visible conversation buffer, and `/help` renders Markdown help text from the shared command registry.
+
+### Verification
+
+- `npx tsc --noEmit --pretty` passed in `src/renderer` (npm config warnings only).
+
+### Production impact
+
+- Users can discover and execute chat-local actions without sending command-like text to the model.
+- Command metadata is centralized, reducing drift between autocomplete labels and help output as new chat commands are added.
+
 ## 2026-06-12 — Free test provider API key setup in Agents settings
 
 ### Production change

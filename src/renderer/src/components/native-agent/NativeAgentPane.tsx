@@ -14,6 +14,7 @@ import { Loader2, Wrench } from 'lucide-react'
 import { useAppStore } from '@/store'
 import MarkdownRenderer from './MarkdownRenderer'
 import ChatInput from './ChatInput'
+import { SLASH_COMMANDS } from './slash-commands'
 import type { PiSessionStatus } from '../../../../shared/pi-ipc-types'
 import type {
   PiToolUseEnd,
@@ -195,6 +196,38 @@ export default function NativeAgentPane({
       outputRef.current.scrollTop = outputRef.current.scrollHeight
     }
   }, [entries, currentText])
+
+  // ── Slash-command handler ─────────────────────────────────────────────────
+
+  const handleSlashCommand = useCallback(
+    (commandId: string) => {
+      switch (commandId) {
+        case 'clear':
+          setEntries([])
+          setCurrentText('')
+          break
+
+        case 'help': {
+          const helpText = [
+            '**Available commands**',
+            '',
+            ...SLASH_COMMANDS.map(
+              (cmd) => `- \`${cmd.label}\` — ${cmd.description}`
+            ),
+            '',
+            'Type a message and press Enter to send. Shift+Enter inserts a newline.',
+          ].join('\n')
+
+          setEntries((prev) => [
+            ...prev,
+            { kind: 'assistant_text', text: helpText, ts: Date.now() },
+          ])
+          break
+        }
+      }
+    },
+    []
+  )
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -397,6 +430,7 @@ export default function NativeAgentPane({
         onChange={setInputValue}
         onSend={handleSend}
         onAbort={handleAbort}
+        onCommand={handleSlashCommand}
         disabled={isBusy}
         isBusy={isBusy}
         aborting={aborting}

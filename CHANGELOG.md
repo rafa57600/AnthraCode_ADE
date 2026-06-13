@@ -2,6 +2,26 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-13 — Native Pi chat file @-mentions
+
+### Production change
+
+- Added file `@` mention autocomplete to the native Pi chat input using the existing workspace filesystem API.
+- Added selected-file chips so users can see and remove attached file context before sending.
+- Extended the native Pi prompt IPC bridge to accept optional file attachments and inline bounded file context into the Pi prompt.
+- Kept file discovery and reads routed through `window.api.fs` with worktree/root and SSH connection context instead of direct renderer filesystem access.
+
+### Verification
+
+- `npx tsc --noEmit --pretty` passed in `src/renderer` (npm config warnings only).
+- `pnpm run tc:web` passed.
+- `pnpm run tc:node` passed.
+
+### Production impact
+
+- Users can attach relevant workspace files to native Pi prompts without copy/pasting source content manually.
+- The implementation respects Orca’s existing local/SSH filesystem boundary and caps inlined file context to avoid runaway prompt payloads.
+
 ## 2026-06-13 — Native Pi chat slash commands
 
 ### Production change

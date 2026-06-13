@@ -3349,8 +3349,12 @@ const api = {
     destroySession: (sessionId: string): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke('pi-native:destroy-session', sessionId),
 
-    prompt: (sessionId: string, text: string): Promise<PiSessionSnapshot> =>
-      ipcRenderer.invoke('pi-native:prompt', { sessionId, text }),
+    prompt: (
+      sessionId: string,
+      text: string,
+      fileAttachments?: Array<{ path: string; content?: string }>
+    ): Promise<PiSessionSnapshot> =>
+      ipcRenderer.invoke('pi-native:prompt', { sessionId, text, fileAttachments }),
 
     abort: (sessionId: string): Promise<{ ok: boolean }> =>
       ipcRenderer.invoke('pi-native:abort', sessionId),

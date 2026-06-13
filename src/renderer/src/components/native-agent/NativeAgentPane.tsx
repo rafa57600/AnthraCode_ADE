@@ -16,6 +16,7 @@ import MarkdownRenderer from './MarkdownRenderer'
 import ChatInput from './ChatInput'
 import { SLASH_COMMANDS } from './slash-commands'
 import type { PiSessionStatus } from '../../../../shared/pi-ipc-types'
+import type { FileMentionCandidate } from './native-agent-types'
 import type {
   PiToolUseEnd,
   PiToolUseStart,
@@ -40,6 +41,17 @@ export type NativeAgentPaneProps = {
   agentLabel?: string
 }
 
+function normalizeRelativePath(relativePath: string): string {
+  return relativePath.replace(/\\/g, '/')
+}
+
+function joinWorktreePath(rootPath: string, relativePath: string): string {
+  const separator = rootPath.includes('\\') ? '\\' : '/'
+  const trimmedRoot = rootPath.replace(/[\\/]+$/, '')
+  const normalizedRelative = relativePath.replace(/[\\/]+/g, separator)
+  return `${trimmedRoot}${separator}${normalizedRelative}`
+}
+
 // ── Component ───────────────────────────────────────────────────────────────
 
 export default function NativeAgentPane({
@@ -51,10 +63,24 @@ export default function NativeAgentPane({
   const [inputValue, setInputValue] = useState('')
   const [status, setStatus] = useState<PiSessionStatus>('idle')
   const [aborting, setAborting] = useState(false)
+  const [fileMentionCandidates, setFileMentionCandidates] = useState<FileMentionCandidate[]>([])
+  const [selectedFileMentions, setSelectedFileMentions] = useState<FileMentionCandidate[]>([])
 
   // Store actions and selectors for session-scoped token tracking
   const setTokenUsage = useAppStore((s) => s.setTokenUsage)
   const tokenUsage = useAppStore((s) => s.nativePiTokenUsage[sessionId])
+  const nativePiSession = useAppStore((s) => s.nativePiSessions[sessionId])
+  const worktree = useAppStore((s) => {
+    const worktreeId = s.nativePiSessions[sessionId]?.worktreeId
+    if (!worktreeId) return null
+    return Object.values(s.worktreesByRepo)
+      .flat()
+      .find((candidate) => candidate.id === worktreeId) ?? null
+  })
+  const repoConnectionId = useAppStore((s) => {
+    if (!worktree?.repoId) return undefined
+    return s.repos.find((repo) => repo.id === worktree.repoId)?.connectionId ?? undefined
+  })
   // Why: detect dark mode from the persistent settings so markdown code blocks
   // use the correct HLJS theme (markdown-preview.css scopes under .markdown-dark).
   const isDark = useAppStore(
@@ -66,6 +92,38 @@ export default function NativeAgentPane({
   )
 
   const outputRef = useRef<HTMLDivElement>(null)
+
+  // ── Load file mention candidates ──────────────────────────────────────────
+
+  useEffect(() => {
+    const rootPath = nativePiSession?.snapshot?.worktreePath ?? worktree?.path
+    if (!rootPath) {
+      setFileMentionCandidates([])
+      return
+    }
+
+    let cancelled = false
+    window.api.fs
+      .listFiles({ rootPath, connectionId: repoConnectionId ?? undefined })
+      .then((paths) => {
+        if (cancelled) return
+        setFileMentionCandidates(
+          paths.map((relativePath) => ({
+            path: joinWorktreePath(rootPath, relativePath),
+            relativePath: normalizeRelativePath(relativePath),
+            isDirectory: false,
+          }))
+        )
+      })
+      .catch((err: Error) => {
+        console.warn('[pi-native] could not load @mention files:', err)
+        if (!cancelled) setFileMentionCandidates([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [nativePiSession?.snapshot?.worktreePath, repoConnectionId, worktree?.path])
 
   // ── Subscribe to IPC events ──────────────────────────────────────────────
 
@@ -229,12 +287,50 @@ export default function NativeAgentPane({
     []
   )
 
+  const handleFileMentionSelect = useCallback((candidate: FileMentionCandidate) => {
+    setSelectedFileMentions((prev) => {
+      if (prev.some((mention) => mention.relativePath === candidate.relativePath)) return prev
+      return [...prev, candidate]
+    })
+  }, [])
+
+  const handleFileMentionRemove = useCallback((relativePath: string) => {
+    setSelectedFileMentions((prev) =>
+      prev.filter((mention) => mention.relativePath !== relativePath)
+    )
+  }, [])
+
   // ── Handlers ─────────────────────────────────────────────────────────────
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const text = inputValue.trim()
     if (!text) return
     if (status === 'running' || status === 'streaming') return
+
+    let fileAttachments: Array<{ path: string; content?: string }> | undefined
+    if (selectedFileMentions.length > 0) {
+      try {
+        fileAttachments = await Promise.all(
+          selectedFileMentions.map(async (mention) => {
+            const result = await window.api.fs.readFile({
+              filePath: mention.path,
+              connectionId: repoConnectionId ?? undefined,
+            })
+            return {
+              path: mention.relativePath,
+              content: result.isBinary ? undefined : result.content,
+            }
+          })
+        )
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        setEntries((prev) => [
+          ...prev,
+          { kind: 'error', message: `Could not read @mentioned file: ${message}`, ts: Date.now() },
+        ])
+        return
+      }
+    }
 
     // Show the user prompt as an entry
     setEntries((prev) => [
@@ -243,10 +339,11 @@ export default function NativeAgentPane({
     ])
 
     setInputValue('')
+    setSelectedFileMentions([])
     setStatus('running')
 
     window.api.piNative
-      .prompt(sessionId, text)
+      .prompt(sessionId, text, fileAttachments)
       .then((snapshot) => {
         setStatus(snapshot.status)
         if (snapshot.lastAssistantMessage?.trim()) {
@@ -267,7 +364,7 @@ export default function NativeAgentPane({
         ])
         setStatus('error')
       })
-  }, [inputValue, status, sessionId])
+  }, [inputValue, status, sessionId, selectedFileMentions, repoConnectionId])
 
   const handleAbort = useCallback(() => {
     if (aborting) return
@@ -431,6 +528,10 @@ export default function NativeAgentPane({
         onSend={handleSend}
         onAbort={handleAbort}
         onCommand={handleSlashCommand}
+        fileMentionCandidates={fileMentionCandidates}
+        selectedFileMentions={selectedFileMentions}
+        onFileMentionSelect={handleFileMentionSelect}
+        onFileMentionRemove={handleFileMentionRemove}
         disabled={isBusy}
         isBusy={isBusy}
         aborting={aborting}

@@ -19,13 +19,51 @@ import { ipcMain } from 'electron'
 import type { PiSessionSnapshot } from './types'
 import { createAnthraSpaceTools } from './anthraspace-tools'
 import { resolvePiModelConfig } from '../../shared/pi-model-config'
-import type { PiCreateSessionConfig } from '../../shared/pi-ipc-types'
+import type { PiCreateSessionConfig, PiPromptParams } from '../../shared/pi-ipc-types'
 import { testGroqToolCall } from './pi-groq-debug'
 
 // ── Safe guards ─────────────────────────────────────────────────────────────
 
 let registered = false
 let sdkAvailableLogged = false
+
+const MAX_ATTACHMENT_CHARS = 160_000
+
+function normalizePromptAttachments(raw: unknown): PiPromptParams['fileAttachments'] {
+  if (!Array.isArray(raw)) return undefined
+  return raw
+    .filter((item): item is { path: string; content?: string } => {
+      if (!item || typeof item !== 'object') return false
+      const record = item as Record<string, unknown>
+      return (
+        typeof record.path === 'string' &&
+        (record.content === undefined || typeof record.content === 'string')
+      )
+    })
+    .map((item) => ({ path: item.path, content: item.content }))
+}
+
+function buildPromptWithAttachments(
+  text: string,
+  attachments?: PiPromptParams['fileAttachments']
+): string {
+  if (!attachments || attachments.length === 0) return text
+
+  let remaining = MAX_ATTACHMENT_CHARS
+  const blocks = attachments.map((attachment) => {
+    const rawContent = attachment.content ?? '[Binary or unreadable file content omitted]'
+    const content = rawContent.slice(0, Math.max(remaining, 0))
+    remaining -= content.length
+    const truncated = rawContent.length > content.length ? '\n\n[File content truncated]' : ''
+    return `### ${attachment.path}\n\n\`\`\`\n${content}${truncated}\n\`\`\``
+  })
+
+  // Why: Pi Agent.prompt currently accepts text; inline the already-authorized
+  // renderer file reads so @mentions work consistently for local and SSH worktrees.
+  return `The user attached these workspace files for context:\n\n${blocks.join(
+    '\n\n'
+  )}\n\n---\n\nUser prompt:\n${text}`
+}
 
 async function getPiAgentHost() {
   // Why: native Pi is experimental and Pi's SDK packages are ESM-only. Lazy
@@ -175,7 +213,8 @@ export function registerPiNativeHandlers(): void {
       throw new Error(`Session ${config.sessionId} not found`)
     }
 
-    await session.prompt(config.text)
+    const fileAttachments = normalizePromptAttachments(config.fileAttachments)
+    await session.prompt(buildPromptWithAttachments(config.text, fileAttachments))
     return session.snapshot()
   })
 

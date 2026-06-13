@@ -2151,7 +2151,11 @@ export type PreloadApi = {
   piNative: {
     createSession: (config: PiCreateSessionConfig) => Promise<PiSessionSnapshot>
     destroySession: (sessionId: string) => Promise<{ ok: boolean }>
-    prompt: (sessionId: string, text: string) => Promise<PiSessionSnapshot>
+    prompt: (
+      sessionId: string,
+      text: string,
+      fileAttachments?: Array<{ path: string; content?: string }>
+    ) => Promise<PiSessionSnapshot>
     abort: (sessionId: string) => Promise<{ ok: boolean }>
     listSessions: () => Promise<PiSessionSnapshot[]>
     getSession: (sessionId: string) => Promise<PiSessionSnapshot | undefined>

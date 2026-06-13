@@ -2,6 +2,25 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-12 — Free test provider API key setup in Agents settings
+
+### Production change
+
+- Added provider API-key metadata to free-test model entries so Settings can identify which saved key each hosted provider needs.
+- Added a compact API-key setup row under the selected Free test provider in Settings → Agents when the provider requires a key, with password input, save, and clear actions.
+- Added optional provider key fields to `GlobalSettings` for Anthropic, OpenAI, Google, OpenRouter, and Groq compatibility.
+- Wired native Pi launches to pass the selected free-test provider key into `pi-native:create-session`, so Pi SDK model calls can authenticate without requiring manual IPC payloads.
+
+### Verification
+
+- `pnpm run tc:web` passed.
+- `pnpm run tc:node` passed.
+
+### Production impact
+
+- Users can configure the API key at the exact point they select a hosted free-test provider, reducing silent native Pi failures from missing provider credentials.
+- The selected key now follows the chosen provider/model route into the native Pi SDK session.
+
 ## 2026-06-12 — Native Pi SDK nested model config IPC payload
 
 ### Production change

@@ -1859,6 +1859,12 @@ export type GlobalSettings = {
   freeTestProvidersEnabled: boolean
   /** Selected model id from `FREE_TEST_PROVIDER_MODELS`; null/off keeps agent defaults. */
   freeTestProviderModelId?: string | null
+  /** Provider API keys used by hosted free-test models and native Pi SDK model routing. */
+  anthropicApiKey?: string
+  openaiApiKey?: string
+  googleApiKey?: string
+  openRouterApiKey?: string
+  groqApiKey?: string
   /** Active non-local runtime environment for client-routed RPC. `null`
    *  preserves the current local desktop behavior. */
   activeRuntimeEnvironmentId?: string | null

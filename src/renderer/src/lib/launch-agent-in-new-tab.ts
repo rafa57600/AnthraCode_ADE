@@ -10,11 +10,14 @@ import { reconcileTabOrder } from '@/components/tab-bar/reconcile-order'
 import { track, tuiAgentToAgentKind } from '@/lib/telemetry'
 import { pasteDraftWhenAgentReady } from '@/lib/agent-paste-draft'
 import { TUI_AGENT_CONFIG } from '../../../shared/tui-agent-config'
-import { getFreeTestCompatibility } from '../../../shared/free-test-providers'
+import {
+  getFreeTestCompatibility,
+  type FreeTestProviderApiKeySetting
+} from '../../../shared/free-test-providers'
 import { resolvePiModelConfig } from '../../../shared/pi-model-config'
 import { makePaneKey } from '../../../shared/stable-pane-id'
 import { splitWorktreeIdForFilesystem } from '../../../shared/worktree-id'
-import type { TuiAgent } from '../../../shared/types'
+import type { GlobalSettings, TuiAgent } from '../../../shared/types'
 import type { LaunchSource } from '../../../shared/telemetry-events'
 
 export type LaunchAgentInNewTabArgs = {
@@ -34,6 +37,14 @@ export type LaunchAgentInNewTabArgs = {
   launchSource?: LaunchSource
   /** Called after the prompt is actually delivered to the agent input path. */
   onPromptDelivered?: () => void
+}
+
+function settingsValue(
+  settings: GlobalSettings | null | undefined,
+  key: FreeTestProviderApiKeySetting
+): string | undefined {
+  const value = settings?.[key]
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined
 }
 
 export type LaunchAgentInNewTabResult = {
@@ -133,6 +144,10 @@ export function launchAgentInNewTab(args: LaunchAgentInNewTabArgs): LaunchAgentI
         ? resolvePiModelConfig(freeTestCompatibility.model)
         : null
     const piModel = selectedPiModel ?? resolvePiModelConfig(null)
+    const selectedModelApiKey =
+      freeTestCompatibility.status === 'supported' && freeTestCompatibility.model.apiKeySetting
+        ? settingsValue(store.settings, freeTestCompatibility.model.apiKeySetting)
+        : undefined
     if (freeTestCompatibility.status === 'unsupported') {
       toast.message(
         `${freeTestCompatibility.model.label} is not supported by native Pi yet; launching Pi with its default model.`
@@ -190,7 +205,8 @@ export function launchAgentInNewTab(args: LaunchAgentInNewTabArgs): LaunchAgentI
         sessionId: tempSessionId,
         modelConfig: piModel,
         worktreePath,
-        paneKey
+        paneKey,
+        apiKey: selectedModelApiKey
       })
       .then((snapshot) => {
         const sessionId = snapshot.sessionId ?? tempSessionId

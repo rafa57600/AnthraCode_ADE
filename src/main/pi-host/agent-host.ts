@@ -22,13 +22,14 @@ import {
 import { NodeExecutionEnv } from '@earendil-works/pi-agent-core/node'
 import { agentHookServer } from '../agent-hooks/server'
 import { buildStatusPayload } from './agent-status-bridge'
-import { mapPiAgentEventToSessionEvents } from './pi-session-event-stream'
+import { extractAssistantText, mapPiAgentEventToSessionEvents } from './pi-session-event-stream'
 import type {
   CreatePiSessionParams,
   PiSessionEvent,
   PiSessionEventCallback,
   PiSessionSnapshot,
   PiSessionStatus,
+  PiTokenUsage,
 } from './types'
 import { NATIVE_PI_HOOK_SOURCE } from './types'
 
@@ -68,6 +69,8 @@ export class PiSessionHost {
   private _lastActivityAt: number
   private _errorMessage?: string
   private _lastPromptText = ''
+  private _lastAssistantText?: string
+  private _lastTokenUsage?: PiTokenUsage
   private _eventCallbacks: PiSessionEventCallback[] = []
   private _agentEventCallbacks: Array<(event: AgentEvent) => void> = []
   private _destroyed = false
@@ -182,6 +185,7 @@ export class PiSessionHost {
 
     this._status = 'running'
     this._lastPromptText = typeof input === 'string' ? input : ''
+    console.log(`[pi-native] prompt start session=${this.sessionId} chars=${this._lastPromptText.length}`)
     this.emitEvent({
       type: 'status_change',
       status: 'running',
@@ -199,6 +203,40 @@ export class PiSessionHost {
 
       this._messageCount = this._agent.state.messages.length
       this._status = 'finished'
+
+      // Why: pull the final assistant text from agent state as a robust fallback.
+      // The message_end IPC event path may fail if extractAssistantText doesn't
+      // recognize the content block format (e.g. ThinkingContent-only replies).
+      // Agent state is the canonical source — always has the final message.
+      if (!this._lastAssistantText) {
+        const msgs = this._agent.state.messages
+        for (let i = msgs.length - 1; i >= 0; i--) {
+          const m = msgs[i]
+          if (m.role === 'assistant' && Array.isArray(m.content)) {
+            console.log(
+              `[pi-native] fallback: checking msg[${i}] content=${JSON.stringify(m.content.map((c: any) => ({ type: c.type, keys: Object.keys(c) }))).slice(0, 800)}`
+            )
+            const text = extractAssistantText(m as any)
+            if (text) {
+              this._lastAssistantText = text
+              break
+            }
+          }
+        }
+        // Dump the last assistant message's raw top-level keys if we still have nothing
+        if (!this._lastAssistantText) {
+          const last = msgs[msgs.length - 1]
+          if (last && last.role === 'assistant') {
+            console.log(
+              `[pi-native] fallback: last assistant msg keys=${Object.keys(last).join(',')} contentLen=${Array.isArray((last as any).content) ? (last as any).content.length : typeof (last as any).content}`
+            )
+          }
+        }
+      }
+
+      console.log(
+        `[pi-native] prompt finished session=${this.sessionId} messages=${this._messageCount} lastText=${this._lastAssistantText ? this._lastAssistantText.slice(0, 80).replace(/\n/g, '\\n') : '(empty)'}`
+      )
       this.emitEvent({
         type: 'finished',
         sessionId: this.sessionId,
@@ -213,6 +251,7 @@ export class PiSessionHost {
       const error = err instanceof Error ? err : new Error(String(err))
       this._status = 'error'
       this._errorMessage = error.message
+      console.error(`[pi-native] prompt error session=${this.sessionId}: ${error.message}`)
       this.emitEvent({ type: 'error', sessionId: this.sessionId, error })
       this.emitEvent({
         type: 'status_change',
@@ -288,6 +327,8 @@ export class PiSessionHost {
       lastActivityAt: this._lastActivityAt,
       messageCount: this._messageCount,
       errorMessage: this._errorMessage,
+      lastAssistantMessage: this._lastAssistantText,
+      lastTokenUsage: this._lastTokenUsage,
     }
   }
 
@@ -324,17 +365,59 @@ export class PiSessionHost {
     switch (event.type) {
       case 'message_end':
         this._messageCount = this._agent.state.messages.length
+        this._lastAssistantText = extractAssistantText(event.message as any) ?? this._lastAssistantText
         break
 
       case 'turn_start':
         this._status = 'streaming'
         break
+
+      case 'agent_end': {
+        // Why: extract token usage from the last assistant message in this run.
+        // AgentEvent.agent_end carries all messages from the just-finished run.
+        // Scanning backwards finds the most recent non-error assistant message
+        // with provider-reported token counts.
+        this._lastTokenUsage = this.extractTokenUsage(event.messages)
+        if (this._lastTokenUsage) {
+          this.emitEvent({
+            type: 'usage',
+            sessionId: this.sessionId,
+            tokenUsage: this._lastTokenUsage,
+          })
+        }
+        break
+      }
     }
 
     // 4. Renderer-facing stream events
     for (const sessionEvent of mapPiAgentEventToSessionEvents(event, this.sessionId)) {
       this.emitEvent(sessionEvent)
     }
+  }
+
+  /**
+   * Extract token usage from the last non-error assistant message in a
+   * message array (e.g. from agent_end event.messages or agent state).
+   * Maps the Pi SDK Usage shape to our serializable PiTokenUsage.
+   */
+  private extractTokenUsage(messages: AgentMessage[]): PiTokenUsage | undefined {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i]
+      if (msg.role !== 'assistant') continue
+      // Why: cast to access usage/stopReason — AgentMessage is a discriminated
+      // union at the SDK type level but all AssistantMessages carry these fields
+      // at runtime.  A safe guard on totalTokens > 0 weeds out synthetic empty
+      // usage objects created on error/abort paths.
+      const m = msg as { usage?: { input: number; output: number; totalTokens: number; cost?: { total: number } }; stopReason?: string }
+      if (!m.usage || m.usage.totalTokens <= 0) continue
+      if (m.stopReason === 'error' || m.stopReason === 'aborted') continue
+      return {
+        inputTokens: m.usage.input ?? 0,
+        outputTokens: m.usage.output ?? 0,
+        estimatedCostUsd: m.usage.cost?.total,
+      }
+    }
+    return undefined
   }
 
   private emitEvent(event: PiSessionEvent): void {
@@ -396,6 +479,14 @@ export class PiAgentHost {
       })
 
       // 2. Pi Agent — uses initialState to set model/systemPrompt/tools
+      console.log('[pi-native] creating Agent with tools', JSON.stringify(
+        (params.tools ?? []).map((t: any) => ({
+          name: t.name,
+          api: params.model?.api,
+          provider: params.model?.provider,
+          modelId: params.model?.id,
+        }))
+      ));
       const agent = new Agent({
         sessionId,
         initialState: {

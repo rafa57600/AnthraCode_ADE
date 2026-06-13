@@ -20,6 +20,7 @@ import type { PiSessionSnapshot } from './types'
 import { createAnthraSpaceTools } from './anthraspace-tools'
 import { resolvePiModelConfig } from '../../shared/pi-model-config'
 import type { PiCreateSessionConfig } from '../../shared/pi-ipc-types'
+import { testGroqToolCall } from './pi-groq-debug'
 
 // ── Safe guards ─────────────────────────────────────────────────────────────
 
@@ -37,7 +38,16 @@ async function getPiAgentHost() {
 async function resolvePiModel(config: Partial<PiCreateSessionConfig>) {
   const modelConfig = resolvePiModelConfig(config)
   const { getModel } = await import('@earendil-works/pi-ai')
-  return getModel(modelConfig.modelProvider as any, modelConfig.modelName as any)
+  const model = getModel(modelConfig.modelProvider as any, modelConfig.modelName as any)
+  if (!model) {
+    throw new Error(
+      `Pi SDK model not found: ${modelConfig.modelProvider}/${modelConfig.modelName}. Available providers: ${getModel('anthropic' as any, 'claude-3-7-sonnet-20250219' as any) ? 'anthropic✓' : 'anthropic✗'} ${getModel('google' as any, 'gemini-2.5-flash' as any) ? 'google✓' : 'google✗'} ${getModel('groq' as any, 'llama-3.1-8b-instant' as any) ? 'groq✓' : 'groq✗'}`
+    )
+  }
+  return {
+    modelConfig,
+    model,
+  }
 }
 
 async function logSdkAvailability(): Promise<void> {
@@ -78,7 +88,7 @@ export function registerPiNativeHandlers(): void {
 
     // Resolve the model via Pi SDK only after the native path is invoked.
     // Missing or incomplete IPC model config falls back to the shared default.
-    const model = await resolvePiModel(config)
+    const { model, modelConfig } = await resolvePiModel(config)
     const piAgentHost = await getPiAgentHost()
 
     // Why: generate AnthraSpace custom tools scoped to this session's worktree.
@@ -87,11 +97,39 @@ export function registerPiNativeHandlers(): void {
     // descriptive "not yet wired" message instead of failing silently.
     const worktreePath = String(config.worktreePath ?? '')
     const anthraSpaceTools = createAnthraSpaceTools({ worktreePath })
+    console.log(
+      `[pi-native] create session model=${modelConfig.modelProvider}/${modelConfig.modelName} tools=${anthraSpaceTools.map((tool) => tool.name).join(',')}`
+    )
+
+    // Why: Pi SDK does not automatically read API keys from environment
+    // variables — the key must be passed via `options.apiKey`.  We check
+    // the IPC params first (from the renderer's settings UI), then fall
+    // back to provider-specific env vars so the user can set eg. GROQ_API_KEY
+    // once in their terminal profile instead of through the settings UI.
+    const groqEnv = process.env.GROQ_API_KEY
+    console.log(`[pi-native] GROQ_API_KEY env present=${typeof groqEnv === 'string' && groqEnv.length > 0} len=${groqEnv?.length ?? 0}`)
+    const apiKey =
+      typeof config.apiKey === 'string' && config.apiKey.length > 0
+        ? config.apiKey
+        : ({
+            groq: groqEnv,
+            anthropic: process.env.ANTHROPIC_API_KEY,
+            google: process.env.GOOGLE_API_KEY,
+            openai: process.env.OPENAI_API_KEY,
+            openrouter: process.env.OPENROUTER_API_KEY,
+          } as Record<string, string | undefined>)[modelConfig.modelProvider] ?? undefined
+
+    // Fire-and-forget: test raw Groq tool call support (debug only)
+    if (modelConfig.modelProvider === 'groq' && typeof apiKey === 'string') {
+      testGroqToolCall(apiKey).catch((err) =>
+        console.error('[pi-native] groq test failed', err)
+      )
+    }
 
     const session = await piAgentHost.createSession({
       worktreePath,
       model,
-      apiKey: typeof config.apiKey === 'string' ? config.apiKey : undefined,
+      apiKey,
       systemPrompt: typeof config.systemPrompt === 'string' ? config.systemPrompt : undefined,
       thinkingLevel: typeof config.thinkingLevel === 'string'
         ? config.thinkingLevel as any

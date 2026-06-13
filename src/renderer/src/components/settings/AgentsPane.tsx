@@ -13,6 +13,7 @@ import { SettingsBadge, SettingsSubsectionHeader, SettingsSwitchRow } from './Se
 import {
   FREE_TEST_PROVIDER_MODELS,
   FREE_TEST_PROVIDER_OFF,
+  type FreeTestProviderModel,
   getFreeTestProviderModel
 } from '../../../../shared/free-test-providers'
 
@@ -39,6 +40,79 @@ type AgentCommandOverrideInputProps = {
   defaultCmd: string
   cmdOverride: string | undefined
   onSaveOverride: (value: string) => void
+}
+
+type FreeTestProviderApiKeySetupProps = {
+  model: FreeTestProviderModel
+  settings: GlobalSettings
+  updateSettings: (updates: Partial<GlobalSettings>) => void
+}
+
+function FreeTestProviderApiKeySetup({
+  model,
+  settings,
+  updateSettings
+}: FreeTestProviderApiKeySetupProps): React.JSX.Element | null {
+  const settingKey = model.apiKeySetting
+  const [draft, setDraft] = useState('')
+
+  if (!model.requiresApiKey || !settingKey) {
+    return null
+  }
+
+  const hasSavedKey = Boolean(settings[settingKey]?.trim())
+  const trimmedDraft = draft.trim()
+
+  return (
+    <div className="mt-3 rounded-md border border-border/50 bg-accent/20 p-2.5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="min-w-0 flex-1">
+          <div className="text-xs font-medium text-foreground">{model.providerLabel} API key</div>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            {hasSavedKey
+              ? 'Key saved. Paste a replacement to update it.'
+              : `Paste a ${model.providerLabel} key to use this model route.`}
+          </p>
+        </div>
+        <Input
+          type="password"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          placeholder={hasSavedKey ? 'Saved — paste to replace' : `${model.providerLabel} API key`}
+          spellCheck={false}
+          className="h-8 min-w-0 font-mono text-xs sm:w-[260px]"
+        />
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Button
+            type="button"
+            variant="secondary"
+            size="xs"
+            disabled={!trimmedDraft}
+            onClick={() => {
+              updateSettings({ [settingKey]: trimmedDraft } as Partial<GlobalSettings>)
+              setDraft('')
+            }}
+          >
+            Save key
+          </Button>
+          {hasSavedKey ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                updateSettings({ [settingKey]: '' } as Partial<GlobalSettings>)
+                setDraft('')
+              }}
+            >
+              Clear
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function AgentCommandOverrideInput({
@@ -387,13 +461,21 @@ export function AgentsPane({ settings, updateSettings }: AgentsPaneProps): React
             ) : null}
           </div>
           {selectedFreeTestModel ? (
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              Supports: {selectedFreeTestModel.supportedAgents.join(', ')}
-              {selectedFreeTestModel.supportedNativeTargets?.length
-                ? `, ${selectedFreeTestModel.supportedNativeTargets.join(', ')}`
-                : ''}
-              . {selectedFreeTestModel.freeTierNote}
-            </p>
+            <>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Supports: {selectedFreeTestModel.supportedAgents.join(', ')}
+                {selectedFreeTestModel.supportedNativeTargets?.length
+                  ? `, ${selectedFreeTestModel.supportedNativeTargets.join(', ')}`
+                  : ''}
+                . {selectedFreeTestModel.freeTierNote}
+              </p>
+              <FreeTestProviderApiKeySetup
+                key={selectedFreeTestModel.id}
+                model={selectedFreeTestModel}
+                settings={settings}
+                updateSettings={updateSettings}
+              />
+            </>
           ) : null}
         </div>
       </section>

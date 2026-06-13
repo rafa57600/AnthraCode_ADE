@@ -19,9 +19,17 @@ export type PiModelConfigInput = {
   modelName?: string | null
 }
 
+// Why: Pi SDK's getModel() only returns models in its exact registry.
+// claude-sonnet-4-* does not exist under the 'anthropic' provider in Pi's
+// registry — the latest Sonnet available is claude-3-7-sonnet-20250219.
+// NOTE: switched to Groq for testing; revert to anthropic when user has
+// an Anthropic API key configured.
+// Why: llama-3.3-70b-versatile generates XML-style function calls (<function=...>)
+// that Groq's API cannot reliably translate to OpenAI JSON format.
+// llama-3.1-8b-instant generates proper JSON tool_calls in non-streaming mode.
 export const DEFAULT_NATIVE_PI_MODEL_CONFIG = {
-  modelProvider: 'anthropic',
-  modelName: 'claude-sonnet-4-20250514'
+  modelProvider: 'groq',
+  modelName: 'llama-3.1-8b-instant'
 } as const satisfies PiModelConfig
 
 export const PI_MODEL_PROVIDER_ALIASES = {

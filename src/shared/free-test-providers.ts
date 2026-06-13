@@ -1,5 +1,12 @@
 import type { TuiAgent } from './types'
 
+export type FreeTestProviderApiKeySetting =
+  | 'anthropicApiKey'
+  | 'openaiApiKey'
+  | 'googleApiKey'
+  | 'openRouterApiKey'
+  | 'groqApiKey'
+
 export type FreeTestProviderModel = {
   id: string
   label: string
@@ -7,6 +14,7 @@ export type FreeTestProviderModel = {
   modelProvider: string
   modelName: string
   requiresApiKey: boolean
+  apiKeySetting?: FreeTestProviderApiKeySetting
   freeTierNote: string
   supportedAgents: readonly TuiAgent[]
   supportedNativeTargets?: readonly FreeTestNativeTarget[]
@@ -31,6 +39,7 @@ export const FREE_TEST_PROVIDER_MODELS = [
     modelProvider: 'google',
     modelName: 'gemini-2.5-flash',
     requiresApiKey: true,
+    apiKeySetting: 'googleApiKey',
     freeTierNote: 'Google AI Studio free-tier API key; rate limits are controlled by Google.',
     supportedAgents: ['gemini', 'pi'],
     supportedNativeTargets: ['pi-native']
@@ -52,6 +61,7 @@ export const FREE_TEST_PROVIDER_MODELS = [
     modelProvider: 'openrouter',
     modelName: 'qwen/qwen3-coder:free',
     requiresApiKey: true,
+    apiKeySetting: 'openRouterApiKey',
     freeTierNote: 'OpenRouter free-route model; availability and limits can change upstream.',
     supportedAgents: ['opencode', 'aider', 'continue', 'goose']
   },
@@ -62,8 +72,23 @@ export const FREE_TEST_PROVIDER_MODELS = [
     modelProvider: 'groq',
     modelName: 'openai/gpt-oss-20b',
     requiresApiKey: true,
+    apiKeySetting: 'groqApiKey',
     freeTierNote: 'Groq developer free tier; throughput and daily token limits are provider-side.',
     supportedAgents: ['aider', 'continue', 'goose']
+  },
+  {
+    id: 'groq-llama-instant',
+    label: 'Llama 3.1 8B Instant',
+    providerLabel: 'Groq',
+    modelProvider: 'groq',
+    // Why: llama-3.3-70b-versatile generates XML-style function calls that
+    // Groq cannot reliably translate. 3.1-8b-instant generates proper JSON.
+    modelName: 'llama-3.1-8b-instant',
+    requiresApiKey: true,
+    apiKeySetting: 'groqApiKey',
+    freeTierNote: 'Groq developer free tier; throughput and daily token limits are provider-side.',
+    supportedAgents: ['pi'],
+    supportedNativeTargets: ['pi-native']
   }
 ] as const satisfies readonly FreeTestProviderModel[]
 

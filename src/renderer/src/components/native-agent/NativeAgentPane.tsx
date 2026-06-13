@@ -56,6 +56,9 @@ export default function NativeAgentPane({
 
   useEffect(() => {
     const unsub = window.api.piNative.onEvent((event) => {
+      if (event.sessionId !== sessionId) {
+        return
+      }
       const now = Date.now()
 
       switch (event.type) {
@@ -108,6 +111,13 @@ export default function NativeAgentPane({
         case 'status_change': {
           const s = event.status
           setStatus(s)
+          setEntries((prev) => {
+            const last = prev.at(-1)
+            if (last?.kind === 'status_change' && last.status === s) {
+              return prev
+            }
+            return [...prev, { kind: 'status_change', status: s, ts: now }]
+          })
           // Why: commit any buffered streaming text when the session finishes
           // or errors so the user sees the complete assistant response.
           if (s === 'finished' || s === 'error' || s === 'interrupted') {
@@ -191,8 +201,18 @@ export default function NativeAgentPane({
 
     window.api.piNative
       .prompt(sessionId, text)
-      .then(() => {
-        // The IPC event stream will handle status updates; no action needed.
+      .then((snapshot) => {
+        setStatus(snapshot.status)
+        if (snapshot.lastAssistantMessage?.trim()) {
+          const text = snapshot.lastAssistantMessage.trim()
+          setEntries((prev) => {
+            const alreadyRendered = prev.some(
+              (entry) => entry.kind === 'assistant_text' && entry.text.trim() === text
+            )
+            return alreadyRendered ? prev : [...prev, { kind: 'assistant_text', text, ts: Date.now() }]
+          })
+          setCurrentText('')
+        }
       })
       .catch((err: Error) => {
         setEntries((prev) => [
@@ -278,6 +298,16 @@ export default function NativeAgentPane({
           >
             <span className="h-1 w-1 rounded-full bg-muted-foreground/30" />
             {entry.toolUse.isError ? '⚠ failed:' : '✓'} {entry.toolUse.toolName}
+          </div>
+        )
+
+      case 'status_change':
+        return (
+          <div
+            key={idx}
+            className="mx-4 my-1 text-[11px] uppercase tracking-wide text-muted-foreground/50"
+          >
+            Pi status: {entry.status}
           </div>
         )
 

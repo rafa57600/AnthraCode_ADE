@@ -2,6 +2,29 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-14 — AnthraSpace MCP Phase 3 smoke tests and config UX
+
+### Production change
+
+- Added MCP request-handler integration tests covering initialize, tool listing, mocked runtime tool calls, invalid params, and runtime auth/connectivity failures.
+- Added a copyable AnthraSpace MCP server snippet in Settings so users can paste the read-only stdio gateway into external MCP clients.
+- Added a shared `ANTHRASPACE_MCP_SERVER_CONFIG` constant and test coverage to keep the copied snippet valid and inspectable.
+- Hardened MCP tool error handling so validation failures return JSON-RPC invalid params while runtime failures return clear internal MCP errors.
+
+### Verification
+
+- `pnpm exec vitest run --config config/vitest.config.ts src/cli/mcp/tools.test.ts src/cli/mcp/stdio-server.test.ts src/shared/mcp-config.test.ts` passed.
+- `pnpm run tc:cli` passed.
+- `pnpm run tc:node` passed.
+- `pnpm run tc:web` passed.
+- `pnpm run build:cli` passed.
+- Built CLI stdio smoke test passed for `initialize`, `tools/list`, and clear AnthraSpace-not-running runtime failure on `tools/call`.
+
+### Production impact
+
+- MCP clients can now discover the AnthraSpace server config from the UI and verify the read-only tool surface before any write/action tools exist.
+- Runtime connectivity failures are explicit and safe, which keeps the gateway fail-closed when the desktop app is not running or authentication metadata is unavailable.
+
 ## 2026-06-14 — AnthraSpace MCP read-only skeleton
 
 ### Production change

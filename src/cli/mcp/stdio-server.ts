@@ -1,5 +1,5 @@
 import { RuntimeClient } from '../runtime-client'
-import { findAnthraSpaceMcpTool, toMcpToolList } from './tools'
+import { findAnthraSpaceMcpTool, isMcpToolInputError, toMcpToolList } from './tools'
 
 type JsonRpcRequest = {
   jsonrpc?: string
@@ -57,7 +57,7 @@ function readHeaderLength(header: string): number | null {
   return null
 }
 
-async function handleRequest(
+export async function handleAnthraSpaceMcpRequest(
   request: JsonRpcRequest,
   client: Pick<RuntimeClient, 'call'>
 ): Promise<JsonRpcResponse | null> {
@@ -91,6 +91,13 @@ async function handleRequest(
           content: [{ type: 'text', text: JSON.stringify(result, null, 2) }]
         })
       } catch (error) {
+        if (!isMcpToolInputError(error)) {
+          return failure(
+            id,
+            JSONRPC_INTERNAL_ERROR,
+            error instanceof Error ? error.message : String(error)
+          )
+        }
         return failure(
           id,
           JSONRPC_INVALID_PARAMS,
@@ -151,7 +158,7 @@ export async function startAnthraSpaceMcpServer(
         }
 
         try {
-          const response = await handleRequest(request, client)
+          const response = await handleAnthraSpaceMcpRequest(request, client)
           if (response) writeMessage(response)
         } catch (error) {
           writeMessage(

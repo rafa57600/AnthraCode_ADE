@@ -65,6 +65,16 @@ export const MCP_STARTER_CONFIG = `{
 }
 `
 
+export const ANTHRASPACE_MCP_SERVER_CONFIG = `{
+  "mcpServers": {
+    "anthraspace": {
+      "command": "anthraspace",
+      "args": ["mcp"]
+    }
+  }
+}
+`
+
 export function getMcpConfigParentDirs(
   candidates: readonly McpConfigCandidate[] = MCP_CONFIG_CANDIDATES
 ): string[] {

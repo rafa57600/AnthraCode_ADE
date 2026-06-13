@@ -17,16 +17,27 @@ export type AnthraSpaceMcpTool = {
   handler: (args: JsonObject, client: Pick<RuntimeClient, 'call'>) => Promise<unknown>
 }
 
+export class McpToolInputError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'McpToolInputError'
+  }
+}
+
+export function isMcpToolInputError(error: unknown): error is McpToolInputError {
+  return error instanceof McpToolInputError
+}
+
 function optionalString(args: JsonObject, key: string): string | undefined {
   const value = args[key]
   if (value === undefined || value === null) return undefined
-  if (typeof value !== 'string') throw new Error(`${key} must be a string`)
+  if (typeof value !== 'string') throw new McpToolInputError(`${key} must be a string`)
   return value
 }
 
 function requiredString(args: JsonObject, key: string): string {
   const value = optionalString(args, key)
-  if (!value) throw new Error(`Missing required ${key}`)
+  if (!value) throw new McpToolInputError(`Missing required ${key}`)
   return value
 }
 
@@ -34,7 +45,7 @@ function optionalPositiveInteger(args: JsonObject, key: string): number | undefi
   const value = args[key]
   if (value === undefined || value === null) return undefined
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
-    throw new Error(`${key} must be a non-negative integer`)
+    throw new McpToolInputError(`${key} must be a non-negative integer`)
   }
   return value
 }

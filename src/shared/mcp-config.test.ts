@@ -5,6 +5,7 @@ import {
   getMcpConfigParentDirs,
   inspectMcpConfigContent,
   maskMcpEnv,
+  ANTHRASPACE_MCP_SERVER_CONFIG,
   MCP_CONFIG_CANDIDATES,
   MCP_STARTER_CONFIG,
   selectExistingMcpConfigCandidates
@@ -111,6 +112,21 @@ describe('mcp-config', () => {
       exists: true,
       status: 'valid',
       servers: []
+    })
+  })
+
+  it('keeps the AnthraSpace MCP snippet valid and enabled', () => {
+    expect(inspectMcpConfigContent(workspaceCandidate, ANTHRASPACE_MCP_SERVER_CONFIG)).toMatchObject({
+      exists: true,
+      status: 'valid',
+      servers: [
+        {
+          name: 'anthraspace',
+          transport: 'stdio',
+          status: 'enabled',
+          command: 'anthraspace'
+        }
+      ]
     })
   })
 

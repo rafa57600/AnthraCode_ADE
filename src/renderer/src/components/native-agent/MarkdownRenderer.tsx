@@ -16,24 +16,26 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import rehypeHighlight from 'rehype-highlight'
-import CodeBlockCopyButton from '../editor/CodeBlockCopyButton'
+import NativeAgentCodeBlock from './NativeAgentCodeBlock'
 import type { Components } from 'react-markdown'
 
 type MarkdownRendererProps = {
   content: string
   /** Whether the app is in dark mode. Controls which hljs theme classes are active. */
   isDark?: boolean
+  onInsertCode?: (code: string, language?: string) => void
 }
 
 export default function MarkdownRenderer({
   content,
   isDark = true,
+  onInsertCode,
 }: MarkdownRendererProps): React.JSX.Element {
   const components: Components = {
-    // Why: wrap every <pre> (i.e. fenced code blocks rendered by react-markdown)
-    // with CodeBlockCopyButton so users can copy code with one click.
+    // Why: agent output code is action-oriented. The native chat wrapper keeps
+    // copy/insert controls local to chat without pulling in MarkdownPreview.
     pre: ({ children, ...props }) => (
-      <CodeBlockCopyButton {...props}>{children}</CodeBlockCopyButton>
+      <NativeAgentCodeBlock {...props} onInsertCode={onInsertCode}>{children}</NativeAgentCodeBlock>
     ),
   }
 

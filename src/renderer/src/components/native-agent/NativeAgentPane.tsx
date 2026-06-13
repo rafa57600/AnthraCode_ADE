@@ -552,6 +552,15 @@ export default function NativeAgentPane({
     if (historySidebarOpen) toggleHistorySidebar()
   }, [historySidebarOpen, toggleHistorySidebar])
 
+  const handleInsertCode = useCallback((code: string, language?: string) => {
+    const fenceLanguage = language ?? ''
+    const fencedCode = `\`\`\`${fenceLanguage}\n${code}\n\`\`\``
+    setInputValue((prev) => {
+      const trimmedPrev = prev.trimEnd()
+      return trimmedPrev ? `${trimmedPrev}\n\n${fencedCode}` : fencedCode
+    })
+  }, [])
+
   // ── Render helpers ────────────────────────────────────────────────────────
 
   function renderEntry(entry: ConversationEntry, idx: number): React.JSX.Element {
@@ -559,7 +568,11 @@ export default function NativeAgentPane({
       case 'assistant_text':
         return (
           <div key={idx} data-entry-index={idx} className="px-4 py-1 scroll-mt-3">
-            <MarkdownRenderer content={entry.text} isDark={isDark} />
+            <MarkdownRenderer
+              content={entry.text}
+              isDark={isDark}
+              onInsertCode={handleInsertCode}
+            />
           </div>
         )
 

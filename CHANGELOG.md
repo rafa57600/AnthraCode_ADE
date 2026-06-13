@@ -2,6 +2,25 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-13 — Native Pi chat code block controls
+
+### Production change
+
+- Added native Pi chat-specific code block controls with copy, copied-state feedback, language labels, and an Insert action.
+- Wired Insert to append the selected fenced code block into the chat input for follow-up prompts.
+- Kept code controls scoped to the native chat Markdown renderer so MarkdownPreview/editor behavior remains unchanged.
+
+### Verification
+
+- `pnpm run tc:web` passed.
+- `pnpm run tc:node` passed.
+- `graphify update .` completed successfully.
+
+### Production impact
+
+- Users can reuse assistant-generated code in follow-up prompts without manual selection/copy formatting.
+- Code block actions are implemented with the existing clipboard bridge and design tokens, preserving Electron security boundaries and UI consistency.
+
 ## 2026-06-13 — Native Pi chat history sidebar
 
 ### Production change

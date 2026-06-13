@@ -10,28 +10,14 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Loader2, RotateCcw, RotateCw, Wrench } from 'lucide-react'
+import { History, Loader2, RotateCcw, RotateCw, Wrench } from 'lucide-react'
 import { useAppStore } from '@/store'
 import MarkdownRenderer from './MarkdownRenderer'
 import ChatInput from './ChatInput'
+import NativeAgentHistorySidebar from './NativeAgentHistorySidebar'
 import { SLASH_COMMANDS } from './slash-commands'
 import type { PiSessionStatus } from '../../../../shared/pi-ipc-types'
-import type { FileMentionCandidate } from './native-agent-types'
-import type {
-  PiToolUseEnd,
-  PiToolUseStart,
-  PiToolUseUpdate
-} from '../../../../shared/pi-tool-use-events'
-
-// ── Types ───────────────────────────────────────────────────────────────────
-
-type ConversationEntry =
-  | { kind: 'assistant_text'; text: string; ts: number }
-  | { kind: 'tool_call'; toolUse: PiToolUseStart; ts: number }
-  | { kind: 'tool_update'; toolUse: PiToolUseUpdate; ts: number }
-  | { kind: 'tool_result'; toolUse: PiToolUseEnd; ts: number }
-  | { kind: 'status_change'; status: PiSessionStatus; ts: number }
-  | { kind: 'error'; message: string; ts: number }
+import type { ConversationEntry, FileMentionCandidate } from './native-agent-types'
 
 type ConversationHistorySnapshot = {
   entries: ConversationEntry[]
@@ -76,6 +62,8 @@ export default function NativeAgentPane({
   // Store actions and selectors for session-scoped token tracking
   const setTokenUsage = useAppStore((s) => s.setTokenUsage)
   const updateNativePiSnapshot = useAppStore((s) => s.updateNativePiSnapshot)
+  const historySidebarOpen = useAppStore((s) => s.nativePiHistorySidebarOpen)
+  const toggleHistorySidebar = useAppStore((s) => s.toggleHistorySidebar)
   const tokenUsage = useAppStore((s) => s.nativePiTokenUsage[sessionId])
   const nativePiSession = useAppStore((s) => s.nativePiSessions[sessionId])
   const worktree = useAppStore((s) => {
@@ -553,13 +541,24 @@ export default function NativeAgentPane({
       .finally(() => setAborting(false))
   }, [aborting, sessionId])
 
+  const handleHistoryEntrySelect = useCallback((entryIndex: number) => {
+    const el = outputRef.current?.querySelector(`[data-entry-index="${entryIndex}"]`)
+    if (el instanceof HTMLElement) {
+      el.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }
+  }, [])
+
+  const handleCloseHistorySidebar = useCallback(() => {
+    if (historySidebarOpen) toggleHistorySidebar()
+  }, [historySidebarOpen, toggleHistorySidebar])
+
   // ── Render helpers ────────────────────────────────────────────────────────
 
   function renderEntry(entry: ConversationEntry, idx: number): React.JSX.Element {
     switch (entry.kind) {
       case 'assistant_text':
         return (
-          <div key={idx} className="px-4 py-1">
+          <div key={idx} data-entry-index={idx} className="px-4 py-1 scroll-mt-3">
             <MarkdownRenderer content={entry.text} isDark={isDark} />
           </div>
         )
@@ -568,6 +567,7 @@ export default function NativeAgentPane({
         return (
           <div
             key={idx}
+            data-entry-index={idx}
             className="mx-4 my-1 flex items-start gap-2 rounded-md border border-border/40 bg-accent/30 px-3 py-2 text-[12px] text-muted-foreground"
           >
             <Wrench className="mt-px h-3.5 w-3.5 shrink-0" />
@@ -586,6 +586,7 @@ export default function NativeAgentPane({
         return (
           <div
             key={idx}
+            data-entry-index={idx}
             className="mx-8 mb-1 flex items-center gap-2 text-[11px] text-muted-foreground/60"
           >
             <span className="h-1 w-1 rounded-full bg-muted-foreground/30" />
@@ -597,6 +598,7 @@ export default function NativeAgentPane({
         return (
           <div
             key={idx}
+            data-entry-index={idx}
             className="mx-8 mb-1 flex items-center gap-2 text-[11px] text-muted-foreground/60"
           >
             <span className="h-1 w-1 rounded-full bg-muted-foreground/30" />
@@ -608,6 +610,7 @@ export default function NativeAgentPane({
         return (
           <div
             key={idx}
+            data-entry-index={idx}
             className="mx-4 my-1 text-[11px] uppercase tracking-wide text-muted-foreground/50"
           >
             Pi status: {entry.status}
@@ -618,6 +621,7 @@ export default function NativeAgentPane({
         return (
           <div
             key={idx}
+            data-entry-index={idx}
             className="mx-4 my-1 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-[12px] text-red-600"
           >
             {entry.message}
@@ -632,7 +636,8 @@ export default function NativeAgentPane({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-1 flex-col min-h-0 bg-background">
+    <div className="flex min-h-0 flex-1 bg-background">
+      <div className="flex min-w-0 flex-1 flex-col">
       {/* Header */}
       <div className="flex shrink-0 items-center gap-2 border-b border-border/40 px-4 py-2 text-[13px] font-medium text-foreground">
         <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
@@ -654,6 +659,16 @@ export default function NativeAgentPane({
           className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
         >
           <RotateCw className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={toggleHistorySidebar}
+          title="Toggle conversation history"
+          aria-pressed={historySidebarOpen}
+          className="inline-flex h-6 items-center gap-1.5 rounded-md px-2 text-[11px] text-muted-foreground transition hover:bg-accent hover:text-foreground aria-pressed:bg-accent aria-pressed:text-foreground"
+        >
+          <History className="h-3.5 w-3.5" />
+          History
         </button>
         {/* Right-aligned status / token area — single ml-auto wrapper */}
         {(isBusy || status === 'interrupted' || (tokenUsage && (tokenUsage.inputTokens > 0 || tokenUsage.outputTokens > 0))) && (
@@ -727,6 +742,15 @@ export default function NativeAgentPane({
         isBusy={isBusy}
         aborting={aborting}
       />
+      </div>
+      {historySidebarOpen && (
+        <NativeAgentHistorySidebar
+          entries={entries}
+          currentText={currentText}
+          onClose={handleCloseHistorySidebar}
+          onSelectEntry={handleHistoryEntrySelect}
+        />
+      )}
     </div>
   )
 }

@@ -2,6 +2,25 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-13 — Native Pi chat history sidebar
+
+### Production change
+
+- Added a right-side conversation history panel for native Pi chat sessions with per-turn summaries, timestamps, tool-count badges, and error markers.
+- Added a header toggle for the history panel and row selection that scrolls the transcript to the chosen turn.
+- Moved the native chat render-entry shape into the shared component-level type module so the pane and sidebar stay type-aligned.
+
+### Verification
+
+- `pnpm run tc:web` passed.
+- `pnpm run tc:node` passed.
+- `graphify update .` completed successfully.
+
+### Production impact
+
+- Long native Pi sessions are now navigable without searching the full transcript manually.
+- The sidebar derives from the already-rendered conversation entries, keeping UI navigation lightweight and avoiding extra Pi SDK/session persistence risk.
+
 ## 2026-06-13 — Native Pi chat undo and redo
 
 ### Production change

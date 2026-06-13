@@ -12,7 +12,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, Send, Square, Wrench } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import type { PiSessionStatus } from '../../../../shared/pi-ipc-types'
+import { useAppStore } from '@/store'
+import type { PiSessionStatus, PiTokenUsage } from '../../../../shared/pi-ipc-types'
 import type {
   PiToolUseEnd,
   PiToolUseStart,
@@ -48,6 +49,10 @@ export default function NativeAgentPane({
   const [inputValue, setInputValue] = useState('')
   const [status, setStatus] = useState<PiSessionStatus>('idle')
   const [aborting, setAborting] = useState(false)
+
+  // Store actions and selectors for session-scoped token tracking
+  const setTokenUsage = useAppStore((s) => s.setTokenUsage)
+  const tokenUsage = useAppStore((s) => s.nativePiTokenUsage[sessionId])
 
   const outputRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -155,6 +160,13 @@ export default function NativeAgentPane({
             { kind: 'error', message: msg, ts: now },
           ])
           setStatus('error')
+          break
+        }
+
+        case 'usage': {
+          // Why: dispatch per-prompt token usage to the store so it accumulates
+          // across turns. The store's setTokenUsage merges with existing counts.
+          setTokenUsage(sessionId, event.tokenUsage)
           break
         }
       }
@@ -336,14 +348,36 @@ export default function NativeAgentPane({
       <div className="flex shrink-0 items-center gap-2 border-b border-border/40 px-4 py-2 text-[13px] font-medium text-foreground">
         <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
         {agentLabel}
-        {isBusy && (
-          <span className="ml-auto flex items-center gap-1 text-[11px] text-muted-foreground">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            {status === 'streaming' ? 'Streaming...' : 'Working...'}
+        {/* Right-aligned status / token area — single ml-auto wrapper */}
+        {(isBusy || status === 'interrupted' || (tokenUsage && (tokenUsage.inputTokens > 0 || tokenUsage.outputTokens > 0))) && (
+          <span className="ml-auto flex items-center gap-3 text-[11px]">
+            {isBusy && (
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                {status === 'streaming' ? 'Streaming...' : 'Working...'}
+              </span>
+            )}
+            {status === 'interrupted' && (
+              <span className="text-amber-500">Interrupted</span>
+            )}
+            {/* Token usage — compact display, shown when non-zero */}
+            {tokenUsage && (tokenUsage.inputTokens > 0 || tokenUsage.outputTokens > 0) && (
+              <span className="flex items-center gap-2 text-muted-foreground/70">
+                <span>
+                  ↑{tokenUsage.outputTokens >= 1000
+                    ? `${(tokenUsage.outputTokens / 1000).toFixed(1)}k`
+                    : tokenUsage.outputTokens.toLocaleString()}
+                </span>
+                {tokenUsage.estimatedCostUsd != null && tokenUsage.estimatedCostUsd > 0 && (
+                  <span>
+                    ${tokenUsage.estimatedCostUsd < 0.01
+                      ? tokenUsage.estimatedCostUsd.toFixed(4)
+                      : tokenUsage.estimatedCostUsd.toFixed(2)}
+                  </span>
+                )}
+              </span>
+            )}
           </span>
-        )}
-        {status === 'interrupted' && (
-          <span className="ml-auto text-[11px] text-amber-500">Interrupted</span>
         )}
       </div>
 

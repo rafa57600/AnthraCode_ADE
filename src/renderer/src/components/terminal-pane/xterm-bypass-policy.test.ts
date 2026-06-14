@@ -149,7 +149,24 @@ describe('shouldBypassXtermKeyboardEvent — macOS', () => {
     ).toBe(false)
   })
 
-  it('does not bubble Shift+Latin printable text', () => {
+  it('bubbles shifted ASCII numbers and punctuation so the active keyboard layout wins', () => {
+    // Why: AZERTY and other layouts produce numbers and slash through Shifted
+    // printable keys. Kitty CSI-u must not replace those layout characters with
+    // physical-key encodings.
+    for (const key of ['1', '9', '/', '?', '.']) {
+      expect(
+        shouldBypassXtermKeyboardEvent(event({ key, code: 'Digit1', shiftKey: true }), opts)
+      ).toBe(true)
+      expect(
+        shouldBypassXtermKeyboardEvent(
+          event({ type: 'keyup', key, code: 'Digit1', shiftKey: true }),
+          opts
+        )
+      ).toBe(true)
+    }
+  })
+
+  it('does not bubble Shift+Latin letters', () => {
     expect(
       shouldBypassXtermKeyboardEvent(event({ key: 'A', code: 'KeyA', shiftKey: true }), opts)
     ).toBe(false)
@@ -284,6 +301,26 @@ describe('shouldBypassXtermKeyboardEvent — Windows/Linux', () => {
         noSel
       )
     ).toBe(true)
+  })
+
+  it('bubbles shifted ASCII numbers and punctuation so the active keyboard layout wins', () => {
+    for (const key of ['1', '9', '/', '?', '.']) {
+      expect(
+        shouldBypassXtermKeyboardEvent(event({ key, code: 'Digit1', shiftKey: true }), noSel)
+      ).toBe(true)
+      expect(
+        shouldBypassXtermKeyboardEvent(
+          event({ type: 'keyup', key, code: 'Digit1', shiftKey: true }),
+          noSel
+        )
+      ).toBe(true)
+    }
+  })
+
+  it('does not bubble Shift+Latin letters', () => {
+    expect(
+      shouldBypassXtermKeyboardEvent(event({ key: 'A', code: 'KeyA', shiftKey: true }), noSel)
+    ).toBe(false)
   })
 
   it('does not bubble unshifted non-ASCII printable text', () => {

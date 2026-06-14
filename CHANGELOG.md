@@ -2,6 +2,27 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-14 — MCP config formats and terminal layout-key input
+
+### Production change
+
+- Split the copyable AnthraSpace MCP Settings snippet into AnthraCode/OpenCode top-level `mcp` format and Claude/Cursor `mcpServers` format, so users do not paste an invalid config into AnthraCode/OpenCode.
+- Kept `ANTHRASPACE_MCP_SERVER_CONFIG` pointing at the AnthraCode/OpenCode-safe snippet and added coverage for both snippet shapes.
+- Fixed xterm keyboard bypass policy for shifted printable layout characters such as AZERTY digits and `/`, while preserving shifted Latin letters on the normal xterm path.
+
+### Verification
+
+- `pnpm exec vitest run --config config/vitest.config.ts src/shared/mcp-config.test.ts src/renderer/src/components/terminal-pane/xterm-bypass-policy.test.ts` passed — 40 tests.
+- `pnpm run tc:web` passed.
+- `pnpm run tc:node` passed.
+- `pnpm run tc:cli` passed.
+- `pnpm run build:cli` passed.
+
+### Production impact
+
+- Reduces external MCP onboarding failures for AnthraCode/OpenCode by showing the correct client-specific schema in Settings.
+- Improves terminal input reliability for users on non-US keyboard layouts and touch/virtual keyboards that emit shifted printable characters for numbers and punctuation.
+
 ## 2026-06-14 — AnthraSpace MCP Phase 3 smoke tests and config UX
 
 ### Production change

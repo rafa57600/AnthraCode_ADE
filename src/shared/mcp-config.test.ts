@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ANTHRASPACE_ANTHRACODE_MCP_SERVER_CONFIG,
+  ANTHRASPACE_MCP_SERVERS_CONFIG,
+  ANTHRASPACE_MCP_SERVER_CONFIG,
   canInspectLocalMcpConfigRoot,
   getMcpConfigCandidateParentDir,
   getMcpConfigParentDirs,
   inspectMcpConfigContent,
   maskMcpEnv,
-  ANTHRASPACE_MCP_SERVER_CONFIG,
   MCP_CONFIG_CANDIDATES,
   MCP_STARTER_CONFIG,
   selectExistingMcpConfigCandidates
@@ -115,8 +117,8 @@ describe('mcp-config', () => {
     })
   })
 
-  it('keeps the AnthraSpace MCP snippet valid and enabled', () => {
-    expect(inspectMcpConfigContent(workspaceCandidate, ANTHRASPACE_MCP_SERVER_CONFIG)).toMatchObject({
+  it('keeps the Claude/Cursor AnthraSpace MCP snippet valid and enabled', () => {
+    expect(inspectMcpConfigContent(workspaceCandidate, ANTHRASPACE_MCP_SERVERS_CONFIG)).toMatchObject({
       exists: true,
       status: 'valid',
       servers: [
@@ -128,6 +130,31 @@ describe('mcp-config', () => {
         }
       ]
     })
+  })
+
+  it('keeps the AnthraCode/OpenCode AnthraSpace MCP snippet valid and enabled', () => {
+    const anthracodeCandidate = {
+      format: 'workspace' as const,
+      label: 'AnthraCode',
+      relativePath: 'anthracode.json',
+      serversPath: ['mcp']
+    }
+
+    expect(
+      inspectMcpConfigContent(anthracodeCandidate, ANTHRASPACE_ANTHRACODE_MCP_SERVER_CONFIG)
+    ).toMatchObject({
+      exists: true,
+      status: 'valid',
+      servers: [
+        {
+          name: 'anthraspace',
+          transport: 'stdio',
+          status: 'enabled',
+          command: 'anthraspace'
+        }
+      ]
+    })
+    expect(ANTHRASPACE_MCP_SERVER_CONFIG).toBe(ANTHRASPACE_ANTHRACODE_MCP_SERVER_CONFIG)
   })
 
   it('plans directory discovery before reading candidate files', () => {

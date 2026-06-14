@@ -65,7 +65,20 @@ export const MCP_STARTER_CONFIG = `{
 }
 `
 
-export const ANTHRASPACE_MCP_SERVER_CONFIG = `{
+export const ANTHRASPACE_ANTHRACODE_MCP_SERVER_CONFIG = `{
+  "$schema": "https://docs.anthracode.com/config.json",
+  "mcp": {
+    "anthraspace": {
+      "type": "local",
+      "command": ["anthraspace", "mcp"],
+      "enabled": true,
+      "timeout": 30000
+    }
+  }
+}
+`
+
+export const ANTHRASPACE_MCP_SERVERS_CONFIG = `{
   "mcpServers": {
     "anthraspace": {
       "command": "anthraspace",
@@ -74,6 +87,8 @@ export const ANTHRASPACE_MCP_SERVER_CONFIG = `{
   }
 }
 `
+
+export const ANTHRASPACE_MCP_SERVER_CONFIG = ANTHRASPACE_ANTHRACODE_MCP_SERVER_CONFIG
 
 export function getMcpConfigParentDirs(
   candidates: readonly McpConfigCandidate[] = MCP_CONFIG_CANDIDATES

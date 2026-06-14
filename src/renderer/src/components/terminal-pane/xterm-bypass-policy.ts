@@ -40,6 +40,24 @@ function isSingleNonAsciiPrintableText(key: string): boolean {
   return codePoint !== undefined && codePoint >= 0x80
 }
 
+function isSingleAsciiPrintableText(key: string): boolean {
+  const chars = Array.from(key)
+  if (chars.length !== 1) {
+    return false
+  }
+  const codePoint = chars[0].codePointAt(0)
+  return codePoint !== undefined && codePoint >= 0x20 && codePoint <= 0x7e
+}
+
+function isShiftedLatinLetter(key: string): boolean {
+  return /^[A-Z]$/.test(key)
+}
+
+function isShiftedLayoutPrintableText(key: string): boolean {
+  return isSingleNonAsciiPrintableText(key) ||
+    (isSingleAsciiPrintableText(key) && !isShiftedLatinLetter(key))
+}
+
 function isXtermHandledKeyEvent(type: string): boolean {
   return type === 'keydown' || type === 'keyup'
 }
@@ -82,11 +100,13 @@ export function shouldBypassXtermKeyboardEvent(
     !event.ctrlKey &&
     !event.metaKey &&
     !event.altKey &&
-    isSingleNonAsciiPrintableText(event.key)
+    isShiftedLayoutPrintableText(event.key)
   ) {
-    // Why: xterm's kitty encoder derives shifted key codes from physical
-    // `code` (KeyA -> Latin "a"). Bypass keydown so Chromium emits layout text
-    // via keypress, and bypass keyup so xterm doesn't leak the release CSI-u.
+    // Why: xterm's kitty encoder derives shifted printable input from physical
+    // `code`, which breaks layout-produced numbers/punctuation (AZERTY digits,
+    // slash, etc.). Bypass keydown so Chromium emits layout text via keypress,
+    // and bypass keyup so xterm doesn't leak a release CSI-u. Shifted Latin
+    // letters stay on xterm's normal path because they are layout-stable.
     return true
   }
 

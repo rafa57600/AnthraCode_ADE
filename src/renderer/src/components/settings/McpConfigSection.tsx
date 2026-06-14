@@ -4,11 +4,12 @@ import { toast } from 'sonner'
 import type { Repo, Worktree } from '../../../../shared/types'
 import { getRepoIdFromWorktreeId } from '../../../../shared/worktree-id'
 import {
+  ANTHRASPACE_ANTHRACODE_MCP_SERVER_CONFIG,
+  ANTHRASPACE_MCP_SERVERS_CONFIG,
   canInspectLocalMcpConfigRoot,
   getMcpConfigCandidateParentDir,
   getMcpConfigParentDirs,
   inspectMcpConfigContent,
-  ANTHRASPACE_MCP_SERVER_CONFIG,
   MCP_CONFIG_CANDIDATES,
   MCP_STARTER_CONFIG,
   selectExistingMcpConfigCandidates,
@@ -265,12 +266,12 @@ export function McpConfigSection({ repo }: McpConfigSectionProps): React.JSX.Ele
     }
   }
 
-  const handleCopyAnthraSpaceConfig = async (): Promise<void> => {
+  const handleCopyAnthraSpaceConfig = async (content: string, label: string): Promise<void> => {
     try {
       // Why: MCP clients need a copyable JSON snippet, and the Electron IPC
       // clipboard is reliable across renderer security contexts.
-      await window.api.ui.writeClipboardText(ANTHRASPACE_MCP_SERVER_CONFIG)
-      toast.success('AnthraSpace MCP config copied')
+      await window.api.ui.writeClipboardText(content)
+      toast.success(`${label} config copied`)
     } catch (error) {
       toast.error(extractIpcErrorMessage(error, 'Failed to copy AnthraSpace MCP config.'))
     }
@@ -323,23 +324,58 @@ export function McpConfigSection({ repo }: McpConfigSectionProps): React.JSX.Ele
           <div className="space-y-1">
             <h4 className="text-xs font-semibold">AnthraSpace MCP server</h4>
             <p className="text-xs text-muted-foreground">
-              Copy this read-only server snippet into an MCP client config to expose workspace,
-              terminal-read, and browser-snapshot tools.
+              Copy the snippet for your MCP client. AnthraCode and OpenCode use top-level{' '}
+              <code className="font-mono">mcp</code>; Claude and Cursor use{' '}
+              <code className="font-mono">mcpServers</code>.
             </p>
           </div>
-          <Button
-            variant="outline"
-            size="xs"
-            className="shrink-0 gap-1.5"
-            onClick={() => void handleCopyAnthraSpaceConfig()}
-          >
-            <Copy className="size-3.5" />
-            Copy
-          </Button>
         </div>
-        <pre className="mt-2 max-h-40 overflow-auto rounded-md border border-border/50 bg-background/60 p-2 font-mono text-[11px] text-muted-foreground">
-          {ANTHRASPACE_MCP_SERVER_CONFIG.trim()}
-        </pre>
+        <div className="mt-3 grid gap-3 lg:grid-cols-2">
+          <div>
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <p className="text-[11px] font-medium text-muted-foreground">AnthraCode / OpenCode</p>
+              <Button
+                variant="outline"
+                size="xs"
+                className="shrink-0 gap-1.5"
+                onClick={() =>
+                  void handleCopyAnthraSpaceConfig(
+                    ANTHRASPACE_ANTHRACODE_MCP_SERVER_CONFIG,
+                    'AnthraCode/OpenCode MCP'
+                  )
+                }
+              >
+                <Copy className="size-3.5" />
+                Copy
+              </Button>
+            </div>
+            <pre className="max-h-48 overflow-auto rounded-md border border-border/50 bg-background/60 p-2 font-mono text-[11px] text-muted-foreground">
+              {ANTHRASPACE_ANTHRACODE_MCP_SERVER_CONFIG.trim()}
+            </pre>
+          </div>
+          <div>
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <p className="text-[11px] font-medium text-muted-foreground">Claude / Cursor</p>
+              <Button
+                variant="outline"
+                size="xs"
+                className="shrink-0 gap-1.5"
+                onClick={() =>
+                  void handleCopyAnthraSpaceConfig(
+                    ANTHRASPACE_MCP_SERVERS_CONFIG,
+                    'Claude/Cursor MCP'
+                  )
+                }
+              >
+                <Copy className="size-3.5" />
+                Copy
+              </Button>
+            </div>
+            <pre className="max-h-48 overflow-auto rounded-md border border-border/50 bg-background/60 p-2 font-mono text-[11px] text-muted-foreground">
+              {ANTHRASPACE_MCP_SERVERS_CONFIG.trim()}
+            </pre>
+          </div>
+        </div>
       </div>
 
       <div className="rounded-md border border-border/50 bg-muted/20">

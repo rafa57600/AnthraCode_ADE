@@ -22,7 +22,7 @@
 import { rebuild } from '@electron/rebuild'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
-import { existsSync, globSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, globSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { platform as osPlatform } from 'node:os'
 import { resolve } from 'node:path'
 
@@ -136,51 +136,108 @@ function ensureElectronPackageInstalled() {
     }
   }
 
-  // Why: CI has observed Electron's postinstall exiting cleanly without
-  // writing path.txt; native rebuild and tests both need the binary path.
-  console.log('[rebuild] Electron package binary is missing; rerunning Electron install.')
-  try {
-    execFileSync(process.execPath, [require.resolve('electron/install.js')], {
-      cwd: projectDir,
-      env: {
-        ...process.env,
-        ELECTRON_SKIP_BINARY_DOWNLOAD: '',
-        force_no_cache: 'true'
-      },
-      stdio: 'inherit'
-    })
-  } catch (/** @type {any} */ err) {
-    console.error('[rebuild] Electron install retry failed:', err?.message ?? err)
-    logElectronInstallDiagnostics()
-    if (continuePostinstallWithoutElectron()) {
-      process.exit(0)
-    }
-    process.exit(1)
-  }
+  const electronPackageDir = resolve(projectDir, 'node_modules/electron')
 
-  try {
-    require('electron')
-  } catch (/** @type {any} */ err) {
-    if (!repairElectronPathFile()) {
-      logElectronInstallDiagnostics()
-      if (continuePostinstallWithoutElectron()) {
-        process.exit(0)
-      }
-      console.error(
-        '[rebuild] Electron package is still unavailable after retry:',
-        err?.message ?? err
-      )
-      process.exit(1)
+  // Why: CI has observed Electron's postinstall exiting cleanly with only
+  // locales/ extracted but no electron.exe (path.txt missing). If the dist/
+  // directory already exists with partial content, electron/install.js may
+  // consider the download complete and skip re-extraction. Remove it so
+  // the install script always starts from a clean slate.
+  removePartialElectronDist(electronPackageDir)
+
+  // Why: Electron binary download from GitHub release assets occasionally
+  // fails transiently on CI runners (504s, partial extraction). Retry
+  // internally with a delay so we don't rely solely on the outer
+  // nick-fields/retry wrapper (which wraps both this script and
+  // electron-builder, wasting time on retries that can't make progress).
+  const MAX_INSTALL_ATTEMPTS = 3
+  const RETRY_DELAY_MS = 10_000
+  let lastInstallErr
+
+  for (let attempt = 1; attempt <= MAX_INSTALL_ATTEMPTS; attempt++) {
+    if (attempt > 1) {
+      // Clean any partial leftovers from the prior failed attempt.
+      removePartialElectronDist(electronPackageDir)
+      console.log(`[rebuild] Electron install attempt ${attempt} of ${MAX_INSTALL_ATTEMPTS} (waiting ${RETRY_DELAY_MS}ms)...`)
+      sleepSync(RETRY_DELAY_MS)
+    } else {
+      console.log('[rebuild] Electron package binary is missing; rerunning Electron install.')
     }
+
+    try {
+      execFileSync(process.execPath, [require.resolve('electron/install.js')], {
+        cwd: projectDir,
+        env: {
+          ...process.env,
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '',
+          force_no_cache: 'true'
+        },
+        stdio: 'inherit'
+      })
+    } catch (/** @type {any} */ err) {
+      lastInstallErr = err
+      console.warn(`[rebuild] Electron install attempt ${attempt} failed: ${err?.message ?? err}`)
+      logElectronInstallDiagnostics()
+      continue
+    }
+
+    // Check if the install actually succeeded.
     try {
       require('electron')
-    } catch (/** @type {any} */ retryErr) {
-      console.error(
-        '[rebuild] Electron package is still unavailable after repairing path.txt:',
-        retryErr?.message ?? retryErr
-      )
-      process.exit(1)
+      console.log('[rebuild] Electron install succeeded.')
+      return // success
+    } catch (/** @type {any} */ checkErr) {
+      lastInstallErr = checkErr
+      console.warn(`[rebuild] Electron install attempt ${attempt} ran but binary is still missing.`)
+      logElectronInstallDiagnostics()
+      // Try repairing path.txt in case the binary exists but path.txt is missing.
+      if (repairElectronPathFile()) {
+        try {
+          require('electron')
+          console.log('[rebuild] Electron binary found after repairing path.txt.')
+          return // success after repair
+        } catch (/** @type {any} */ repairCheckErr) {
+          lastInstallErr = repairCheckErr
+        }
+      }
+      continue
     }
+  }
+
+  // All attempts exhausted.
+  console.error(
+    '[rebuild] Electron package is still unavailable after',
+    MAX_INSTALL_ATTEMPTS,
+    'install attempts:',
+    lastInstallErr?.message ?? lastInstallErr
+  )
+  logElectronInstallDiagnostics()
+  if (continuePostinstallWithoutElectron()) {
+    process.exit(0)
+  }
+  process.exit(1)
+}
+
+function removePartialElectronDist(electronPackageDir) {
+  const distDir = resolve(electronPackageDir, 'dist')
+  try {
+    if (existsSync(distDir)) {
+      // Why: fs.rmSync with recursive handles both files and directories.
+      rmSync(distDir, { recursive: true, force: true })
+      console.log('[rebuild] Removed partial electron dist directory for clean retry.')
+    }
+  } catch (/** @type {any} */ err) {
+    console.warn('[rebuild] Could not remove partial electron dist:', err?.message ?? err)
+  }
+}
+
+function sleepSync(ms) {
+  // Why: keep it synchronous so the retry loop doesn't need async/await.
+  // Electron install is I/O-bound, not CPU-bound, so a busy-wait is fine
+  // for a build-time retry delay.
+  const start = Date.now()
+  while (Date.now() - start < ms) {
+    // busy-wait
   }
 }
 

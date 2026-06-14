@@ -2,6 +2,23 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-14 — CI Electron binary download resilience
+
+### Production change
+
+- **`rebuild-native-deps.mjs`**: Before retrying Electron install, delete partial `dist/` directory that contains only `locales/` but no `electron.exe` — this has been observed on the Windows CI runner where `electron/install.js` exits cleanly but leaves the binary undownloaded. A stale partial `dist/` was causing retries to also fail because the install script considered extraction complete.
+- Added internal retry loop (3 attempts, 10s delay) inside `ensureElectronPackageInstalled()` so retries don't depend solely on the outer `nick-fields/retry@v3` wrapper (which covers both this script and `electron-builder` — wasting 30+ minutes on failed retries that couldn't make progress without the dist cleanup).
+- Added `rmSync` import and `removePartialElectronDist()` / `sleepSync()` helpers to support the retry loop.
+
+### Verification
+
+- `node config/scripts/rebuild-native-deps.mjs` parses and runs without syntax errors (dry execution confirmed locally).
+- Changes are scoped to the Electron install retry path only — no effect on successful installs or native module rebuilding.
+
+### Production impact
+
+- Restores the Windows release pipeline's ability to recover from transient Electron binary download failures on GitHub Actions, which has been blocking v1.0.0 production deployment for 24+ hours across 6+ retry attempts.
+
 ## 2026-06-14 — Windows release Electron install allowlist
 
 ### Production change

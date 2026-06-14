@@ -22,7 +22,7 @@
 import { rebuild } from '@electron/rebuild'
 import { execFileSync, spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
-import { existsSync, globSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, globSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { platform as osPlatform } from 'node:os'
 import { resolve } from 'node:path'
 
@@ -164,12 +164,25 @@ function ensureElectronPackageInstalled() {
       console.log('[rebuild] Electron package binary is missing; rerunning Electron install.')
     }
 
+    // Why: @electron/get caches downloaded ZIPs in the directory
+    // specified by `electron_config_cache` env var (lowercase; used by
+    // electron/install.js line 46). The actions/cache@v4 step restores
+    // C:\Users\runneradmin\AppData\Local\electron\Cache between runs,
+    // which may contain a corrupted/partial ZIP from a prior failed
+    // download. Even when we clean node_modules/electron/dist/,
+    // install.js re-extracts the cached partial ZIP and gets only
+    // locales/. Using a fresh temp dir per attempt and setting
+    // force_no_cache=true bypasses all stale caches.
+    const freshCacheDir = mkdtempSync(
+      resolve(require('node:os').tmpdir(), 'electron-cache-retry-')
+    )
     try {
       execFileSync(process.execPath, [require.resolve('electron/install.js')], {
         cwd: projectDir,
         env: {
           ...process.env,
           ELECTRON_SKIP_BINARY_DOWNLOAD: '',
+          electron_config_cache: freshCacheDir,
           force_no_cache: 'true'
         },
         stdio: 'inherit'

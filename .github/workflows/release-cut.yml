@@ -446,7 +446,8 @@ jobs:
           gh release create "$TAG" \
             --draft \
             --generate-notes \
-            --prerelease="$is_rc"
+            --prerelease="$is_rc" \
+            --repo "${{ env.RELEASE_REPO }}"
 
   build:
     needs:

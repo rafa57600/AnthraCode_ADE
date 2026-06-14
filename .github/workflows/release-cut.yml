@@ -227,6 +227,21 @@ jobs:
           latest_stable="${latest_stable#v}"
           echo "Latest stable: ${latest_stable:-<none>}"
 
+          # Why: the source repo carries upstream OpenCode sync tags
+          # (v1.0.1..v1.4.30+) that are higher than the AnthraSpace release
+          # series. Using AnthraSpace alone as baseline would bump into these
+          # tags, hit the orphan collision check, and build against old
+          # upstream code. Clamp baseline to the highest local tag when it
+          # exceeds AnthraSpace's latest_stable.
+          highest_local_tag="$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' | grep -v '\-rc\.' | sort -V | tail -1)"
+          if [[ -n "$highest_local_tag" ]]; then
+            highest_local="${highest_local_tag#v}"
+            if semver_gt "$highest_local" "$latest_stable"; then
+              echo "Local baseline override: v$highest_local (AnthraSpace latest_stable=v$latest_stable)"
+              latest_stable="$highest_local"
+            fi
+          fi
+
           # Strip any prerelease suffix before numeric math. Without this,
           # `Number("1-rc")` returns NaN and `(NaN||0)+1` silently collapses
           # to 1 — exactly the path that produced v1.3.1-rc.4 on 2026-04-27
@@ -486,6 +501,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
+          version: 10
           run_install: false
 
       - name: Setup Node.js

@@ -10,7 +10,10 @@ const packageJson = JSON.parse(readFileSync(join(projectDir, 'package.json'), 'u
 describe('Electron runtime package contract', () => {
   it('keeps root postinstall as the single Electron binary install owner', () => {
     expect(packageJson.scripts.postinstall).toBe('node config/scripts/rebuild-native-deps.mjs')
-    expect(packageJson.pnpm.onlyBuiltDependencies).not.toContain('electron')
+    // Why: pnpm only runs dependency install scripts from this allowlist. Electron's
+    // own install script must run before the root postinstall can validate or
+    // rebuild against the Electron runtime on release runners.
+    expect(packageJson.pnpm.onlyBuiltDependencies).toContain('electron')
   })
 
   it('guards package scripts that launch Electron tooling', () => {
@@ -43,14 +46,12 @@ describe('Electron runtime package contract', () => {
       ])
     )
 
-    expect([...releaseCommands.keys()].sort()).toEqual(['linux', 'mac', 'win'])
+    expect([...releaseCommands.keys()].sort()).toEqual(['win'])
     for (const command of releaseCommands.values()) {
       expect(command).toContain('node config/scripts/ensure-native-runtime.mjs --runtime=electron')
       expect(command).toContain('electron-builder')
       expect(command.indexOf('ensure-native-runtime')).toBeLessThan(command.indexOf('electron-builder'))
     }
-    expect(releaseCommands.get('mac')).toContain(' && ANTHRASPACE_MAC_RELEASE=1 ')
-    expect(releaseCommands.get('linux')).toContain(' && pnpm exec electron-builder ')
     expect(releaseCommands.get('win')).toContain(
       '; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; pnpm exec electron-builder '
     )

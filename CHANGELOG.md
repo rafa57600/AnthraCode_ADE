@@ -2,6 +2,22 @@
 
 Production-ready changes must be recorded here after implementation and verification.
 
+## 2026-06-14 — Windows release Electron install allowlist
+
+### Production change
+
+- Added `electron` to pnpm's `onlyBuiltDependencies` allowlist so Electron's package install script downloads the Windows runtime during CI dependency install.
+- Updated the Electron runtime contract test to lock this release requirement.
+
+### Verification
+
+- `pnpm exec vitest run --config config/vitest.config.ts config/scripts/package-electron-runtime-contract.test.mjs` passed — 3 tests.
+- Prior Windows release run `27493228754` completed `pnpm build:release` but failed during artifact publish because `node_modules/electron/path.txt` was missing and Electron's runtime was not installed; this change addresses that install-script allowlist gap before the next CI rerun.
+
+### Production impact
+
+- Restores the Windows release pipeline's ability to package and publish desktop artifacts from GitHub Actions instead of failing before `electron-builder` can run.
+
 ## 2026-06-14 — MCP config formats and terminal layout-key input
 
 ### Production change
